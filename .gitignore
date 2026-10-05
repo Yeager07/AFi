@@ -1,0 +1,126 @@
+# ===================== .NET / MAUI =====================
+
+# Сборка
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Пользовательские настройки IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+!packages/repositories.config
+
+# Результаты тестов
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+
+# Файлы MSBuild / publish
+*.publishproj
+*.publishsettings
+publish/
+PublishScripts/
+*.binlog
+
+# ===================== .NET MAUI платформы =====================
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+obj/
+.gradle/
+captures/
+*.keystore
+!debug.keystore
+
+# iOS / Mac Catalyst
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.mobileprovision
+*.xcuserstate
+*.moved-aside
+DerivedData/
+*.hmap
+*.xccheckout
+*.xcuserdata/
+*.xccheckout
+*.xcworkspacedata
+
+# Windows (если будете собирать десктопную версию)
+*.appx
+*.appxbundle
+*.appxupload
+AppPackages/
+BundleArtifacts/
+
+# ===================== Локальные данные приложения =====================
+
+# База данных SQLite — не в репозиторий!
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Логи приложения
+*.log
+*.txt
+!requirements.txt
+!LICENSE.txt
+
+# ===================== OS-мусор =====================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS (если кто-то будет работать на Mac)
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ===================== Редакторы =====================
+
+# Visual Studio Code
+*.code-workspace
+
+# JetBrains Rider
+*.sln.iml
+.idea/
+
+# ===================== Секреты =====================
+# (на будущее — если будем хранить токены API в конфигах)
+
+appsettings.Development.json
+appsettings.Local.json
+*.secrets.json
+secrets.json
+.env
+.env.local
