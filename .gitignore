@@ -124,3 +124,37 @@ appsettings.Local.json
 secrets.json
 .env
 .env.local
+
+
+# ===================== MAUI / Android специфика =====================
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+.gradle/
+captures/
+*.keystore
+!debug.keystore
+
+# iOS / Mac
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.mobileprovision
+
+# Локальные данные приложения
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Редакторы
+*.code-workspace
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
