@@ -126,7 +126,7 @@
 
 | Компонент | Технология | Почему |
 |---|---|---|
-| Платформа | .NET MAUI (.NET 8) | Один язык (C#) со всеми прошлыми проектами, кроссплатформенность |
+| Платформа | .NET MAUI (.NET 10) | Актуальный LTS (до 2028), один язык (C#), кроссплатформенность |
 | Локальная БД | `sqlite-net-pcl` | Лёгкая ORM над SQLite, не требует настройки |
 | MVVM | `CommunityToolkit.Mvvm` | Source generators, минимум boilerplate |
 | Графики | `Microcharts.Maui` | Простая, красивая, работает из коробки |
@@ -199,7 +199,24 @@ AFi/
 
 ## Как запустить
 
-_Инструкция будет дополнена после настройки окружения._
+### Требования
+
+- **.NET 10 SDK** — https://dotnet.microsoft.com/download/dotnet/10.0
+- **MAUI workload** — устанавливается командой `dotnet workload install maui`
+- **Android SDK** или физическое устройство с включённой USB-отладкой
+
+### Сборка и запуск
+
+```bash
+# Клонировать репозиторий
+git clone <url>
+cd CoffeeFinance
+
+# Собрать для Android
+dotnet build -f net10.0-android
+
+# Запустить на подключённом устройстве
+dotnet build -t:Run -f net10.0-android
 
 ## Ограничения (не входит в MVP)
 
