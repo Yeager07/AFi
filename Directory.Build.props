@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Путь к Android SDK. Избавляет от необходимости писать -p:AndroidSdkDirectory=... -->
+    <AndroidSdkDirectory>$(LocalAppData)\Android\Sdk</AndroidSdkDirectory>
+  </PropertyGroup>
+</Project>
