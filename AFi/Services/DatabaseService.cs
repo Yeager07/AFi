@@ -219,6 +219,15 @@ public class DatabaseService
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Добавляет новую категорию. Возвращает количество вставленных строк.
+    /// </summary>
+    public async Task<int> AddCategoryAsync(Category category)
+    {
+        var db = await GetConnectionAsync();
+        return await db.InsertAsync(category);
+    }
+
     // ==================== Засев категорий ====================
 
     /// <summary>

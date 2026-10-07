@@ -73,16 +73,68 @@ public partial class CategoriesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Заглушка для команды добавления — наполним логикой на шаге 2.5.3.
+    /// Добавляет новую категорию через prompt-диалог.
+    /// Проверяет пустоту и дубликаты по имени внутри текущего типа.
     /// </summary>
     [RelayCommand]
     private async Task AddCategoryAsync()
     {
-        await _dialogs.ConfirmAsync(
-            "В разработке",
-            "Добавление категорий появится в следующем шаге.",
-            "OK",
-            "OK");
+        if (IsBusy) return;
+
+        var typeRu = CurrentType == TransactionType.Income ? "доходов" : "расходов";
+
+        var rawName = await _dialogs.PromptAsync(
+            title: "Новая категория",
+            message: $"Введите название для раздела «{typeRu}»",
+            placeholder: "Например, Хозтовары",
+            maxLength: 50);
+
+        if (rawName is null) return; // пользователь отменил
+
+        var name = rawName.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            StatusMessage = "Название не может быть пустым";
+            return;
+        }
+
+        if (name.Length < 2)
+        {
+            StatusMessage = "Название должно содержать минимум 2 символа";
+            return;
+        }
+
+        // Проверка на дубликат среди категорий того же типа
+        if (Categories.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = $"Категория «{name}» уже есть в этом разделе";
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var category = new Category
+            {
+                Name = name,
+                Type = CurrentType,
+                IsDefault = false,
+            };
+
+            await _db.AddCategoryAsync(category);
+            await LoadCategoriesCoreAsync();   // ← обход проверки IsBusy
+
+            StatusMessage = $"Категория «{name}» добавлена — всего {Categories.Count}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка добавления: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     /// <summary>
@@ -119,6 +171,10 @@ public partial class CategoriesViewModel : ObservableObject
     }
     // ==================== Вспомогательные ====================
 
+    /// <summary>
+    /// Публичная перезагрузка списка. Защищена от параллельных вызовов
+    /// через флаг IsBusy. Используется в хуках и в LoadAsync.
+    /// </summary>
     private async Task ReloadAsync()
     {
         if (IsBusy) return;
@@ -126,15 +182,7 @@ public partial class CategoriesViewModel : ObservableObject
 
         try
         {
-            await _db.InitializeAsync();
-
-            var list = await _db.GetCategoriesAsync(CurrentType);
-
-            Categories.Clear();
-            foreach (var c in list)
-                Categories.Add(c);
-
-            StatusMessage = $"Категорий: {Categories.Count}";
+            await LoadCategoriesCoreAsync();
         }
         catch (Exception ex)
         {
@@ -144,5 +192,21 @@ public partial class CategoriesViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Реальная загрузка категорий — без проверки IsBusy.
+    /// Вызывается из методов, которые уже держат IsBusy=true
+    /// (например, AddCategoryAsync), чтобы избежать ложной блокировки.
+    /// </summary>
+    private async Task LoadCategoriesCoreAsync()
+    {
+        await _db.InitializeAsync();
+
+        var list = await _db.GetCategoriesAsync(CurrentType);
+
+        Categories.Clear();
+        foreach (var c in list)
+            Categories.Add(c);
     }
 }

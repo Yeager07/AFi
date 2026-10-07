@@ -11,4 +11,15 @@ public interface IDialogService
     /// нажал «подтвердить».
     /// </summary>
     Task<bool> ConfirmAsync(string title, string message, string accept, string cancel);
+
+    /// <summary>
+    /// Показать диалог ввода строки. Возвращает введённый текст
+    /// или null, если пользователь нажал «Отмена» / закрыл диалог.
+    /// </summary>
+    Task<string?> PromptAsync(
+        string title,
+        string message,
+        string placeholder = "",
+        int maxLength = -1,
+        string initialValue = "");
 }
