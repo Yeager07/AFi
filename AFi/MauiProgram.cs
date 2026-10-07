@@ -33,6 +33,7 @@ public static class MauiProgram
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
+        builder.Services.AddTransient<CategoriesPage>();
 
         return builder.Build();
     }

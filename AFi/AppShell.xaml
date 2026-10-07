@@ -4,12 +4,30 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:AFi.Views"
-    Shell.FlyoutBehavior="Disabled"
+    Shell.FlyoutBehavior="Flyout"
     Title="AFi">
 
-    <ShellContent
-        Title="Главная"
-        ContentTemplate="{DataTemplate views:MainPage}"
-        Route="MainPage" />
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="#512BD4" HeightRequest="120">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 Padding="20,0">
+                <Label Text="AFi"
+                       TextColor="White"
+                       FontSize="32"
+                       FontAttributes="Bold" />
+                <Label Text="Accounting of Finances"
+                       TextColor="#E0D5FF"
+                       FontSize="12" />
+            </VerticalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="Главная" Route="MainPage">
+        <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Категории" Route="CategoriesPage">
+        <ShellContent ContentTemplate="{DataTemplate views:CategoriesPage}" />
+    </FlyoutItem>
 
 </Shell>
