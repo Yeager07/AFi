@@ -63,6 +63,13 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    /// <summary>
+    /// Текущий баланс: сумма доходов минус сумма расходов.
+    /// Обновляется после каждой операции и при загрузке экрана.
+    /// </summary>
+    [ObservableProperty]
+    private decimal _currentBalance;
+
     // ==================== Списки ====================
 
     /// <summary>
@@ -92,6 +99,11 @@ public partial class MainViewModel : ObservableObject
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
+    /// <summary>
+    /// Отрицательный ли баланс. Используется в XAML для выбора цвета текста.
+    /// </summary>
+    public bool IsBalanceNegative => CurrentBalance < 0;
+
     public MainViewModel(DatabaseService db)
     {
         _db = db;
@@ -110,6 +122,15 @@ public partial class MainViewModel : ObservableObject
         _ = ReloadCategoriesAsync();
     }
 
+    /// <summary>
+    /// Генерируется CommunityToolkit при изменении CurrentBalance.
+    /// Уведомляем UI, что IsBalanceNegative тоже мог измениться.
+    /// </summary>
+    partial void OnCurrentBalanceChanged(decimal value)
+    {
+        OnPropertyChanged(nameof(IsBalanceNegative));
+    }
+
     // ==================== Команды ====================
 
     /// <summary>
@@ -126,6 +147,7 @@ public partial class MainViewModel : ObservableObject
             await _db.InitializeAsync();
             await ReloadCategoriesAsync();
             await ReloadTransactionsAsync();
+            await ReloadBalanceAsync();
         }
         catch (Exception ex)
         {
@@ -193,6 +215,7 @@ public partial class MainViewModel : ObservableObject
 
             ResetForm();
             await ReloadTransactionsAsync();
+            await ReloadBalanceAsync();
 
             StatusMessage = "Операция сохранена";
         }
@@ -266,5 +289,20 @@ public partial class MainViewModel : ObservableObject
         Note = string.Empty;
         // Date и SelectedTypeIndex оставляем как есть.
         // SelectedCategory тоже оставляем — если вводится много трат одной категории.
+    }
+
+    /// <summary>
+    /// Пересчитывает и обновляет текущий баланс.
+    /// </summary>
+    private async Task ReloadBalanceAsync()
+    {
+        try
+        {
+            CurrentBalance = await _db.GetCurrentBalanceAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки баланса: {ex.Message}";
+        }
     }
 }

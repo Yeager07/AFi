@@ -101,6 +101,37 @@ public class DatabaseService
         return await db.Table<Transaction>().CountAsync();
     }
 
+    // ==================== Баланс ====================
+
+    /// <summary>
+    /// Возвращает текущий баланс: сумма доходов минус сумма расходов.
+    /// Начальный баланс пока считается нулевым — редактирование добавим позже.
+    /// </summary>
+    /// <remarks>
+    /// Считаем в C#, а не SQL-запросом с SUM, чтобы избежать потери точности:
+    /// sqlite-net сохраняет decimal как REAL (double), и суммирование в SQL
+    /// может дать погрешность на копейки. Для финансов это недопустимо.
+    /// </remarks>
+    public async Task<decimal> GetCurrentBalanceAsync()
+    {
+        var db = await GetConnectionAsync();
+
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        decimal income = 0;
+        decimal expense = 0;
+
+        foreach (var t in all)
+        {
+            if (t.Type == TransactionType.Income)
+                income += t.Amount;
+            else
+                expense += t.Amount;
+        }
+
+        return income - expense;
+    }
+
     // ==================== Категории ====================
 
     /// <summary>

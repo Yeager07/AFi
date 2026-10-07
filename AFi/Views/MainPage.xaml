@@ -10,6 +10,34 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="15">
 
+            <!-- ==================== Карточка баланса ==================== -->
+            <Border Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="20">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Текущий баланс"
+                        FontSize="14"
+                        TextColor="Gray" />
+                    <Label Text="{Binding CurrentBalance, StringFormat='{0:N0} ₽'}"
+                        FontSize="30"
+                        FontAttributes="Bold">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                        Binding="{Binding IsBalanceNegative}"
+                                        Value="True">
+                                <Setter Property="TextColor" Value="#D32F2F" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label"
+                                        Binding="{Binding IsBalanceNegative}"
+                                        Value="False">
+                                <Setter Property="TextColor" Value="#2E7D32" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+            
             <!-- ==================== Форма добавления ==================== -->
             <Border Stroke="LightGray"
             StrokeThickness="1"
