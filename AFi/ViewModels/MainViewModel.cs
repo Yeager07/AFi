@@ -73,6 +73,25 @@ public partial class MainViewModel : ObservableObject
     private DateTime _maxDate = DateTime.Today;
 
     /// <summary>
+    /// Начало кастомного периода. Используется только при выборе «Свой период».
+    /// По умолчанию — первое число текущего месяца.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime _customFromDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    /// <summary>
+    /// Конец кастомного периода. По умолчанию — сегодня.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime _customToDate = DateTime.Today;
+
+    /// <summary>
+    /// true, если выбран фильтр «Свой период» — по этому флагу
+    /// показывается блок с двумя DatePicker и кнопкой «Применить».
+    /// </summary>
+    public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
+
+    /// <summary>
     /// Комментарий. Пустая строка в форме — сохраняем как null.
     /// </summary>
     [ObservableProperty]
@@ -141,6 +160,7 @@ public partial class MainViewModel : ObservableObject
         "Последние 3 месяца",
         "Последние 12 месяцев",
         "Все время",
+        "Свой период",
     };
 
     /// <summary>
@@ -175,6 +195,12 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedFilterIndexChanged(int value)
     {
+        OnPropertyChanged(nameof(IsCustomRangeSelected));
+
+        // Для кастомного периода не перезагружаем сразу — пользователь
+        // сначала выставит обе даты и нажмёт «Применить».
+        if (value == 9) return;
+
         _ = ReloadTransactionsAsync();
     }
 
@@ -378,6 +404,23 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Применяет кастомный период: свапает границы, если они перепутаны,
+    /// и перезагружает список.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplyCustomRangeAsync()
+    {
+        // Если «от» позже «до» — меняем местами. Пользователь мог просто
+        // перепутать поля, ошибка не критичная, не блокируем его диалогом.
+        if (CustomFromDate > CustomToDate)
+        {
+            (CustomFromDate, CustomToDate) = (CustomToDate, CustomFromDate);
+        }
+
+        await ReloadTransactionsAsync();
+    }
+
+    /// <summary>
     /// Удаляет операцию после подтверждения. Вызывается из свайпа по карточке.
     /// </summary>
     [RelayCommand]
@@ -512,20 +555,18 @@ public partial class MainViewModel : ObservableObject
 
         return SelectedFilterIndex switch
         {
-            0 => (today, today),                                        // Сегодня
-            1 => (today.AddDays(-1), today.AddDays(-1)),                // Вчера
-            2 => (StartOfWeek(today), today),                           // Эта неделя
-            3 => (StartOfWeek(today).AddDays(-7),
-                StartOfWeek(today).AddDays(-1)),                      // Прошлая неделя
-            4 => (new DateTime(today.Year, today.Month, 1), today),     // Текущий месяц
+            0 => (today, today),
+            1 => (today.AddDays(-1), today.AddDays(-1)),
+            2 => (StartOfWeek(today), today),
+            3 => (StartOfWeek(today).AddDays(-7), StartOfWeek(today).AddDays(-1)),
+            4 => (new DateTime(today.Year, today.Month, 1), today),
             5 => (new DateTime(today.Year, today.Month, 1).AddMonths(-1),
-                new DateTime(today.Year, today.Month, 1).AddDays(-1)),// Прошлый месяц
-            6 => (new DateTime(today.Year, today.Month, 1).AddMonths(-2),
-                today),                                               // Последние 3 месяца
-            7 => (new DateTime(today.Year, today.Month, 1).AddMonths(-11),
-                today),                                               // Последние 12 месяцев
-            8 => (null, null),                                          // Все время
-            _ => (new DateTime(today.Year, today.Month, 1), today),     // fallback
+                new DateTime(today.Year, today.Month, 1).AddDays(-1)),
+            6 => (new DateTime(today.Year, today.Month, 1).AddMonths(-2), today),
+            7 => (new DateTime(today.Year, today.Month, 1).AddMonths(-11), today),
+            8 => (null, null),
+            9 => (CustomFromDate, CustomToDate),                         // ← новое
+            _ => (new DateTime(today.Year, today.Month, 1), today),
         };
     }
 

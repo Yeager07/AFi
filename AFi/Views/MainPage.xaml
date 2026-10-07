@@ -135,6 +135,51 @@
                 </Grid>
             </Border>
 
+            <!-- Блок кастомного диапазона — виден только при выборе «Свой период» -->
+            <Border Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="12"
+                    Margin="0,-8,0,0"
+                    IsVisible="{Binding IsCustomRangeSelected}">
+                <VerticalStackLayout Spacing="10">
+
+                    <Grid ColumnDefinitions="Auto,*,Auto,*"
+                        ColumnSpacing="8"
+                        RowDefinitions="Auto">
+
+                        <Label Grid.Column="0"
+                            Text="С:"
+                            VerticalOptions="Center"
+                            FontSize="14" />
+                        <DatePicker Grid.Column="1"
+                                    Date="{Binding CustomFromDate}"
+                                    MaximumDate="{Binding MaxDate}"
+                                    Format="dd.MM.yyyy"
+                                    FontSize="14" />
+
+                        <Label Grid.Column="2"
+                            Text="По:"
+                            VerticalOptions="Center"
+                            FontSize="14" />
+                        <DatePicker Grid.Column="3"
+                                    Date="{Binding CustomToDate}"
+                                    MaximumDate="{Binding MaxDate}"
+                                    Format="dd.MM.yyyy"
+                                    FontSize="14" />
+                    </Grid>
+
+                    <Button Text="Применить"
+                            Command="{Binding ApplyCustomRangeCommand}"
+                            BackgroundColor="#512BD4"
+                            TextColor="White"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            FontSize="14" />
+
+                </VerticalStackLayout>
+            </Border>
+
             <CollectionView ItemsSource="{Binding RecentTransactions}"
                             SelectionMode="None">
                 <CollectionView.EmptyView>
