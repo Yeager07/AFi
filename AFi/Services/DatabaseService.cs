@@ -88,6 +88,15 @@ public class DatabaseService
     }
 
     /// <summary>
+    /// Удаляет операцию по Id. Возвращает количество удалённых строк.
+    /// </summary>
+    public async Task<int> DeleteTransactionAsync(int id)
+    {
+        var db = await GetConnectionAsync();
+        return await db.DeleteAsync<Transaction>(id);
+    }
+
+    /// <summary>
     /// Возвращает последние N операций, отсортированных по дате операции,
     /// затем по дате создания (для одинаковых дат).
     /// </summary>

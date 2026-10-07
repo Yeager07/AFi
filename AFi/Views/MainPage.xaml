@@ -128,62 +128,73 @@
 
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:Transaction">
-                        <Border Stroke="LightGray"
-                        StrokeThickness="1"
-                        StrokeShape="RoundRectangle 8"
-                        Padding="12"
-                        Margin="0,4">
+                        <SwipeView>
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+                                <SwipeItem Text="Удалить"
+                                        BackgroundColor="#D32F2F"
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+                        
+                            <Border Stroke="LightGray"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12"
+                            Margin="0,4">
 
-                            <Border.GestureRecognizers>
-                            <TapGestureRecognizer
-                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.StartEditCommand}"
-                                CommandParameter="{Binding .}" />
-                            </Border.GestureRecognizers>
+                                <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.StartEditCommand}"
+                                    CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
 
-                            <Grid ColumnDefinitions="*,Auto"
-                                  RowDefinitions="Auto,Auto">
+                                <Grid ColumnDefinitions="*,Auto"
+                                    RowDefinitions="Auto,Auto">
 
-                                <!-- Категория и заметка -->
-                                <Label Grid.Row="0" Grid.Column="0"
-                                       Text="{Binding CategoryName}"
-                                       FontSize="15"
-                                       FontAttributes="Bold" />
+                                    <!-- Категория и заметка -->
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                        Text="{Binding CategoryName}"
+                                        FontSize="15"
+                                        FontAttributes="Bold" />
 
-                                <!-- Сумма -->
-                                <Label Grid.Row="0" Grid.Column="1"
-                                       Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                       FontSize="16"
-                                       FontAttributes="Bold"
-                                       HorizontalOptions="End">
-                                    <Label.Triggers>
-                                        <DataTrigger TargetType="Label"
-                                                     Binding="{Binding Type}"
-                                                     Value="1">
-                                            <Setter Property="TextColor" Value="#D32F2F" />
-                                        </DataTrigger>
-                                        <DataTrigger TargetType="Label"
-                                                     Binding="{Binding Type}"
-                                                     Value="0">
-                                            <Setter Property="TextColor" Value="#2E7D32" />
-                                        </DataTrigger>
-                                    </Label.Triggers>
-                                </Label>
+                                    <!-- Сумма -->
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                        Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                        FontSize="16"
+                                        FontAttributes="Bold"
+                                        HorizontalOptions="End">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label"
+                                                        Binding="{Binding Type}"
+                                                        Value="1">
+                                                <Setter Property="TextColor" Value="#D32F2F" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Label"
+                                                        Binding="{Binding Type}"
+                                                        Value="0">
+                                                <Setter Property="TextColor" Value="#2E7D32" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
 
-                                <!-- Дата и заметка -->
-                                <Label Grid.Row="1" Grid.Column="0"
-                                       Grid.ColumnSpan="2"
-                                       FontSize="12"
-                                       TextColor="Gray">
-                                    <Label.Text>
-                                        <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                            <Binding Path="Date" />
-                                            <Binding Path="Note" />
-                                        </MultiBinding>
-                                    </Label.Text>
-                                </Label>
+                                    <!-- Дата и заметка -->
+                                    <Label Grid.Row="1" Grid.Column="0"
+                                        Grid.ColumnSpan="2"
+                                        FontSize="12"
+                                        TextColor="Gray">
+                                        <Label.Text>
+                                            <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
+                                                <Binding Path="Date" />
+                                                <Binding Path="Note" />
+                                            </MultiBinding>
+                                        </Label.Text>
+                                    </Label>
 
-                            </Grid>
-                        </Border>
+                                </Grid>
+                            </Border>
+                        </SwipeView>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>

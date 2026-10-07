@@ -15,6 +15,7 @@ namespace AFi.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
+    private readonly IDialogService _dialogs;
 
     // ==================== Состояние формы ====================
 
@@ -123,9 +124,10 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public bool IsBalanceNegative => CurrentBalance < 0;
 
-    public MainViewModel(DatabaseService db)
+    public MainViewModel(DatabaseService db, IDialogService dialogs)
     {
         _db = db;
+        _dialogs = dialogs;
     }
 
     // ==================== Реакция на смену типа ====================
@@ -330,6 +332,53 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditing));
         OnPropertyChanged(nameof(FormTitle));
         OnPropertyChanged(nameof(SubmitButtonText));
+    }
+
+    /// <summary>
+    /// Удаляет операцию после подтверждения. Вызывается из свайпа по карточке.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteTransactionAsync(Transaction? transaction)
+    {
+        if (transaction is null) return;
+        if (IsBusy) return;
+
+        // Формируем текст подтверждения с суммой и категорией
+        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+        var message = $"Удалить операцию?\n\n" +
+                    $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
+                    $"{transaction.Date:dd.MM.yyyy}";
+
+        var confirmed = await _dialogs.ConfirmAsync(
+            title: "Удаление",
+            message: message,
+            accept: "Удалить",
+            cancel: "Отмена");
+
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            await _db.DeleteTransactionAsync(transaction.Id);
+
+            // Если редактируется именно эта операция — выходим из режима редактирования
+            if (_editingTransactionId == transaction.Id)
+                CancelEdit();
+
+            await ReloadTransactionsAsync();
+            await ReloadBalanceAsync();
+
+            StatusMessage = "Операция удалена";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     // ==================== Вспомогательные методы ====================

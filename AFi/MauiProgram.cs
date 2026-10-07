@@ -26,6 +26,7 @@ public static class MauiProgram
 
         // Сервисы
         builder.Services.AddSingleton<DatabaseService>();
+        builder.Services.AddSingleton<IDialogService, DialogService>();   // ← новая строка
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
