@@ -78,6 +78,16 @@ public class DatabaseService
     }
 
     /// <summary>
+    /// Обновляет существующую операцию в БД.
+    /// Возвращает количество изменённых строк (обычно 1).
+    /// </summary>
+    public async Task<int> UpdateTransactionAsync(Transaction transaction)
+    {
+        var db = await GetConnectionAsync();
+        return await db.UpdateAsync(transaction);
+    }
+
+    /// <summary>
     /// Возвращает последние N операций, отсортированных по дате операции,
     /// затем по дате создания (для одинаковых дат).
     /// </summary>

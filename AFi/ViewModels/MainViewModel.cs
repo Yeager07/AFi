@@ -18,6 +18,25 @@ public partial class MainViewModel : ObservableObject
 
     // ==================== Состояние формы ====================
 
+    private int? _editingTransactionId;
+
+    private bool _suppressTypeChangeReload;
+
+    /// <summary>
+    /// true, если мы редактируем существующую операцию, false — добавляем новую.
+    /// </summary>
+    public bool IsEditing => _editingTransactionId.HasValue;
+
+    /// <summary>
+    /// Заголовок формы — меняется в зависимости от режима.
+    /// </summary>
+    public string FormTitle => IsEditing ? "Редактирование" : "Новая операция";
+
+    /// <summary>
+    /// Текст кнопки сохранения.
+    /// </summary>
+    public string SubmitButtonText => IsEditing ? "Обновить" : "Сохранить";
+    
     /// <summary>
     /// Сумма как строка. Entry в MAUI возвращает string,
     /// парсим в decimal уже в SaveAsync с нормальной валидацией.
@@ -118,7 +137,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     partial void OnSelectedTypeIndexChanged(int value)
     {
-        // Fire-and-forget: не блокируем UI, ошибки ловим внутри метода.
+        if (_suppressTypeChangeReload) return;
         _ = ReloadCategoriesAsync();
     }
 
@@ -200,18 +219,47 @@ public partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var transaction = new Transaction
+            if (_editingTransactionId.HasValue)
             {
-                Amount = amount,
-                Type = CurrentType,
-                CategoryId = SelectedCategory.Id,
-                CategoryName = SelectedCategory.Name,
-                Date = Date,
-                Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
-                CreatedAt = DateTime.Now
-            };
+                // Режим редактирования — обновляем существующую запись
+                var transaction = new Transaction
+                {
+                    Id = _editingTransactionId.Value,
+                    Amount = amount,
+                    Type = CurrentType,
+                    CategoryId = SelectedCategory.Id,
+                    CategoryName = SelectedCategory.Name,
+                    Date = Date,
+                    Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
+                    CreatedAt = DateTime.Now
+                };
 
-            await _db.AddTransactionAsync(transaction);
+                await _db.UpdateTransactionAsync(transaction);
+
+                _editingTransactionId = null;
+                OnPropertyChanged(nameof(IsEditing));
+                OnPropertyChanged(nameof(FormTitle));
+                OnPropertyChanged(nameof(SubmitButtonText));
+
+                StatusMessage = "Операция обновлена";
+            }
+            else
+            {
+                // Режим добавления — вставляем новую
+                var transaction = new Transaction
+                {
+                    Amount = amount,
+                    Type = CurrentType,
+                    CategoryId = SelectedCategory.Id,
+                    CategoryName = SelectedCategory.Name,
+                    Date = Date,
+                    Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
+                    CreatedAt = DateTime.Now
+                };
+
+                await _db.AddTransactionAsync(transaction);
+                StatusMessage = "Операция сохранена";
+            }
 
             ResetForm();
             await ReloadTransactionsAsync();
@@ -227,6 +275,61 @@ public partial class MainViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Входит в режим редактирования существующей операции.
+    /// Заполняет форму её данными.
+    /// </summary>
+    [RelayCommand]
+    private async Task StartEditAsync(Transaction? transaction)
+    {
+        if (transaction is null) return;
+
+        _editingTransactionId = transaction.Id;
+
+        // Меняем тип, не триггеря авто-перезагрузку категорий,
+        // чтобы самим выстроить порядок: сначала категории, потом выбор.
+        _suppressTypeChangeReload = true;
+        SelectedTypeIndex = transaction.Type == TransactionType.Income ? 1 : 0;
+        _suppressTypeChangeReload = false;
+
+        // Загружаем категории под нужный тип
+        await ReloadCategoriesAsync();
+
+        // Выбираем ту же категорию, что была в операции.
+        // Сначала по Id, если не нашли — по имени (на случай удалённой категории).
+        SelectedCategory =
+            AvailableCategories.FirstOrDefault(c => c.Id == transaction.CategoryId)
+            ?? AvailableCategories.FirstOrDefault(c => c.Name == transaction.CategoryName)
+            ?? AvailableCategories.FirstOrDefault();
+
+        AmountText = transaction.Amount.ToString("0.##", CultureInfo.InvariantCulture);
+        Date = transaction.Date;
+        Note = transaction.Note ?? string.Empty;
+
+        OnPropertyChanged(nameof(IsEditing));
+        OnPropertyChanged(nameof(FormTitle));
+        OnPropertyChanged(nameof(SubmitButtonText));
+
+        StatusMessage = $"Редактирование операции от {transaction.Date:dd.MM.yyyy}";
+    }
+
+    /// <summary>
+    /// Выходит из режима редактирования, очищает форму.
+    /// </summary>
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        _editingTransactionId = null;
+
+        AmountText = string.Empty;
+        Note = string.Empty;
+        StatusMessage = string.Empty;
+
+        OnPropertyChanged(nameof(IsEditing));
+        OnPropertyChanged(nameof(FormTitle));
+        OnPropertyChanged(nameof(SubmitButtonText));
     }
 
     // ==================== Вспомогательные методы ====================
