@@ -97,17 +97,59 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Возвращает последние N операций, отсортированных по дате операции,
-    /// затем по дате создания (для одинаковых дат).
+    /// Возвращает операции за указанный период с пагинацией.
+    /// fromInclusive / toInclusive = null означает «без ограничения с этой стороны».
+    /// Фильтрация делается в C#, потому что sqlite-net не всегда корректно
+    /// транслирует сравнения DateTime в SQL (особенно при разных DateTimeKind).
+    /// Для объёмов учебного проекта (тысячи записей) это копейки по времени.
     /// </summary>
-    public async Task<List<Transaction>> GetRecentTransactionsAsync(int count = 10)
+    public async Task<List<Transaction>> GetTransactionsAsync(
+        DateTime? fromInclusive,
+        DateTime? toInclusive,
+        int limit = 100,
+        int offset = 0)
     {
         var db = await GetConnectionAsync();
-        return await db.Table<Transaction>()
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyDateFilter(all, fromInclusive, toInclusive);
+
+        return filtered
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.CreatedAt)
-            .Take(count)
-            .ToListAsync();
+            .Skip(offset)
+            .Take(limit)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Возвращает общее число операций за период. Нужно для определения,
+    /// показывать ли кнопку «Показать ещё».
+    /// </summary>
+    public async Task<int> GetTransactionsCountAsync(
+        DateTime? fromInclusive,
+        DateTime? toInclusive)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+        return ApplyDateFilter(all, fromInclusive, toInclusive).Count();
+    }
+
+    /// <summary>
+    /// Общий метод фильтрации по датам — используется и в GetTransactionsAsync,
+    /// и в GetTransactionsCountAsync, чтобы логика была в одном месте.
+    /// </summary>
+    private static IEnumerable<Transaction> ApplyDateFilter(
+        IEnumerable<Transaction> source,
+        DateTime? fromInclusive,
+        DateTime? toInclusive)
+    {
+        var result = source;
+        if (fromInclusive.HasValue)
+            result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
+        if (toInclusive.HasValue)
+            result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
+        return result;
     }
 
     /// <summary>

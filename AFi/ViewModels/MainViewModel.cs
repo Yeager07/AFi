@@ -65,6 +65,14 @@ public partial class MainViewModel : ObservableObject
     private DateTime _date = DateTime.Today;
 
     /// <summary>
+    /// Верхняя граница для DatePicker — сегодня. Запрещает ввод
+    /// будущих операций. Обновляется при загрузке экрана на случай,
+    /// если приложение работает через полночь.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime _maxDate = DateTime.Today;
+
+    /// <summary>
     /// Комментарий. Пустая строка в форме — сохраняем как null.
     /// </summary>
     [ObservableProperty]
@@ -82,6 +90,12 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isBusy;
+
+    /// <summary>
+    /// Выбранный фильтр периода. По умолчанию — «Текущий месяц» (индекс 4).
+    /// </summary>
+    [ObservableProperty]
+    private int _selectedFilterIndex = 4;
 
     /// <summary>
     /// Текущий баланс: сумма доходов минус сумма расходов.
@@ -114,6 +128,22 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<Transaction> RecentTransactions { get; } = new();
 
     /// <summary>
+    /// Список вариантов периода для Picker'а.
+    /// </summary>
+    public ObservableCollection<string> FilterOptions { get; } = new()
+    {
+        "Сегодня",
+        "Вчера",
+        "Эта неделя",
+        "Прошлая неделя",
+        "Текущий месяц",
+        "Прошлый месяц",
+        "Последние 3 месяца",
+        "Последние 12 месяцев",
+        "Все время",
+    };
+
+    /// <summary>
     /// Маппинг индекса Picker в тип операции.
     /// </summary>
     public TransactionType CurrentType =>
@@ -143,6 +173,11 @@ public partial class MainViewModel : ObservableObject
         _ = ReloadCategoriesAsync();
     }
 
+    partial void OnSelectedFilterIndexChanged(int value)
+    {
+        _ = ReloadTransactionsAsync();
+    }
+
     /// <summary>
     /// Генерируется CommunityToolkit при изменении CurrentBalance.
     /// Уведомляем UI, что IsBalanceNegative тоже мог измениться.
@@ -165,6 +200,7 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            MaxDate = DateTime.Today;
             await _db.InitializeAsync();
             await ReloadCategoriesAsync();
             await ReloadTransactionsAsync();
@@ -219,6 +255,13 @@ public partial class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
+
+        if (Date.Date > DateTime.Today)
+        {
+            StatusMessage = "Дата операции не может быть в будущем";
+            return;
+        }
+
         try
         {
             if (_editingTransactionId.HasValue)
@@ -418,7 +461,8 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            var transactions = await _db.GetRecentTransactionsAsync(10);
+            var (from, to) = GetDateRange();
+            var transactions = await _db.GetTransactionsAsync(from, to, limit: 100, offset: 0);
 
             RecentTransactions.Clear();
             foreach (var t in transactions)
@@ -456,5 +500,41 @@ public partial class MainViewModel : ObservableObject
         {
             StatusMessage = $"Ошибка загрузки баланса: {ex.Message}";
         }
+    }
+    
+    /// <summary>
+    /// Возвращает диапазон дат для текущего фильтра.
+    /// null означает «без ограничения с этой стороны».
+    /// </summary>
+    private (DateTime? From, DateTime? To) GetDateRange()
+    {
+        var today = DateTime.Today;
+
+        return SelectedFilterIndex switch
+        {
+            0 => (today, today),                                        // Сегодня
+            1 => (today.AddDays(-1), today.AddDays(-1)),                // Вчера
+            2 => (StartOfWeek(today), today),                           // Эта неделя
+            3 => (StartOfWeek(today).AddDays(-7),
+                StartOfWeek(today).AddDays(-1)),                      // Прошлая неделя
+            4 => (new DateTime(today.Year, today.Month, 1), today),     // Текущий месяц
+            5 => (new DateTime(today.Year, today.Month, 1).AddMonths(-1),
+                new DateTime(today.Year, today.Month, 1).AddDays(-1)),// Прошлый месяц
+            6 => (new DateTime(today.Year, today.Month, 1).AddMonths(-2),
+                today),                                               // Последние 3 месяца
+            7 => (new DateTime(today.Year, today.Month, 1).AddMonths(-11),
+                today),                                               // Последние 12 месяцев
+            8 => (null, null),                                          // Все время
+            _ => (new DateTime(today.Year, today.Month, 1), today),     // fallback
+        };
+    }
+
+    /// <summary>
+    /// Начало недели (понедельник) для указанной даты.
+    /// </summary>
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        int daysSinceMonday = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-daysSinceMonday).Date;
     }
 }
