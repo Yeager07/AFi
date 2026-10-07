@@ -138,18 +138,80 @@ public partial class CategoriesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Заглушка для команды удаления — наполним логикой на шаге 2.5.4.
+    /// Удаляет категорию после подтверждения. Стандартные категории
+    /// (IsDefault = true) защищены от удаления на уровне ViewModel.
+    /// Операции, привязанные к категории, остаются — у них CategoryId
+    /// становится null, а денормализованное CategoryName сохраняется.
     /// </summary>
     [RelayCommand]
     private async Task DeleteCategoryAsync(Category? category)
     {
         if (category is null) return;
+        if (IsBusy) return;
 
-        await _dialogs.ConfirmAsync(
-            "В разработке",
-            $"Удаление категории «{category.Name}» появится в следующем шаге.",
-            "OK",
-            "OK");
+        // Защита на уровне VM: стандартные категории удалять нельзя.
+        // В XAML кнопка для них тоже скрыта, но подстраховка лишней не бывает.
+        if (category.IsDefault)
+        {
+            StatusMessage = "Стандартную категорию удалить нельзя";
+            return;
+        }
+
+        // Считаем привязанные операции — от этого зависит текст диалога
+        var transactionCount = await _db.CountTransactionsByCategoryAsync(category.Id);
+
+        string message;
+        if (transactionCount == 0)
+        {
+            message = $"Удалить категорию «{category.Name}»?";
+        }
+        else
+        {
+            var word = Plural(transactionCount, "операция", "операции", "операций");
+            message = $"У этой категории {transactionCount} {word}.\n\n" +
+                    "Они останутся в истории, но потеряют привязку к категории. " +
+                    "Продолжить?";
+        }
+
+        var confirmed = await _dialogs.ConfirmAsync(
+            title: "Удаление категории",
+            message: message,
+            accept: "Удалить",
+            cancel: "Отмена");
+
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            await _db.DeleteCategoryAsync(category.Id);
+            await LoadCategoriesCoreAsync();
+
+            StatusMessage = $"Категория «{category.Name}» удалена — всего {Categories.Count}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Склонение существительных по числу для русского языка.
+    /// Пример: 1 операция, 2 операции, 5 операций.
+    /// </summary>
+    private static string Plural(int count, string one, string few, string many)
+    {
+        int mod100 = count % 100;
+        int mod10 = count % 10;
+
+        if (mod100 >= 11 && mod100 <= 14) return many;
+        if (mod10 == 1) return one;
+        if (mod10 >= 2 && mod10 <= 4) return few;
+        return many;
     }
     
     /// <summary>

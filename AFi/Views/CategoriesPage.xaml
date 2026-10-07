@@ -116,18 +116,26 @@
                             </VerticalStackLayout>
 
                             <Button Grid.Column="1"
-                                    Text="Удалить"
-                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
-                                    CommandParameter="{Binding .}"
-                                    BackgroundColor="Transparent"
-                                    TextColor="#D32F2F"
-                                    BorderColor="#D32F2F"
-                                    BorderWidth="1"
-                                    CornerRadius="8"
-                                    FontSize="13"
-                                    Padding="12,0"
-                                    HeightRequest="36" />
-
+                            Text="Удалить"
+                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
+                            CommandParameter="{Binding .}"
+                            BackgroundColor="Transparent"
+                            TextColor="#D32F2F"
+                            BorderColor="#D32F2F"
+                            BorderWidth="1"
+                            CornerRadius="8"
+                            FontSize="13"
+                            Padding="12,0"
+                            HeightRequest="36">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button"
+                                                Binding="{Binding IsDefault}"
+                                                Value="True">
+                                        <Setter Property="IsVisible" Value="False" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                            
                         </Grid>
                     </Border>
                 </DataTemplate>

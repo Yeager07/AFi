@@ -228,6 +228,38 @@ public class DatabaseService
         return await db.InsertAsync(category);
     }
 
+    /// <summary>
+    /// Возвращает количество операций, привязанных к указанной категории.
+    /// Используется при удалении категории — показать пользователю предупреждение.
+    /// </summary>
+    public async Task<int> CountTransactionsByCategoryAsync(int categoryId)
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<Transaction>()
+            .Where(t => t.CategoryId == categoryId)
+            .CountAsync();
+    }
+
+    /// <summary>
+    /// Удаляет категорию. Перед удалением отвязывает все операции,
+    /// у которых CategoryId == удаляемой категории (ставит NULL).
+    ///
+    /// Денормализованное CategoryName в операциях сохраняется —
+    /// историческая запись остаётся понятной для пользователя.
+    /// </summary>
+    public async Task DeleteCategoryAsync(int categoryId)
+    {
+        var db = await GetConnectionAsync();
+
+        // Отвязываем операции одной командой — быстрее и атомарнее,
+        // чем вытягивать список и обновлять по одной.
+        await db.ExecuteAsync(
+            "UPDATE transactions SET CategoryId = NULL WHERE CategoryId = ?",
+            categoryId);
+
+        await db.DeleteAsync<Category>(categoryId);
+    }
+
     // ==================== Засев категорий ====================
 
     /// <summary>
