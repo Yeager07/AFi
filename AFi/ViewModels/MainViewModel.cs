@@ -20,6 +20,7 @@ public partial class MainViewModel : ObservableObject
     // ==================== Состояние формы ====================
 
     private int? _editingTransactionId;
+    private Transaction? _editingTransaction;   // ← храним целиком
 
     private bool _suppressTypeChangeReload;
 
@@ -252,26 +253,35 @@ public partial class MainViewModel : ObservableObject
         if (IsBusy) return;
 
         // ---------- Валидация ----------
-        if (string.IsNullOrWhiteSpace(AmountText))
-        {
-            StatusMessage = "Введите сумму";
-            return;
-        }
 
-        // Парсим с учётом локали. Replace(',', '.') на случай,
-        // если пользователь ввёл запятую как десятичный разделитель.
-        var normalized = AmountText.Replace(',', '.');
-        if (!decimal.TryParse(normalized, NumberStyles.Number,
-                              CultureInfo.InvariantCulture, out var amount))
+        // Сумма и тип валидируются только для новых операций.
+        // При редактировании они неизменяемы и берутся из исходной записи.
+        decimal amount;
+        if (_editingTransaction is not null)
         {
-            StatusMessage = "Сумма должна быть числом";
-            return;
+            amount = _editingTransaction.Amount;
         }
-
-        if (amount <= 0)
+        else
         {
-            StatusMessage = "Сумма должна быть больше нуля";
-            return;
+            if (string.IsNullOrWhiteSpace(AmountText))
+            {
+                StatusMessage = "Введите сумму";
+                return;
+            }
+
+            var normalized = AmountText.Replace(',', '.');
+            if (!decimal.TryParse(normalized, NumberStyles.Number,
+                                CultureInfo.InvariantCulture, out amount))
+            {
+                StatusMessage = "Сумма должна быть числом";
+                return;
+            }
+
+            if (amount <= 0)
+            {
+                StatusMessage = "Сумма должна быть больше нуля";
+                return;
+            }
         }
 
         if (SelectedCategory is null)
@@ -279,8 +289,6 @@ public partial class MainViewModel : ObservableObject
             StatusMessage = "Выберите категорию";
             return;
         }
-
-        IsBusy = true;
 
         if (Date.Date > DateTime.Today)
         {
@@ -290,24 +298,20 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            if (_editingTransactionId.HasValue)
+            if (_editingTransaction is not null)
             {
-                // Режим редактирования — обновляем существующую запись
-                var transaction = new Transaction
-                {
-                    Id = _editingTransactionId.Value,
-                    Amount = amount,
-                    Type = CurrentType,
-                    CategoryId = SelectedCategory.Id,
-                    CategoryName = SelectedCategory.Name,
-                    Date = Date,
-                    Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
-                    CreatedAt = DateTime.Now
-                };
+                // Режим редактирования — обновляем только «метаданные»:
+                // категорию, дату, комментарий. Amount, Type и CreatedAt
+                // остаются исходными (immutable core).
+                _editingTransaction.CategoryId = SelectedCategory.Id;
+                _editingTransaction.CategoryName = SelectedCategory.Name;
+                _editingTransaction.Date = Date;
+                _editingTransaction.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
-                await _db.UpdateTransactionAsync(transaction);
+                await _db.UpdateTransactionAsync(_editingTransaction);
 
                 _editingTransactionId = null;
+                _editingTransaction = null;
                 OnPropertyChanged(nameof(IsEditing));
                 OnPropertyChanged(nameof(FormTitle));
                 OnPropertyChanged(nameof(SubmitButtonText));
@@ -356,6 +360,8 @@ public partial class MainViewModel : ObservableObject
     private async Task StartEditAsync(Transaction? transaction)
     {
         if (transaction is null) return;
+        
+        _editingTransaction = transaction;
 
         _editingTransactionId = transaction.Id;
 
@@ -392,6 +398,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void CancelEdit()
     {
+        _editingTransaction = null;
         _editingTransactionId = null;
 
         AmountText = string.Empty;

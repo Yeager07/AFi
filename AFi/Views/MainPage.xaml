@@ -3,10 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:AFi.ViewModels"
              xmlns:models="clr-namespace:AFi.Models"
+             xmlns:converters="clr-namespace:AFi.Converters"
              x:Class="AFi.Views.MainPage"
              x:DataType="vm:MainViewModel"
              x:Name="PageRoot"
              Title="AFi">
+
+<ContentPage.Resources>
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+</ContentPage.Resources>
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="15">
@@ -53,13 +58,32 @@
                     <!-- Сумма -->
                     <Label Text="Сумма" FontSize="14" />
                     <Entry Placeholder="Например, 500"
-                           Keyboard="Numeric"
-                           Text="{Binding AmountText}" />
+                        Keyboard="Numeric"
+                        Text="{Binding AmountText}"
+                        IsReadOnly="{Binding IsEditing}">
+                        <Entry.Triggers>
+                            <DataTrigger TargetType="Entry"
+                                        Binding="{Binding IsEditing}"
+                                        Value="True">
+                                <Setter Property="BackgroundColor" Value="#F0F0F0" />
+                                <Setter Property="TextColor" Value="#808080" />
+                            </DataTrigger>
+                        </Entry.Triggers>
+                    </Entry>
 
                     <!-- Тип -->
                     <Label Text="Тип" FontSize="14" />
                     <Picker ItemsSource="{Binding TypeOptions}"
-                            SelectedIndex="{Binding SelectedTypeIndex}" />
+                            SelectedIndex="{Binding SelectedTypeIndex}"
+                            IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}">
+                        <Picker.Triggers>
+                            <DataTrigger TargetType="Picker"
+                                        Binding="{Binding IsEditing}"
+                                        Value="True">
+                                <Setter Property="BackgroundColor" Value="#F0F0F0" />
+                            </DataTrigger>
+                        </Picker.Triggers>
+                    </Picker>
 
                     <!-- Категория -->
                     <Label Text="Категория" FontSize="14" />
