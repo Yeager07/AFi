@@ -1,16 +1,146 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
              x:Class="AFi.Views.CategoriesPage"
+             x:DataType="vm:CategoriesViewModel"
+             x:Name="PageRoot"
              Title="Категории">
 
-    <VerticalStackLayout Padding="20" Spacing="15">
-        <Label Text="Управление категориями"
-               FontSize="24"
-               FontAttributes="Bold" />
-        <Label Text="Здесь появится список категорий и возможность добавлять/удалять их. В разработке."
-               FontSize="14"
-               TextColor="Gray" />
-    </VerticalStackLayout>
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          Padding="20"
+          RowSpacing="15">
+
+        <!-- ==================== Табы ==================== -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,*"
+              ColumnSpacing="0">
+
+            <Button Grid.Column="0"
+                    Text="Расходы"
+                    Command="{Binding SelectExpensesTabCommand}"
+                    CornerRadius="8,0,0,8"
+                    HeightRequest="44"
+                    FontSize="15">
+                <Button.Triggers>
+                    <DataTrigger TargetType="Button"
+                                 Binding="{Binding SelectedTabIndex}"
+                                 Value="0">
+                        <Setter Property="BackgroundColor" Value="#512BD4" />
+                        <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                    <DataTrigger TargetType="Button"
+                                 Binding="{Binding SelectedTabIndex}"
+                                 Value="1">
+                        <Setter Property="BackgroundColor" Value="Transparent" />
+                        <Setter Property="TextColor" Value="#512BD4" />
+                        <Setter Property="BorderColor" Value="#512BD4" />
+                        <Setter Property="BorderWidth" Value="1" />
+                    </DataTrigger>
+                </Button.Triggers>
+            </Button>
+
+            <Button Grid.Column="1"
+                    Text="Доходы"
+                    Command="{Binding SelectIncomeTabCommand}"
+                    CornerRadius="0,8,8,0"
+                    HeightRequest="44"
+                    FontSize="15">
+                <Button.Triggers>
+                    <DataTrigger TargetType="Button"
+                                 Binding="{Binding SelectedTabIndex}"
+                                 Value="1">
+                        <Setter Property="BackgroundColor" Value="#512BD4" />
+                        <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                    <DataTrigger TargetType="Button"
+                                 Binding="{Binding SelectedTabIndex}"
+                                 Value="0">
+                        <Setter Property="BackgroundColor" Value="Transparent" />
+                        <Setter Property="TextColor" Value="#512BD4" />
+                        <Setter Property="BorderColor" Value="#512BD4" />
+                        <Setter Property="BorderWidth" Value="1" />
+                    </DataTrigger>
+                </Button.Triggers>
+            </Button>
+
+        </Grid>
+
+        <!-- ==================== Кнопка добавления ==================== -->
+        <Button Grid.Row="1"
+                Text="+ Добавить категорию"
+                Command="{Binding AddCategoryCommand}"
+                BackgroundColor="#2E7D32"
+                TextColor="White"
+                CornerRadius="8"
+                HeightRequest="48"
+                FontSize="15" />
+
+        <!-- ==================== Список категорий ==================== -->
+        <CollectionView Grid.Row="2"
+                        ItemsSource="{Binding Categories}"
+                        SelectionMode="None">
+
+            <CollectionView.EmptyView>
+                <Label Text="Пока нет категорий"
+                       FontSize="14"
+                       TextColor="Gray"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:Category">
+                    <Border Stroke="LightGray"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12"
+                            Margin="0,4">
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="{Binding Name}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       VerticalOptions="Center" />
+                                <Label FontSize="11"
+                                       TextColor="Gray"
+                                       IsVisible="{Binding IsDefault}">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="Предустановленная">
+                                            <Binding />
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+                            </VerticalStackLayout>
+
+                            <Button Grid.Column="1"
+                                    Text="Удалить"
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="#D32F2F"
+                                    BorderColor="#D32F2F"
+                                    BorderWidth="1"
+                                    CornerRadius="8"
+                                    FontSize="13"
+                                    Padding="12,0"
+                                    HeightRequest="36" />
+
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- ==================== Статус ==================== -->
+        <Label Grid.Row="3"
+               Text="{Binding StatusMessage}"
+               FontSize="13"
+               TextColor="Gray"
+               HorizontalOptions="Center" />
+
+    </Grid>
 
 </ContentPage>

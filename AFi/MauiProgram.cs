@@ -30,6 +30,7 @@ public static class MauiProgram
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddTransient<CategoriesViewModel>();
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
