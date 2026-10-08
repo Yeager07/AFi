@@ -205,13 +205,30 @@
                             <Grid>
 
                                 <!-- ==================== ОБЫЧНЫЙ РЕЖИМ: карточка со свайпом ==================== -->
-                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}">
+                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
+                                           Margin="0,4">
                                     <SwipeView.RightItems>
                                         <SwipeItems Mode="Reveal">
-                                            <SwipeItem Text="Удалить"
-                                                       BackgroundColor="#D32F2F"
-                                                       Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
-                                                       CommandParameter="{Binding .}" />
+                                            <SwipeItemView>
+                                                <Border StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        BackgroundColor="#D32F2F"
+                                                        WidthRequest="95"
+                                                        Padding="0"
+                                                        Margin="6,0,0,0">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer
+                                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
+                                                            CommandParameter="{Binding .}" />
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="Удалить"
+                                                           TextColor="White"
+                                                           FontAttributes="Bold"
+                                                           FontSize="14"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center" />
+                                                </Border>
+                                            </SwipeItemView>
                                         </SwipeItems>
                                     </SwipeView.RightItems>
 
@@ -219,7 +236,7 @@
                                             StrokeThickness="1"
                                             StrokeShape="RoundRectangle 8"
                                             Padding="12"
-                                            Margin="0,4">
+                                            BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer
                                                 Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
@@ -275,7 +292,8 @@
                                         StrokeThickness="1"
                                         StrokeShape="RoundRectangle 8"
                                         Padding="12"
-                                        Margin="0,4">
+                                        Margin="0,4"
+                                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
@@ -285,7 +303,6 @@
                                     <Grid ColumnDefinitions="Auto,*,Auto"
                                           RowDefinitions="Auto,Auto">
 
-                                        <!-- Кружок мультивыбора -->
                                         <Border Grid.Row="0" Grid.RowSpan="2"
                                                 Grid.Column="0"
                                                 WidthRequest="26"

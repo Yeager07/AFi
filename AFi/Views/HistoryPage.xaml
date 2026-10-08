@@ -91,7 +91,8 @@
                         Stroke="LightGray"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 8"
-                        Padding="10">
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                     <VerticalStackLayout Spacing="2">
                         <Label Text="Доход" FontSize="11" TextColor="Gray" />
                         <Label Text="{Binding SummaryIncome, StringFormat='{0:N0} ₽'}"
@@ -105,7 +106,8 @@
                         Stroke="LightGray"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 8"
-                        Padding="10">
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                     <VerticalStackLayout Spacing="2">
                         <Label Text="Расход" FontSize="11" TextColor="Gray" />
                         <Label Text="{Binding SummaryExpense, StringFormat='{0:N0} ₽'}"
@@ -119,7 +121,8 @@
                         Stroke="LightGray"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 8"
-                        Padding="10">
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                     <VerticalStackLayout Spacing="2">
                         <Label Text="Баланс" FontSize="11" TextColor="Gray" />
                         <Label Text="{Binding SummaryBalance, StringFormat='{0:N0} ₽'}"
@@ -174,14 +177,31 @@
                         <DataTemplate x:DataType="models:Transaction">
                             <Grid>
 
-                                <!-- ============ ОБЫЧНЫЙ РЕЖИМ: свайп-удаление ============ -->
-                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}">
+                                <!-- ==================== ОБЫЧНЫЙ РЕЖИМ: карточка со свайпом ==================== -->
+                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
+                                           Margin="0,4">
                                     <SwipeView.RightItems>
                                         <SwipeItems Mode="Reveal">
-                                            <SwipeItem Text="Удалить"
-                                                       BackgroundColor="#D32F2F"
-                                                       Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
-                                                       CommandParameter="{Binding .}" />
+                                            <SwipeItemView>
+                                                <Border StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        BackgroundColor="#D32F2F"
+                                                        WidthRequest="95"
+                                                        Padding="0"
+                                                        Margin="6,0,0,0">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer
+                                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
+                                                            CommandParameter="{Binding .}" />
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="Удалить"
+                                                           TextColor="White"
+                                                           FontAttributes="Bold"
+                                                           FontSize="14"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center" />
+                                                </Border>
+                                            </SwipeItemView>
                                         </SwipeItems>
                                     </SwipeView.RightItems>
 
@@ -189,7 +209,13 @@
                                             StrokeThickness="1"
                                             StrokeShape="RoundRectangle 8"
                                             Padding="12"
-                                            Margin="0,4">
+                                            BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+
                                         <Grid ColumnDefinitions="*,Auto"
                                               RowDefinitions="Auto,Auto">
 
@@ -233,13 +259,14 @@
                                     </Border>
                                 </SwipeView>
 
-                                <!-- ============ РЕЖИМ ВЫБОРА: карточка без свайпа ============ -->
+                                <!-- ==================== РЕЖИМ ВЫБОРА: карточка без свайпа ==================== -->
                                 <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
                                         Stroke="LightGray"
                                         StrokeThickness="1"
                                         StrokeShape="RoundRectangle 8"
                                         Padding="12"
-                                        Margin="0,4">
+                                        Margin="0,4"
+                                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
