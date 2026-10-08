@@ -6,10 +6,6 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AFi.ViewModels;
 
-/// <summary>
-/// ViewModel страницы «История»: фильтры по периоду и категории,
-/// итоговые карточки, постраничный список операций.
-/// </summary>
 public partial class HistoryViewModel : ObservableObject
 {
     private const int PageSize = 100;
@@ -18,6 +14,7 @@ public partial class HistoryViewModel : ObservableObject
     private readonly IDialogService _dialogs;
 
     private int _loadedCount;
+    private readonly HashSet<int> _selectedIds = new();
 
     // ==================== Фильтры ====================
 
@@ -43,10 +40,6 @@ public partial class HistoryViewModel : ObservableObject
 
     public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
 
-    /// <summary>
-    /// Элементы для Picker выбора категории.
-    /// Первый — «Все категории» (Id = null), далее реальные категории.
-    /// </summary>
     public ObservableCollection<CategoryFilterItem> CategoryFilterItems { get; } = new();
 
     [ObservableProperty] private int _selectedCategoryIndex = 0;
@@ -69,6 +62,18 @@ public partial class HistoryViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
 
+    // ==================== Мультивыбор ====================
+
+    [ObservableProperty] private bool _isSelectionMode;
+    [ObservableProperty] private int _selectedCount;
+
+    public bool HasSelection => SelectedCount > 0;
+
+    /// <summary>
+    /// Кнопка «Выбрать» видна, когда мы не в режиме выбора и есть что выбирать.
+    /// </summary>
+    public bool CanEnterSelectionMode => !IsSelectionMode && HasTransactions;
+
     public HistoryViewModel(DatabaseService db, IDialogService dialogs)
     {
         _db = db;
@@ -80,7 +85,7 @@ public partial class HistoryViewModel : ObservableObject
     partial void OnSelectedFilterIndexChanged(int value)
     {
         OnPropertyChanged(nameof(IsCustomRangeSelected));
-        if (value == 9) return; // ждём кнопку «Применить»
+        if (value == 9) return;
         _ = ReloadAsync();
     }
 
@@ -93,6 +98,12 @@ public partial class HistoryViewModel : ObservableObject
         OnPropertyChanged(nameof(SummaryBalance));
     partial void OnSummaryExpenseChanged(decimal value) =>
         OnPropertyChanged(nameof(SummaryBalance));
+
+    partial void OnSelectedCountChanged(int value) =>
+        OnPropertyChanged(nameof(HasSelection));
+
+    partial void OnIsSelectionModeChanged(bool value) =>
+        OnPropertyChanged(nameof(CanEnterSelectionMode));
 
     // ==================== Команды ====================
 
@@ -165,7 +176,7 @@ public partial class HistoryViewModel : ObservableObject
         try
         {
             await _db.DeleteTransactionAsync(transaction.Id);
-            await LoadCoreAsync();                        // ← вызываем обход IsBusy
+            await LoadCoreAsync();
             StatusMessage = "Операция удалена";
         }
         catch (Exception ex)
@@ -176,6 +187,101 @@ public partial class HistoryViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    // ==================== Мультивыбор ====================
+
+    [RelayCommand]
+    private void EnterSelectionMode()
+    {
+        if (!HasTransactions) return;
+        IsSelectionMode = true;
+    }
+
+    [RelayCommand]
+    private void ToggleSelection(Transaction? transaction)
+    {
+        if (transaction is null || !IsSelectionMode) return;
+
+        if (_selectedIds.Contains(transaction.Id))
+        {
+            _selectedIds.Remove(transaction.Id);
+            transaction.IsSelected = false;
+        }
+        else
+        {
+            _selectedIds.Add(transaction.Id);
+            transaction.IsSelected = true;
+        }
+
+        SelectedCount = _selectedIds.Count;
+    }
+
+    [RelayCommand]
+    private void CancelSelection()
+    {
+        foreach (var t in Transactions)
+            t.IsSelected = false;
+
+        _selectedIds.Clear();
+        SelectedCount = 0;
+        IsSelectionMode = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedAsync()
+    {
+        if (_selectedIds.Count == 0 || IsBusy) return;
+
+        var count = _selectedIds.Count;
+        var word = Plural(count, "операцию", "операции", "операций");
+
+        var confirmed = await _dialogs.ConfirmAsync(
+            "Удаление",
+            $"Удалить {count} {word}?\n\nЭто действие нельзя отменить.",
+            "Удалить",
+            "Отмена");
+
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            foreach (var id in _selectedIds.ToList())
+                await _db.DeleteTransactionAsync(id);
+
+            _selectedIds.Clear();
+            SelectedCount = 0;
+            IsSelectionMode = false;
+
+            await LoadCoreAsync();
+
+            StatusMessage = $"Удалено {count} {word}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Тап по карточке: в обычном режиме — редактирование (пока не реализовано
+    /// в Истории), в режиме мультивыбора — toggle выбора.
+    /// </summary>
+    [RelayCommand]
+    private void HandleCardTap(Transaction? transaction)
+    {
+        if (transaction is null) return;
+
+        if (IsSelectionMode)
+        {
+            ToggleSelection(transaction);
+        }
+        // Вне режима выбора пока ничего — редактирование в Истории появится позже
     }
 
     // ==================== Вспомогательные ====================
@@ -199,10 +305,6 @@ public partial class HistoryViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Загрузка без проверки IsBusy — вызывается из методов,
-    /// которые уже держат флаг.
-    /// </summary>
     private async Task LoadCoreAsync()
     {
         await _db.InitializeAsync();
@@ -210,7 +312,6 @@ public partial class HistoryViewModel : ObservableObject
         var (from, to) = GetDateRange();
         var categoryId = GetSelectedCategoryId();
 
-        // Список — первая страница
         var list = await _db.GetTransactionsAsync(from, to, categoryId,
             limit: PageSize, offset: 0);
 
@@ -220,18 +321,22 @@ public partial class HistoryViewModel : ObservableObject
 
         _loadedCount = list.Count;
 
-        // Итоги за период
         var (income, expense) = await _db.GetSummaryAsync(from, to, categoryId);
         SummaryIncome = income;
         SummaryExpense = expense;
 
-        // Есть ли ещё
         var total = await _db.GetTransactionsCountAsync(from, to, categoryId);
         HasMoreItems = _loadedCount < total;
 
         UpdateCountInStatus(total);
         OnPropertyChanged(nameof(HasTransactions));
         OnPropertyChanged(nameof(IsBalanceNegative));
+        OnPropertyChanged(nameof(CanEnterSelectionMode));
+
+        // Сбрасываем режим выбора при любой перезагрузке
+        _selectedIds.Clear();
+        SelectedCount = 0;
+        IsSelectionMode = false;
     }
 
     private void UpdateCountInStatus(int total)
@@ -299,11 +404,18 @@ public partial class HistoryViewModel : ObservableObject
         int daysSinceMonday = ((int)date.DayOfWeek + 6) % 7;
         return date.AddDays(-daysSinceMonday).Date;
     }
+
+    private static string Plural(int count, string one, string few, string many)
+    {
+        int mod100 = count % 100;
+        int mod10 = count % 10;
+        if (mod100 >= 11 && mod100 <= 14) return many;
+        if (mod10 == 1) return one;
+        if (mod10 >= 2 && mod10 <= 4) return few;
+        return many;
+    }
 }
 
-/// <summary>
-/// Элемент списка выбора категории. Id = null означает «без фильтра».
-/// </summary>
 public class CategoryFilterItem
 {
     public int? Id { get; set; }
