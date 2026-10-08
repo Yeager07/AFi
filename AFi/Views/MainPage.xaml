@@ -13,263 +13,407 @@
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
     </ContentPage.Resources>
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="15">
 
-            <Border Stroke="LightGray"
-                    StrokeThickness="1"
-                    StrokeShape="RoundRectangle 12"
-                    Padding="20">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="Текущий баланс"
-                           FontSize="14"
-                           TextColor="Gray" />
-                    <Label Text="{Binding CurrentBalance, StringFormat='{0:N0} ₽'}"
-                           FontSize="30"
-                           FontAttributes="Bold">
-                        <Label.Triggers>
-                            <DataTrigger TargetType="Label"
-                                         Binding="{Binding IsBalanceNegative}"
-                                         Value="True">
-                                <Setter Property="TextColor" Value="#D32F2F" />
-                            </DataTrigger>
-                            <DataTrigger TargetType="Label"
-                                         Binding="{Binding IsBalanceNegative}"
-                                         Value="False">
-                                <Setter Property="TextColor" Value="#2E7D32" />
-                            </DataTrigger>
-                        </Label.Triggers>
-                    </Label>
-                </VerticalStackLayout>
-            </Border>
-
-            <Border Stroke="LightGray"
-                    StrokeThickness="1"
-                    StrokeShape="RoundRectangle 10"
-                    Padding="15">
-                <VerticalStackLayout Spacing="10">
-
-                    <Label Text="{Binding FormTitle}"
-                           FontSize="18"
-                           FontAttributes="Bold" />
-
-                    <Label Text="Сумма" FontSize="14" />
-                    <Entry Placeholder="Например, 500"
-                           Keyboard="Numeric"
-                           Text="{Binding AmountText}"
-                           IsReadOnly="{Binding IsEditing}">
-                        <Entry.Triggers>
-                            <DataTrigger TargetType="Entry"
-                                         Binding="{Binding IsEditing}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#F0F0F0" />
-                                <Setter Property="TextColor" Value="#808080" />
-                            </DataTrigger>
-                        </Entry.Triggers>
-                    </Entry>
-
-                    <Label Text="Тип" FontSize="14" />
-                    <Picker ItemsSource="{Binding TypeOptions}"
-                            SelectedIndex="{Binding SelectedTypeIndex}"
-                            IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}">
-                        <Picker.Triggers>
-                            <DataTrigger TargetType="Picker"
-                                         Binding="{Binding IsEditing}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#F0F0F0" />
-                            </DataTrigger>
-                        </Picker.Triggers>
-                    </Picker>
-
-                    <Label Text="Категория" FontSize="14" />
-                    <Picker ItemsSource="{Binding AvailableCategories}"
-                            ItemDisplayBinding="{Binding Name}"
-                            SelectedItem="{Binding SelectedCategory}" />
-
-                    <Label Text="Дата" FontSize="14" />
-                    <DatePicker Date="{Binding Date}"
-                                MaximumDate="{Binding MaxDate}"
-                                Format="dd.MM.yyyy" />
-
-                    <Label Text="Комментарий (необязательно)" FontSize="14" />
-                    <Entry Placeholder="Например, закупка зерна"
-                           Text="{Binding Note}" />
-
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,10,0,0">
-                        <Button Grid.Column="0"
-                                Text="{Binding SubmitButtonText}"
-                                Command="{Binding SaveCommand}"
-                                BackgroundColor="#512BD4"
-                                TextColor="White"
-                                CornerRadius="8"
-                                HeightRequest="48" />
-
-                        <Button Grid.Column="1"
-                                Text="Отмена"
-                                Command="{Binding CancelEditCommand}"
-                                IsVisible="{Binding IsEditing}"
-                                BackgroundColor="Transparent"
-                                TextColor="#512BD4"
-                                BorderColor="#512BD4"
-                                BorderWidth="1"
-                                CornerRadius="8"
-                                HeightRequest="48"
-                                Padding="16,0" />
-                    </Grid>
-
-                    <Label Text="{Binding StatusMessage}"
-                           FontSize="13"
-                           TextColor="Gray"
-                           HorizontalOptions="Center" />
-
-                </VerticalStackLayout>
-            </Border>
-
-            <Label Text="Последние операции"
-                   FontSize="18"
-                   FontAttributes="Bold"
-                   Margin="0,10,0,0" />
-
-            <CollectionView ItemsSource="{Binding TransactionGroups}"
-                            IsGrouped="True"
-                            SelectionMode="None">
-
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout Spacing="10" Padding="20">
-                        <Label Text="Нет операций за последние 30 дней"
+                <!-- ==================== Карточка баланса ==================== -->
+                <Border Stroke="LightGray"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="20">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Текущий баланс"
                                FontSize="14"
+                               TextColor="Gray" />
+                        <Label Text="{Binding CurrentBalance, StringFormat='{0:N0} ₽'}"
+                               FontSize="30"
+                               FontAttributes="Bold">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding IsBalanceNegative}"
+                                             Value="True">
+                                    <Setter Property="TextColor" Value="#D32F2F" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding IsBalanceNegative}"
+                                             Value="False">
+                                    <Setter Property="TextColor" Value="#2E7D32" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ==================== Форма добавления ==================== -->
+                <Border Stroke="LightGray"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 10"
+                        Padding="15">
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label Text="{Binding FormTitle}"
+                               FontSize="18"
+                               FontAttributes="Bold" />
+
+                        <Label Text="Сумма" FontSize="14" />
+                        <Entry Placeholder="Например, 500"
+                               Keyboard="Numeric"
+                               Text="{Binding AmountText}"
+                               IsReadOnly="{Binding IsEditing}">
+                            <Entry.Triggers>
+                                <DataTrigger TargetType="Entry"
+                                             Binding="{Binding IsEditing}"
+                                             Value="True">
+                                    <Setter Property="BackgroundColor" Value="#F0F0F0" />
+                                    <Setter Property="TextColor" Value="#808080" />
+                                </DataTrigger>
+                            </Entry.Triggers>
+                        </Entry>
+
+                        <Label Text="Тип" FontSize="14" />
+                        <Picker ItemsSource="{Binding TypeOptions}"
+                                SelectedIndex="{Binding SelectedTypeIndex}"
+                                IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}">
+                            <Picker.Triggers>
+                                <DataTrigger TargetType="Picker"
+                                             Binding="{Binding IsEditing}"
+                                             Value="True">
+                                    <Setter Property="BackgroundColor" Value="#F0F0F0" />
+                                </DataTrigger>
+                            </Picker.Triggers>
+                        </Picker>
+
+                        <Label Text="Категория" FontSize="14" />
+                        <Picker ItemsSource="{Binding AvailableCategories}"
+                                ItemDisplayBinding="{Binding Name}"
+                                SelectedItem="{Binding SelectedCategory}" />
+
+                        <Label Text="Дата" FontSize="14" />
+                        <DatePicker Date="{Binding Date}"
+                                    MaximumDate="{Binding MaxDate}"
+                                    Format="dd.MM.yyyy" />
+
+                        <Label Text="Комментарий (необязательно)" FontSize="14" />
+                        <Entry Placeholder="Например, закупка зерна"
+                               Text="{Binding Note}" />
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,10,0,0">
+                            <Button Grid.Column="0"
+                                    Text="{Binding SubmitButtonText}"
+                                    Command="{Binding SaveCommand}"
+                                    BackgroundColor="#512BD4"
+                                    TextColor="White"
+                                    CornerRadius="8"
+                                    HeightRequest="48" />
+
+                            <Button Grid.Column="1"
+                                    Text="Отмена"
+                                    Command="{Binding CancelEditCommand}"
+                                    IsVisible="{Binding IsEditing}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="#512BD4"
+                                    BorderColor="#512BD4"
+                                    BorderWidth="1"
+                                    CornerRadius="8"
+                                    HeightRequest="48"
+                                    Padding="16,0" />
+                        </Grid>
+
+                        <Label Text="{Binding StatusMessage}"
+                               FontSize="13"
                                TextColor="Gray"
                                HorizontalOptions="Center" />
-                        <Button Text="Вся история"
-                                Command="{Binding GoToHistoryCommand}"
-                                BackgroundColor="#512BD4"
-                                TextColor="White"
-                                CornerRadius="8"
-                                HeightRequest="44" />
+
                     </VerticalStackLayout>
-                </CollectionView.EmptyView>
+                </Border>
 
-                <CollectionView.GroupHeaderTemplate>
-                    <DataTemplate x:DataType="models:TransactionGroup">
-                        <Grid ColumnDefinitions="*,Auto"
-                              Padding="4,12,4,6">
-                            <Label Grid.Column="0"
-                                   Text="{Binding DateLabel}"
+                <!-- ==================== Заголовок списка + кнопка «Выбрать» ==================== -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                    <Label Grid.Column="0"
+                           Text="Последние операции"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           VerticalOptions="Center" />
+
+                    <Button Grid.Column="1"
+                            Text="Выбрать"
+                            Command="{Binding EnterSelectionModeCommand}"
+                            IsVisible="{Binding CanEnterSelectionMode}"
+                            BackgroundColor="Transparent"
+                            TextColor="#512BD4"
+                            BorderColor="#512BD4"
+                            BorderWidth="1"
+                            CornerRadius="8"
+                            HeightRequest="36"
+                            FontSize="13"
+                            Padding="12,0" />
+                </Grid>
+
+                <!-- ==================== Список операций ==================== -->
+                <CollectionView ItemsSource="{Binding TransactionGroups}"
+                                IsGrouped="True"
+                                SelectionMode="None">
+
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Spacing="10" Padding="20">
+                            <Label Text="Нет операций за последние 30 дней"
                                    FontSize="14"
-                                   FontAttributes="Bold"
-                                   TextColor="#512BD4" />
-                            <Label Grid.Column="1"
-                                   Text="{Binding SummaryText}"
-                                   FontSize="14"
-                                   FontAttributes="Bold">
-                                <Label.Triggers>
-                                    <DataTrigger TargetType="Label"
-                                                 Binding="{Binding IsPositive}"
-                                                 Value="True">
-                                        <Setter Property="TextColor" Value="#2E7D32" />
-                                    </DataTrigger>
-                                    <DataTrigger TargetType="Label"
-                                                 Binding="{Binding IsPositive}"
-                                                 Value="False">
-                                        <Setter Property="TextColor" Value="#D32F2F" />
-                                    </DataTrigger>
-                                </Label.Triggers>
-                            </Label>
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.GroupHeaderTemplate>
+                                   TextColor="Gray"
+                                   HorizontalOptions="Center" />
+                            <Button Text="Вся история"
+                                    Command="{Binding GoToHistoryCommand}"
+                                    BackgroundColor="#512BD4"
+                                    TextColor="White"
+                                    CornerRadius="8"
+                                    HeightRequest="44" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
 
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Transaction">
-                        <SwipeView>
-                            <SwipeView.RightItems>
-                                <SwipeItems Mode="Reveal">
-                                    <SwipeItem Text="Удалить"
-                                               BackgroundColor="#D32F2F"
-                                               Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
-                                               CommandParameter="{Binding .}" />
-                                </SwipeItems>
-                            </SwipeView.RightItems>
+                    <CollectionView.GroupHeaderTemplate>
+                        <DataTemplate x:DataType="models:TransactionGroup">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  Padding="4,12,4,6">
+                                <Label Grid.Column="0"
+                                       Text="{Binding DateLabel}"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="#512BD4" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding SummaryText}"
+                                       FontSize="14"
+                                       FontAttributes="Bold">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label"
+                                                     Binding="{Binding IsPositive}"
+                                                     Value="True">
+                                            <Setter Property="TextColor" Value="#2E7D32" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label"
+                                                     Binding="{Binding IsPositive}"
+                                                     Value="False">
+                                            <Setter Property="TextColor" Value="#D32F2F" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.GroupHeaderTemplate>
 
-                            <Border Stroke="LightGray"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 8"
-                                    Padding="12"
-                                    Margin="0,4">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer
-                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.StartEditCommand}"
-                                        CommandParameter="{Binding .}" />
-                                </Border.GestureRecognizers>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Transaction">
+                            <Grid>
 
-                                <Grid ColumnDefinitions="*,Auto"
-                                      RowDefinitions="Auto,Auto">
+                                <!-- ==================== ОБЫЧНЫЙ РЕЖИМ: карточка со свайпом ==================== -->
+                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}">
+                                    <SwipeView.RightItems>
+                                        <SwipeItems Mode="Reveal">
+                                            <SwipeItem Text="Удалить"
+                                                       BackgroundColor="#D32F2F"
+                                                       Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
+                                                       CommandParameter="{Binding .}" />
+                                        </SwipeItems>
+                                    </SwipeView.RightItems>
 
-                                    <Label Grid.Row="0" Grid.Column="0"
-                                           Text="{Binding CategoryName}"
-                                           FontSize="15"
-                                           FontAttributes="Bold" />
+                                    <Border Stroke="LightGray"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="12"
+                                            Margin="0,4">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
 
-                                    <Label Grid.Row="0" Grid.Column="1"
-                                           Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                           FontSize="16"
-                                           FontAttributes="Bold"
-                                           HorizontalOptions="End">
-                                        <Label.Triggers>
-                                            <DataTrigger TargetType="Label"
-                                                         Binding="{Binding Type}"
-                                                         Value="1">
-                                                <Setter Property="TextColor" Value="#D32F2F" />
-                                            </DataTrigger>
-                                            <DataTrigger TargetType="Label"
-                                                         Binding="{Binding Type}"
-                                                         Value="0">
-                                                <Setter Property="TextColor" Value="#2E7D32" />
-                                            </DataTrigger>
-                                        </Label.Triggers>
-                                    </Label>
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              RowDefinitions="Auto,Auto">
 
-                                    <Label Grid.Row="1" Grid.Column="0"
-                                           Grid.ColumnSpan="2"
-                                           FontSize="12"
-                                           TextColor="Gray">
-                                        <Label.Text>
-                                            <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                <Binding Path="Date" />
-                                                <Binding Path="Note" />
-                                            </MultiBinding>
-                                        </Label.Text>
-                                    </Label>
+                                            <Label Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding CategoryName}"
+                                                   FontSize="15"
+                                                   FontAttributes="Bold" />
 
-                                </Grid>
-                            </Border>
-                        </SwipeView>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                                            <Label Grid.Row="0" Grid.Column="1"
+                                                   Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="End">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label"
+                                                                 Binding="{Binding Type}"
+                                                                 Value="1">
+                                                        <Setter Property="TextColor" Value="#D32F2F" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label"
+                                                                 Binding="{Binding Type}"
+                                                                 Value="0">
+                                                        <Setter Property="TextColor" Value="#2E7D32" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
 
-            <Button Text="{Binding ShowMoreButtonText}"
-                    IsVisible="{Binding HasAnyTransactions}"
-                    BackgroundColor="#512BD4"
-                    TextColor="White"
-                    CornerRadius="8"
-                    HeightRequest="44"
-                    Margin="0,5,0,0">
-                <Button.Triggers>
-                    <DataTrigger TargetType="Button"
-                                 Binding="{Binding HasMoreInPeriod}"
-                                 Value="True">
-                        <Setter Property="Command" Value="{Binding LoadMoreCommand}" />
-                    </DataTrigger>
-                    <DataTrigger TargetType="Button"
-                                 Binding="{Binding HasMoreInPeriod}"
-                                 Value="False">
-                        <Setter Property="Command" Value="{Binding GoToHistoryCommand}" />
-                    </DataTrigger>
-                </Button.Triggers>
-            </Button>
+                                            <Label Grid.Row="1" Grid.Column="0"
+                                                   Grid.ColumnSpan="2"
+                                                   FontSize="12"
+                                                   TextColor="Gray">
+                                                <Label.Text>
+                                                    <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
+                                                        <Binding Path="Date" />
+                                                        <Binding Path="Note" />
+                                                    </MultiBinding>
+                                                </Label.Text>
+                                            </Label>
 
-        </VerticalStackLayout>
-    </ScrollView>
+                                        </Grid>
+                                    </Border>
+                                </SwipeView>
+
+                                <!-- ==================== РЕЖИМ ВЫБОРА: карточка без свайпа ==================== -->
+                                <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
+                                        Stroke="LightGray"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 8"
+                                        Padding="12"
+                                        Margin="0,4">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          RowDefinitions="Auto,Auto">
+
+                                        <!-- Кружок мультивыбора -->
+                                        <Border Grid.Row="0" Grid.RowSpan="2"
+                                                Grid.Column="0"
+                                                WidthRequest="26"
+                                                HeightRequest="26"
+                                                StrokeShape="RoundRectangle 13"
+                                                Stroke="#512BD4"
+                                                StrokeThickness="2"
+                                                BackgroundColor="Transparent"
+                                                Padding="0"
+                                                VerticalOptions="Center"
+                                                HorizontalOptions="Start"
+                                                Margin="0,0,10,0">
+                                            <Label Text="✓"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#512BD4"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center"
+                                                   IsVisible="{Binding IsSelected}" />
+                                        </Border>
+
+                                        <Label Grid.Row="0" Grid.Column="1"
+                                               Text="{Binding CategoryName}"
+                                               FontSize="15"
+                                               FontAttributes="Bold" />
+
+                                        <Label Grid.Row="0" Grid.Column="2"
+                                               Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                               FontSize="16"
+                                               FontAttributes="Bold"
+                                               HorizontalOptions="End">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding Type}"
+                                                             Value="1">
+                                                    <Setter Property="TextColor" Value="#D32F2F" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding Type}"
+                                                             Value="0">
+                                                    <Setter Property="TextColor" Value="#2E7D32" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+
+                                        <Label Grid.Row="1" Grid.Column="1"
+                                               Grid.ColumnSpan="2"
+                                               FontSize="12"
+                                               TextColor="Gray">
+                                            <Label.Text>
+                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
+                                                    <Binding Path="Date" />
+                                                    <Binding Path="Note" />
+                                                </MultiBinding>
+                                            </Label.Text>
+                                        </Label>
+
+                                    </Grid>
+                                </Border>
+
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- ==================== Показать ещё / Вся история ==================== -->
+                <Button Text="{Binding ShowMoreButtonText}"
+                        IsVisible="{Binding HasAnyTransactions}"
+                        BackgroundColor="#512BD4"
+                        TextColor="White"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        Margin="0,5,0,0">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button"
+                                     Binding="{Binding HasMoreInPeriod}"
+                                     Value="True">
+                            <Setter Property="Command" Value="{Binding LoadMoreCommand}" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Button"
+                                     Binding="{Binding HasMoreInPeriod}"
+                                     Value="False">
+                            <Setter Property="Command" Value="{Binding GoToHistoryCommand}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ==================== Панель мультивыбора ==================== -->
+        <Border VerticalOptions="End"
+                IsVisible="{Binding IsSelectionMode}"
+                BackgroundColor="#2B2B2B"
+                Stroke="Transparent"
+                StrokeThickness="0"
+                Padding="15,12"
+                Margin="0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="15">
+                <Label Grid.Column="0"
+                       Text="✕"
+                       FontSize="22"
+                       TextColor="White"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding CancelSelectionCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+
+                <Label Grid.Column="1"
+                       Text="{Binding SelectedCount, StringFormat='Выбрано: {0}'}"
+                       FontSize="16"
+                       TextColor="White"
+                       VerticalOptions="Center"
+                       HorizontalOptions="Center" />
+
+                <Button Grid.Column="2"
+                        Text="Удалить"
+                        Command="{Binding DeleteSelectedCommand}"
+                        IsEnabled="{Binding HasSelection}"
+                        BackgroundColor="#D32F2F"
+                        TextColor="White"
+                        CornerRadius="8"
+                        HeightRequest="40"
+                        FontSize="14"
+                        Padding="16,0" />
+            </Grid>
+        </Border>
+    </Grid>
 
 </ContentPage>

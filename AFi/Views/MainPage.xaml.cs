@@ -15,7 +15,21 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        // Загружаем данные при появлении экрана
         await _viewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>
+    /// Системная кнопка «назад» на Android. Если активен режим
+    /// мультивыбора — отменяем выбор и не выходим.
+    /// </summary>
+    protected override bool OnBackButtonPressed()
+    {
+        if (_viewModel.IsSelectionMode)
+        {
+            _viewModel.CancelSelectionCommand.Execute(null);
+            return true;   // событие «съедено», приложение не закрывается
+        }
+
+        return base.OnBackButtonPressed();
     }
 }

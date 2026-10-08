@@ -22,6 +22,8 @@ public partial class MainViewModel : ObservableObject
     private int _loadedCount = PageSize;
     private int _totalInPeriod;
 
+    private readonly HashSet<int> _selectedIds = new();
+
     // ==================== Состояние формы ====================
 
     [ObservableProperty] private string _amountText = string.Empty;
@@ -49,27 +51,28 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<Category> AvailableCategories { get; } = new();
 
-    /// <summary>
-    /// Операции за последние 30 дней, сгруппированные по дням.
-    /// </summary>
     public ObservableCollection<TransactionGroup> TransactionGroups { get; } = new();
 
-    // ==================== Состояние пагинации ====================
+    // ==================== Пагинация ====================
 
-    /// <summary>
-    /// Есть ли ещё операции за 30 дней, которые не показаны.
-    /// </summary>
     [ObservableProperty] private bool _hasMoreInPeriod;
-
-    /// <summary>
-    /// Текст главной кнопки под списком: «Показать ещё» или «Вся история».
-    /// </summary>
     [ObservableProperty] private string _showMoreButtonText = "Показать ещё";
 
-    /// <summary>
-    /// Есть ли вообще операции за последние 30 дней. Используется для EmptyView.
-    /// </summary>
     public bool HasAnyTransactions => _totalInPeriod > 0;
+
+    // ==================== Мультивыбор ====================
+
+    [ObservableProperty] private bool _isSelectionMode;
+
+    [ObservableProperty] private int _selectedCount;
+
+    public bool HasSelection => SelectedCount > 0;
+
+    /// <summary>
+    /// Кнопка «Выбрать» видна только когда мы не в режиме выбора
+    /// и есть хотя бы одна операция для выбора.
+    /// </summary>
+    public bool CanEnterSelectionMode => !IsSelectionMode && HasAnyTransactions;
 
     // ==================== Тип операции ====================
 
@@ -92,6 +95,12 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentBalanceChanged(decimal value) =>
         OnPropertyChanged(nameof(IsBalanceNegative));
+
+    partial void OnSelectedCountChanged(int value) =>
+        OnPropertyChanged(nameof(HasSelection));
+
+    partial void OnIsSelectionModeChanged(bool value) =>
+        OnPropertyChanged(nameof(CanEnterSelectionMode));
 
     // ==================== Команды ====================
 
@@ -123,10 +132,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Показать следующие 10 операций. Если все операции за 30 дней
-    /// уже показаны — кнопка стала «Вся история», и этот метод не вызывается.
-    /// </summary>
     [RelayCommand]
     private async Task LoadMoreAsync()
     {
@@ -136,9 +141,6 @@ public partial class MainViewModel : ObservableObject
         await LoadTransactionsPageAsync();
     }
 
-    /// <summary>
-    /// Переход на страницу «История» через Shell.
-    /// </summary>
     [RelayCommand]
     private async Task GoToHistoryAsync()
     {
@@ -327,6 +329,115 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // ==================== Мультивыбор ====================
+
+    /// <summary>
+    /// Войти в режим мультивыбора (вызывается кнопкой «Выбрать»).
+    /// </summary>
+    [RelayCommand]
+    private void EnterSelectionMode()
+    {
+        if (!HasAnyTransactions) return;
+        IsSelectionMode = true;
+    }
+
+    [RelayCommand]
+    private void ToggleSelection(Transaction? transaction)
+    {
+        if (transaction is null || !IsSelectionMode) return;
+
+        System.Diagnostics.Debug.WriteLine($"ToggleSelection: id={transaction.Id}, before={transaction.IsSelected}");
+
+        if (_selectedIds.Contains(transaction.Id))
+        {
+            _selectedIds.Remove(transaction.Id);
+            transaction.IsSelected = false;
+        }
+        else
+        {
+            _selectedIds.Add(transaction.Id);
+            transaction.IsSelected = true;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"ToggleSelection: after={transaction.IsSelected}, count={_selectedIds.Count}");
+
+        SelectedCount = _selectedIds.Count;
+    }
+
+    [RelayCommand]
+    private void CancelSelection()
+    {
+        foreach (var group in TransactionGroups)
+        {
+            foreach (var t in group)
+                t.IsSelected = false;
+        }
+
+        _selectedIds.Clear();
+        SelectedCount = 0;
+        IsSelectionMode = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedAsync()
+    {
+        if (_selectedIds.Count == 0 || IsBusy) return;
+
+        var count = _selectedIds.Count;
+        var word = Plural(count, "операцию", "операции", "операций");
+
+        var confirmed = await _dialogs.ConfirmAsync(
+            "Удаление",
+            $"Удалить {count} {word}?\n\nЭто действие нельзя отменить.",
+            "Удалить",
+            "Отмена");
+
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            foreach (var id in _selectedIds.ToList())
+                await _db.DeleteTransactionAsync(id);
+
+            _selectedIds.Clear();
+            SelectedCount = 0;
+            IsSelectionMode = false;
+
+            _loadedCount = PageSize;
+            await LoadTransactionsPageAsync();
+            await ReloadBalanceAsync();
+
+            StatusMessage = $"Удалено {count} {word}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Тап по карточке операции: в обычном режиме — редактирование,
+    /// в режиме мультивыбора — переключение выбора.
+    /// </summary>
+    [RelayCommand]
+    private async Task HandleCardTapAsync(Transaction? transaction)
+    {
+        if (transaction is null) return;
+
+        if (IsSelectionMode)
+        {
+            ToggleSelection(transaction);
+            return;
+        }
+
+        await StartEditAsync(transaction);
+    }
+
     // ==================== Вспомогательные ====================
 
     private async Task ReloadCategoriesAsync()
@@ -351,11 +462,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Загружает операции за последние 30 дней, берёт первые _loadedCount
-    /// и группирует по дням. При каждом вызове перегруппировывает заново —
-    /// это дешевле по коду, чем инкрементально обновлять существующие группы.
-    /// </summary>
     private async Task LoadTransactionsPageAsync()
     {
         try
@@ -382,6 +488,11 @@ public partial class MainViewModel : ObservableObject
             ShowMoreButtonText = HasMoreInPeriod ? "Показать ещё" : "Вся история";
 
             OnPropertyChanged(nameof(HasAnyTransactions));
+            OnPropertyChanged(nameof(CanEnterSelectionMode));
+
+            _selectedIds.Clear();
+            SelectedCount = 0;
+            IsSelectionMode = false;
         }
         catch (Exception ex)
         {
@@ -405,5 +516,15 @@ public partial class MainViewModel : ObservableObject
     {
         AmountText = string.Empty;
         Note = string.Empty;
+    }
+
+    private static string Plural(int count, string one, string few, string many)
+    {
+        int mod100 = count % 100;
+        int mod10 = count % 10;
+        if (mod100 >= 11 && mod100 <= 14) return many;
+        if (mod10 == 1) return one;
+        if (mod10 >= 2 && mod10 <= 4) return few;
+        return many;
     }
 }
