@@ -26,6 +26,10 @@
         <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />
     </FlyoutItem>
 
+    <FlyoutItem Title="История" Route="HistoryPage">
+        <ShellContent ContentTemplate="{DataTemplate views:HistoryPage}" />
+    </FlyoutItem>
+
     <FlyoutItem Title="Категории" Route="CategoriesPage">
         <ShellContent ContentTemplate="{DataTemplate views:CategoriesPage}" />
     </FlyoutItem>

@@ -31,10 +31,12 @@ public static class MauiProgram
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddTransient<CategoriesViewModel>();
+        builder.Services.AddTransient<HistoryViewModel>();
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddTransient<CategoriesPage>();
+        builder.Services.AddTransient<HistoryPage>();
 
         return builder.Build();
     }

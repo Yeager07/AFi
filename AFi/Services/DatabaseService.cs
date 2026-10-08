@@ -97,22 +97,20 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Возвращает операции за указанный период с пагинацией.
-    /// fromInclusive / toInclusive = null означает «без ограничения с этой стороны».
-    /// Фильтрация делается в C#, потому что sqlite-net не всегда корректно
-    /// транслирует сравнения DateTime в SQL (особенно при разных DateTimeKind).
-    /// Для объёмов учебного проекта (тысячи записей) это копейки по времени.
+    /// Возвращает постранично отфильтрованные операции.
+    /// categoryId = null означает «без фильтра по категории».
     /// </summary>
     public async Task<List<Transaction>> GetTransactionsAsync(
-        DateTime? fromInclusive,
-        DateTime? toInclusive,
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? categoryId = null,
         int limit = 100,
         int offset = 0)
     {
         var db = await GetConnectionAsync();
         var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyDateFilter(all, fromInclusive, toInclusive);
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId);
 
         return filtered
             .OrderByDescending(t => t.Date)
@@ -127,28 +125,34 @@ public class DatabaseService
     /// показывать ли кнопку «Показать ещё».
     /// </summary>
     public async Task<int> GetTransactionsCountAsync(
-        DateTime? fromInclusive,
-        DateTime? toInclusive)
+    DateTime? fromInclusive = null,
+    DateTime? toInclusive = null,
+    int? categoryId = null)
     {
         var db = await GetConnectionAsync();
         var all = await db.Table<Transaction>().ToListAsync();
-        return ApplyDateFilter(all, fromInclusive, toInclusive).Count();
+        return ApplyFilters(all, fromInclusive, toInclusive, categoryId).Count();
     }
-
+    
     /// <summary>
     /// Общий метод фильтрации по датам — используется и в GetTransactionsAsync,
     /// и в GetTransactionsCountAsync, чтобы логика была в одном месте.
     /// </summary>
-    private static IEnumerable<Transaction> ApplyDateFilter(
+    private static IEnumerable<Transaction> ApplyFilters(
         IEnumerable<Transaction> source,
         DateTime? fromInclusive,
-        DateTime? toInclusive)
+        DateTime? toInclusive,
+        int? categoryId)
     {
         var result = source;
+
         if (fromInclusive.HasValue)
             result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
         if (toInclusive.HasValue)
             result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
+        if (categoryId.HasValue)
+            result = result.Where(t => t.CategoryId == categoryId.Value);
+
         return result;
     }
 
@@ -160,6 +164,30 @@ public class DatabaseService
     {
         var db = await GetConnectionAsync();
         return await db.Table<Transaction>().CountAsync();
+    }
+
+    /// <summary>
+    /// Возвращает суммарные показатели (доход, расход) за период
+    /// с учётом фильтра по категории.
+    /// </summary>
+    public async Task<(decimal Income, decimal Expense)> GetSummaryAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? categoryId = null)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId);
+
+        decimal income = 0, expense = 0;
+        foreach (var t in filtered)
+        {
+            if (t.Type == TransactionType.Income) income += t.Amount;
+            else expense += t.Amount;
+        }
+
+        return (income, expense);
     }
 
     // ==================== Баланс ====================

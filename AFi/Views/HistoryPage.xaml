@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
+             x:Class="AFi.Views.HistoryPage"
+             x:DataType="vm:HistoryViewModel"
+             x:Name="PageRoot"
+             Title="История">
+
+    <Grid RowDefinitions="Auto,Auto,*"
+          Padding="15"
+          RowSpacing="10">
+
+        <!-- ==================== Фильтры ==================== -->
+        <Border Grid.Row="0"
+                Stroke="LightGray"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 10"
+                Padding="12">
+            <VerticalStackLayout Spacing="8">
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <Label Grid.Column="0"
+                           Text="Период:"
+                           VerticalOptions="Center"
+                           FontSize="14" />
+                    <Picker Grid.Column="1"
+                            ItemsSource="{Binding FilterOptions}"
+                            SelectedIndex="{Binding SelectedFilterIndex}"
+                            FontSize="14" />
+                </Grid>
+
+                <Grid ColumnDefinitions="Auto,*,Auto,*"
+                      ColumnSpacing="8"
+                      IsVisible="{Binding IsCustomRangeSelected}">
+                    <Label Grid.Column="0"
+                           Text="С:"
+                           VerticalOptions="Center"
+                           FontSize="14" />
+                    <DatePicker Grid.Column="1"
+                                Date="{Binding CustomFromDate}"
+                                MaximumDate="{Binding MaxDate}"
+                                Format="dd.MM.yyyy"
+                                FontSize="14" />
+                    <Label Grid.Column="2"
+                           Text="По:"
+                           VerticalOptions="Center"
+                           FontSize="14" />
+                    <DatePicker Grid.Column="3"
+                                Date="{Binding CustomToDate}"
+                                MaximumDate="{Binding MaxDate}"
+                                Format="dd.MM.yyyy"
+                                FontSize="14" />
+                </Grid>
+
+                <Button Text="Применить"
+                        Command="{Binding ApplyCustomRangeCommand}"
+                        IsVisible="{Binding IsCustomRangeSelected}"
+                        BackgroundColor="#512BD4"
+                        TextColor="White"
+                        CornerRadius="8"
+                        HeightRequest="40"
+                        FontSize="14" />
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <Label Grid.Column="0"
+                           Text="Категория:"
+                           VerticalOptions="Center"
+                           FontSize="14" />
+                    <Picker Grid.Column="1"
+                            ItemsSource="{Binding CategoryFilterItems}"
+                            ItemDisplayBinding="{Binding Name}"
+                            SelectedIndex="{Binding SelectedCategoryIndex}"
+                            FontSize="14" />
+                </Grid>
+
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- ==================== Итоговые карточки ==================== -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,*,*"
+              ColumnSpacing="8">
+
+            <Border Grid.Column="0"
+                    Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="10">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Доход" FontSize="11" TextColor="Gray" />
+                    <Label Text="{Binding SummaryIncome, StringFormat='{0:N0} ₽'}"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="#2E7D32" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="10">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Расход" FontSize="11" TextColor="Gray" />
+                    <Label Text="{Binding SummaryExpense, StringFormat='{0:N0} ₽'}"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="#D32F2F" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Grid.Column="2"
+                    Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="10">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Баланс" FontSize="11" TextColor="Gray" />
+                    <Label Text="{Binding SummaryBalance, StringFormat='{0:N0} ₽'}"
+                           FontSize="15"
+                           FontAttributes="Bold">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding IsBalanceNegative}"
+                                         Value="True">
+                                <Setter Property="TextColor" Value="#D32F2F" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding IsBalanceNegative}"
+                                         Value="False">
+                                <Setter Property="TextColor" Value="#2E7D32" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- ==================== Список + пагинация ==================== -->
+        <Grid Grid.Row="2" RowDefinitions="*,Auto,Auto" RowSpacing="8">
+
+            <CollectionView Grid.Row="0"
+                            ItemsSource="{Binding Transactions}"
+                            SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <Label Text="Нет операций за выбранный период"
+                           FontSize="14"
+                           TextColor="Gray"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Transaction">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Reveal">
+                                    <SwipeItem Text="Удалить"
+                                               BackgroundColor="#D32F2F"
+                                               Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
+                                               CommandParameter="{Binding .}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+
+                            <Border Stroke="LightGray"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="12"
+                                    Margin="0,4">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      RowDefinitions="Auto,Auto">
+
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding CategoryName}"
+                                           FontSize="15"
+                                           FontAttributes="Bold" />
+
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           HorizontalOptions="End">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label"
+                                                         Binding="{Binding Type}"
+                                                         Value="1">
+                                                <Setter Property="TextColor" Value="#D32F2F" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Label"
+                                                         Binding="{Binding Type}"
+                                                         Value="0">
+                                                <Setter Property="TextColor" Value="#2E7D32" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+
+                                    <Label Grid.Row="1" Grid.Column="0"
+                                           Grid.ColumnSpan="2"
+                                           FontSize="12"
+                                           TextColor="Gray">
+                                        <Label.Text>
+                                            <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
+                                                <Binding Path="Date" />
+                                                <Binding Path="Note" />
+                                            </MultiBinding>
+                                        </Label.Text>
+                                    </Label>
+
+                                </Grid>
+                            </Border>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Button Grid.Row="1"
+                    Text="Показать ещё"
+                    Command="{Binding LoadMoreCommand}"
+                    IsVisible="{Binding HasMoreItems}"
+                    BackgroundColor="#512BD4"
+                    TextColor="White"
+                    CornerRadius="8"
+                    HeightRequest="44"
+                    FontSize="14" />
+
+            <Label Grid.Row="2"
+                   Text="{Binding StatusMessage}"
+                   FontSize="12"
+                   TextColor="Gray"
+                   HorizontalOptions="Center" />
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
