@@ -37,6 +37,19 @@ public partial class StatsViewModel : ObservableObject
 
     public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
 
+    /// <summary>
+    /// Показывать ли фильтр периода. В режиме «Динамика» он не нужен —
+    /// там всегда последние 6 месяцев.
+    /// </summary>
+    public bool IsFilterVisible => IsDonutMode;
+
+    // ==================== Тип диаграммы ====================
+
+    [ObservableProperty] private int _chartModeIndex;
+
+    public bool IsDonutMode => ChartModeIndex == 0;
+    public bool IsBarMode => ChartModeIndex == 1;
+
     // ==================== Итоговые карточки ====================
 
     [ObservableProperty] private decimal _summaryIncome;
@@ -45,21 +58,28 @@ public partial class StatsViewModel : ObservableObject
     public decimal SummaryBalance => SummaryIncome - SummaryExpense;
     public bool IsBalanceNegative => SummaryBalance < 0;
 
-    // ==================== Диаграмма ====================
+    [ObservableProperty] private string _summaryPeriodLabel = "за выбранный период";
+
+    // ==================== Круговая диаграмма ====================
 
     [ObservableProperty] private Chart? _expenseChart;
-
     [ObservableProperty] private string _totalText = "0 ₽";
 
-    [ObservableProperty] private bool _hasNoData;
+    public ObservableCollection<LegendItem> LegendItems { get; } = new();
+
+    // ==================== Столбчатые диаграммы ====================
+
+    [ObservableProperty] private Chart? _incomeBarChart;
+    [ObservableProperty] private Chart? _expenseBarChart;
+
+    /// <summary>
+    /// По умолчанию true — до первой загрузки показываем заглушку,
+    /// а не «0 ₽» в центре диаграммы.
+    /// </summary>
+    [ObservableProperty] private bool _hasNoData = true;
 
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
-
-    /// <summary>
-    /// Легенда под диаграммой: категория, сумма, процент, цвет.
-    /// </summary>
-    public ObservableCollection<LegendItem> LegendItems { get; } = new();
 
     public StatsViewModel(DatabaseService db)
     {
@@ -73,6 +93,13 @@ public partial class StatsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCustomRangeSelected));
         if (value == 9) return;
         _ = ReloadAsync();
+    }
+
+    partial void OnChartModeIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsDonutMode));
+        OnPropertyChanged(nameof(IsBarMode));
+        OnPropertyChanged(nameof(IsFilterVisible));
     }
 
     partial void OnSummaryIncomeChanged(decimal value) =>
@@ -98,6 +125,22 @@ public partial class StatsViewModel : ObservableObject
         await ReloadAsync();
     }
 
+    [RelayCommand]
+    private async Task SelectDonutModeAsync()
+    {
+        if (ChartModeIndex == 0) return;
+        ChartModeIndex = 0;
+        await ReloadSummaryForCurrentModeAsync();
+    }
+
+    [RelayCommand]
+    private async Task SelectBarModeAsync()
+    {
+        if (ChartModeIndex == 1) return;
+        ChartModeIndex = 1;
+        await ReloadSummaryForCurrentModeAsync();
+    }
+
     // ==================== Загрузка данных ====================
 
     private async Task ReloadAsync()
@@ -109,52 +152,12 @@ public partial class StatsViewModel : ObservableObject
         {
             await _db.InitializeAsync();
 
+            await ReloadSummaryForCurrentModeCoreAsync();
+
             var (from, to) = GetDateRange();
+            await ReloadDonutAsync(from, to);
 
-            // Итоговые карточки
-            var (income, expense) = await _db.GetSummaryAsync(from, to);
-            SummaryIncome = income;
-            SummaryExpense = expense;
-
-            // Разбивка по категориям для диаграммы и легенды
-            var breakdown = await _db.GetExpensesByCategoryAsync(from, to);
-
-            decimal totalExpense = breakdown.Sum(x => x.Sum);
-            TotalText = totalExpense.ToString("N0", CultureInfo.InvariantCulture) + " ₽";
-
-            HasNoData = breakdown.Count == 0;
-
-            LegendItems.Clear();
-
-            if (HasNoData)
-            {
-                ExpenseChart = null;
-                StatusMessage = "Нет расходов за выбранный период";
-            }
-            else
-            {
-                ExpenseChart = BuildDonutChart(breakdown);
-
-                // Легенда: категория, сумма, процент, цвет
-                for (int i = 0; i < breakdown.Count; i++)
-                {
-                    var item = breakdown[i];
-                    var hex = ChartPalette[i % ChartPalette.Length];
-                    var percent = totalExpense > 0
-                        ? item.Sum / totalExpense * 100m
-                        : 0m;
-
-                    LegendItems.Add(new LegendItem
-                    {
-                        CategoryName = item.CategoryName,
-                        AmountText = item.Sum.ToString("N0", CultureInfo.InvariantCulture) + " ₽",
-                        PercentText = $"{percent:0.#}%",
-                        Color = Color.FromArgb(hex),
-                    });
-                }
-
-                StatusMessage = $"Категорий: {breakdown.Count}";
-            }
+            await ReloadBarsAsync();
 
             OnPropertyChanged(nameof(IsBalanceNegative));
         }
@@ -168,7 +171,102 @@ public partial class StatsViewModel : ObservableObject
         }
     }
 
-    // ==================== Построение диаграммы ====================
+    private async Task ReloadSummaryForCurrentModeAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+
+        try
+        {
+            await ReloadSummaryForCurrentModeCoreAsync();
+            OnPropertyChanged(nameof(IsBalanceNegative));
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ReloadSummaryForCurrentModeCoreAsync()
+    {
+        DateTime? from;
+        DateTime? to;
+
+        if (IsBarMode)
+        {
+            var today = DateTime.Today;
+            var firstOfCurrentMonth = new DateTime(today.Year, today.Month, 1);
+            from = firstOfCurrentMonth.AddMonths(-5);
+            to = today;
+            SummaryPeriodLabel = "за последние 6 месяцев";
+        }
+        else
+        {
+            (from, to) = GetDateRange();
+            SummaryPeriodLabel = SelectedFilterIndex == 8
+                ? "за всё время"
+                : "за выбранный период";
+        }
+
+        var (income, expense) = await _db.GetSummaryAsync(from, to);
+        SummaryIncome = income;
+        SummaryExpense = expense;
+    }
+
+    private async Task ReloadDonutAsync(DateTime? from, DateTime? to)
+    {
+        var breakdown = await _db.GetExpensesByCategoryAsync(from, to);
+
+        decimal totalExpense = breakdown.Sum(x => x.Sum);
+        TotalText = totalExpense.ToString("N0", CultureInfo.InvariantCulture) + " ₽";
+
+        HasNoData = breakdown.Count == 0;
+        LegendItems.Clear();
+
+        if (HasNoData)
+        {
+            ExpenseChart = null;
+            return;
+        }
+
+        ExpenseChart = BuildDonutChart(breakdown);
+
+        for (int i = 0; i < breakdown.Count; i++)
+        {
+            var item = breakdown[i];
+            var hex = ChartPalette[i % ChartPalette.Length];
+            var percent = totalExpense > 0
+                ? item.Sum / totalExpense * 100m
+                : 0m;
+
+            LegendItems.Add(new LegendItem
+            {
+                CategoryName = item.CategoryName,
+                AmountText = item.Sum.ToString("N0", CultureInfo.InvariantCulture) + " ₽",
+                PercentText = $"{percent:0.#}%",
+                Color = Color.FromArgb(hex),
+            });
+        }
+    }
+
+    private async Task ReloadBarsAsync()
+    {
+        var today = DateTime.Today;
+        var firstOfCurrentMonth = new DateTime(today.Year, today.Month, 1);
+        var from = firstOfCurrentMonth.AddMonths(-5);
+        var to = today;
+
+        var monthly = await _db.GetMonthlyTotalsAsync(from, to);
+
+        IncomeBarChart = BuildBarChart(monthly, income: true);
+        ExpenseBarChart = BuildBarChart(monthly, income: false);
+    }
+
+    // ==================== Построение диаграмм ====================
 
     private static readonly string[] ChartPalette =
     {
@@ -179,8 +277,6 @@ public partial class StatsViewModel : ObservableObject
 
     private Chart BuildDonutChart(List<(string CategoryName, decimal Sum)> data)
     {
-        // Label и ValueLabel не задаём — они не нужны, диаграмма теперь без подписей.
-        // Цвета те же, что и в легенде.
         var entries = data.Select((item, index) =>
         {
             var color = SKColor.Parse(ChartPalette[index % ChartPalette.Length]);
@@ -195,7 +291,54 @@ public partial class StatsViewModel : ObservableObject
             Entries = entries,
             BackgroundColor = SKColors.Transparent,
             HoleRadius = 0.6f,
-            LabelMode = LabelMode.None,   // ← отключаем подписи вокруг диаграммы
+            LabelMode = LabelMode.None,
+        };
+    }
+
+    private Chart BuildBarChart(
+        List<(DateTime Month, decimal Income, decimal Expense)> monthly,
+        bool income)
+    {
+        var barColor = income
+            ? SKColor.Parse("#2E7D32")
+            : SKColor.Parse("#D32F2F");
+
+        var culture = new CultureInfo("ru-RU");
+
+        var today = DateTime.Today;
+        var months = Enumerable.Range(0, 6)
+            .Select(i => new DateTime(today.Year, today.Month, 1).AddMonths(-5 + i))
+            .ToList();
+
+        var lookup = monthly.ToDictionary(m => m.Month, m => m);
+
+        var entries = months.Select(month =>
+        {
+            var hasData = lookup.TryGetValue(month, out var m);
+            var value = hasData
+                ? (income ? m.Income : m.Expense)
+                : 0m;
+
+            return new ChartEntry((float)value)
+            {
+                Label = culture.DateTimeFormat
+                    .GetAbbreviatedMonthName(month.Month)
+                    .TrimEnd('.'),
+                ValueLabel = value > 0
+                    ? value.ToString("N0", CultureInfo.InvariantCulture)
+                    : string.Empty,
+                Color = barColor,
+                TextColor = SKColors.Gray,
+                ValueLabelColor = SKColors.Gray,
+            };
+        }).ToArray();
+
+        return new BarChart
+        {
+            Entries = entries,
+            BackgroundColor = SKColors.Transparent,
+            LabelTextSize = 28,
+            ValueLabelTextSize = 24,
         };
     }
 
