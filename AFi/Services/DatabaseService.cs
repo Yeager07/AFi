@@ -190,6 +190,52 @@ public class DatabaseService
         return (income, expense);
     }
 
+    /// <summary>
+    /// Возвращает сумму расходов в разбивке по категориям за период.
+    /// Отсортировано по убыванию суммы — для диаграммы и легенды.
+    /// </summary>
+    public async Task<List<(string CategoryName, decimal Sum)>> GetExpensesByCategoryAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null)
+            .Where(t => t.Type == TransactionType.Expense);
+
+        return filtered
+            .GroupBy(t => t.CategoryName)
+            .Select(g => (CategoryName: g.Key, Sum: g.Sum(t => t.Amount)))
+            .OrderByDescending(x => x.Sum)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Возвращает доходы и расходы по месяцам за период.
+    /// Ключ — год и месяц, значение — суммы. Используется для столбчатой диаграммы.
+    /// </summary>
+    public async Task<List<(DateTime Month, decimal Income, decimal Expense)>> GetMonthlyTotalsAsync(
+        DateTime fromInclusive,
+        DateTime toInclusive)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null);
+
+        var grouped = filtered
+            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
+            .Select(g => (
+                Month: g.Key,
+                Income: g.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
+                Expense: g.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)))
+            .OrderBy(x => x.Month)
+            .ToList();
+
+        return grouped;
+    }
+
     // ==================== Баланс ====================
 
     /// <summary>

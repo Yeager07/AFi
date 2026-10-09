@@ -2,38 +2,250 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
+             xmlns:converters="clr-namespace:AFi.Converters"
              xmlns:microcharts="clr-namespace:Microcharts.Maui;assembly=Microcharts.Maui"
              x:Class="AFi.Views.StatsPage"
              x:DataType="vm:StatsViewModel"
              Title="Статистика">
 
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="15" Spacing="12">
 
-            <Label Text="Статистика"
-                   FontSize="24"
-                   FontAttributes="Bold" />
+            <!-- ==================== Фильтр периода ==================== -->
+            <Border Stroke="LightGray"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="12">
+                <VerticalStackLayout Spacing="8">
 
-            <Label Text="Заглушка для проверки Microcharts. Полноценный экран появится на шаге 3.2."
-                   FontSize="13"
-                   TextColor="Gray" />
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                               Text="Период:"
+                               VerticalOptions="Center"
+                               FontSize="14" />
+                        <Picker Grid.Column="1"
+                                ItemsSource="{Binding FilterOptions}"
+                                SelectedIndex="{Binding SelectedFilterIndex}"
+                                FontSize="14" />
+                    </Grid>
 
+                    <Grid ColumnDefinitions="Auto,*,Auto,*"
+                          ColumnSpacing="8"
+                          IsVisible="{Binding IsCustomRangeSelected}">
+                        <Label Grid.Column="0"
+                               Text="С:"
+                               VerticalOptions="Center"
+                               FontSize="14" />
+                        <DatePicker Grid.Column="1"
+                                    Date="{Binding CustomFromDate}"
+                                    MaximumDate="{Binding MaxDate}"
+                                    Format="dd.MM.yyyy"
+                                    FontSize="14" />
+                        <Label Grid.Column="2"
+                               Text="По:"
+                               VerticalOptions="Center"
+                               FontSize="14" />
+                        <DatePicker Grid.Column="3"
+                                    Date="{Binding CustomToDate}"
+                                    MaximumDate="{Binding MaxDate}"
+                                    Format="dd.MM.yyyy"
+                                    FontSize="14" />
+                    </Grid>
+
+                    <Button Text="Применить"
+                            Command="{Binding ApplyCustomRangeCommand}"
+                            IsVisible="{Binding IsCustomRangeSelected}"
+                            BackgroundColor="#512BD4"
+                            TextColor="White"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            FontSize="14" />
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ==================== Итоговые карточки ==================== -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+
+                <Border Grid.Column="0"
+                        Stroke="LightGray"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Доход" FontSize="11" TextColor="Gray" />
+                        <Label Text="{Binding SummaryIncome, StringFormat='{0:N0} ₽'}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#2E7D32" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Stroke="LightGray"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Расход" FontSize="11" TextColor="Gray" />
+                        <Label Text="{Binding SummaryExpense, StringFormat='{0:N0} ₽'}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#D32F2F" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Stroke="LightGray"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="10"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Баланс" FontSize="11" TextColor="Gray" />
+                        <Label Text="{Binding SummaryBalance, StringFormat='{0:N0} ₽'}"
+                               FontSize="14"
+                               FontAttributes="Bold">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding IsBalanceNegative}"
+                                             Value="True">
+                                    <Setter Property="TextColor" Value="#D32F2F" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding IsBalanceNegative}"
+                                             Value="False">
+                                    <Setter Property="TextColor" Value="#2E7D32" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- ==================== Заголовок диаграммы ==================== -->
+            <Label Text="Расходы по категориям"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   Margin="0,8,0,0" />
+
+            <!-- ==================== Диаграмма (без подписей) ==================== -->
             <Border Stroke="LightGray"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 12"
-                    Padding="15"
-                    HeightRequest="320">
+                    Padding="10"
+                    HeightRequest="280">
                 <Grid>
-                    <microcharts:ChartView Chart="{Binding TestChart}" />
+
+                    <microcharts:ChartView Chart="{Binding ExpenseChart}"
+                                           IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}" />
 
                     <Label Text="{Binding TotalText}"
-                           FontSize="18"
+                           FontSize="20"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
-                           InputTransparent="True" />
+                           InputTransparent="True"
+                           IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}" />
+
+                    <Label Text="Нет расходов за выбранный период"
+                           FontSize="14"
+                           TextColor="Gray"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           IsVisible="{Binding HasNoData}" />
+
                 </Grid>
             </Border>
+
+            <!-- ==================== Заголовки колонок легенды ==================== -->
+            <Grid ColumnDefinitions="20,*,Auto,Auto"
+                  ColumnSpacing="10"
+                  Padding="4,2"
+                  Margin="0,4,0,0"
+                  IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}">
+
+                <Label Grid.Column="1"
+                       Text="Категория"
+                       FontSize="11"
+                       TextColor="Gray"
+                       FontAttributes="Bold" />
+
+                <Label Grid.Column="2"
+                       Text="Сумма"
+                       FontSize="11"
+                       TextColor="Gray"
+                       FontAttributes="Bold"
+                       HorizontalOptions="End" />
+
+                <Label Grid.Column="3"
+                       Text="Доля"
+                       FontSize="11"
+                       TextColor="Gray"
+                       FontAttributes="Bold"
+                       WidthRequest="50"
+                       HorizontalOptions="End" />
+            </Grid>
+
+            <!-- ==================== Легенда под диаграммой ==================== -->
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
+                                 Spacing="6"
+                                 Margin="0,4,0,0"
+                                 IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:LegendItem">
+                        <Grid ColumnDefinitions="20,*,Auto,Auto"
+                              ColumnSpacing="10"
+                              Padding="4,2">
+
+                            <!-- Квадратик цвета -->
+                            <Border Grid.Column="0"
+                                    WidthRequest="16"
+                                    HeightRequest="16"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 4"
+                                    BackgroundColor="{Binding Color}"
+                                    VerticalOptions="Center" />
+
+                            <!-- Название категории -->
+                            <Label Grid.Column="1"
+                                   Text="{Binding CategoryName}"
+                                   FontSize="14"
+                                   VerticalOptions="Center" />
+
+                            <!-- Сумма -->
+                            <Label Grid.Column="2"
+                                   Text="{Binding AmountText}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"
+                                   HorizontalOptions="End" />
+
+                            <!-- Процент -->
+                            <Label Grid.Column="3"
+                                   Text="{Binding PercentText}"
+                                   FontSize="12"
+                                   TextColor="Gray"
+                                   WidthRequest="50"
+                                   VerticalOptions="Center"
+                                   HorizontalOptions="End" />
+
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Label Text="{Binding StatusMessage}"
+                   FontSize="12"
+                   TextColor="Gray"
+                   HorizontalOptions="Center" />
 
         </VerticalStackLayout>
     </ScrollView>
