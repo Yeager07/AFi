@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AFi.ViewModels;
 
-public partial class HistoryViewModel : ObservableObject
+public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 {
     private const int PageSize = 100;
 
@@ -15,6 +15,7 @@ public partial class HistoryViewModel : ObservableObject
 
     private int _loadedCount;
     private readonly HashSet<int> _selectedIds = new();
+    private bool _suppressFilterReload;
 
     // ==================== Фильтры ====================
 
@@ -69,9 +70,6 @@ public partial class HistoryViewModel : ObservableObject
 
     public bool HasSelection => SelectedCount > 0;
 
-    /// <summary>
-    /// Кнопка «Выбрать» видна, когда мы не в режиме выбора и есть что выбирать.
-    /// </summary>
     public bool CanEnterSelectionMode => !IsSelectionMode && HasTransactions;
 
     public HistoryViewModel(DatabaseService db, IDialogService dialogs)
@@ -80,17 +78,103 @@ public partial class HistoryViewModel : ObservableObject
         _dialogs = dialogs;
     }
 
+    // ==================== Применение query-параметров ====================
+
+    /// <summary>
+    /// Вызывается MAUI Shell при навигации с query-параметрами
+    /// (filterIndex, при необходимости from/to, category).
+    /// Устанавливает фильтры ДО того, как сработает OnAppearing → LoadCommand.
+    /// </summary>
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        _suppressFilterReload = true;
+        try
+        {
+            if (query.TryGetValue("filterIndex", out var fiObj)
+                && int.TryParse(fiObj?.ToString(), out var fi)
+                && fi >= 0 && fi < FilterOptions.Count)
+            {
+                SelectedFilterIndex = fi;
+            }
+
+            if (query.TryGetValue("from", out var fromObj)
+                && DateTime.TryParse(fromObj?.ToString(), out var fromDate))
+            {
+                CustomFromDate = fromDate;
+            }
+
+            if (query.TryGetValue("to", out var toObj)
+                && DateTime.TryParse(toObj?.ToString(), out var toDate))
+            {
+                CustomToDate = toDate;
+            }
+
+            // Фильтр по категории — ищем по чистому имени (FilterName).
+            // Если категории в списке нет (удалена) — добавляем виртуальную запись.
+            if (query.TryGetValue("category", out var catObj)
+                && catObj is string catName
+                && !string.IsNullOrWhiteSpace(catName))
+            {
+                _pendingCategoryName = catName;
+            }
+        }
+        finally
+        {
+            _suppressFilterReload = false;
+        }
+    }
+
+    /// <summary>
+    /// Имя категории из query-параметра, ожидающее применения после
+    /// того, как CategoryFilterItems будет загружен.
+    /// </summary>
+    private string? _pendingCategoryName;
+
+    /// <summary>
+    /// Применяет отложенный фильтр по категории после загрузки списка.
+    /// Вызывается в LoadAsync после ReloadFiltersAsync.
+    /// </summary>
+    private void ApplyPendingCategoryFilter()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingCategoryName)) return;
+
+        var catName = _pendingCategoryName;
+        _pendingCategoryName = null;
+
+        // Ищем категорию по чистому имени
+        for (int i = 0; i < CategoryFilterItems.Count; i++)
+        {
+            if (CategoryFilterItems[i].FilterName == catName)
+            {
+                SelectedCategoryIndex = i;
+                return;
+            }
+        }
+
+        // Не нашли — категория была удалена. Добавляем виртуальную запись.
+        var virtualItem = new CategoryFilterItem
+        {
+            Id = null,
+            Name = $"{catName} (удалена)",
+            FilterName = catName,
+        };
+        CategoryFilterItems.Add(virtualItem);
+        SelectedCategoryIndex = CategoryFilterItems.Count - 1;
+    }
+
     // ==================== Реакции ====================
 
     partial void OnSelectedFilterIndexChanged(int value)
     {
         OnPropertyChanged(nameof(IsCustomRangeSelected));
+        if (_suppressFilterReload) return;
         if (value == 9) return;
         _ = ReloadAsync();
     }
 
     partial void OnSelectedCategoryIndexChanged(int value)
     {
+        if (_suppressFilterReload) return;
         _ = ReloadAsync();
     }
 
@@ -112,6 +196,7 @@ public partial class HistoryViewModel : ObservableObject
     {
         MaxDate = DateTime.Today;
         await ReloadFiltersAsync();
+        ApplyPendingCategoryFilter();
         await ReloadAsync();
     }
 
@@ -133,17 +218,19 @@ public partial class HistoryViewModel : ObservableObject
         try
         {
             var (from, to) = GetDateRange();
-            var categoryId = GetSelectedCategoryId();
+            var categoryName = GetSelectedCategoryName();
 
-            var next = await _db.GetTransactionsAsync(from, to, categoryId,
-                limit: PageSize, offset: _loadedCount);
+            var next = await _db.GetTransactionsAsync(from, to,
+                limit: PageSize, offset: _loadedCount,
+                categoryName: categoryName);
 
             foreach (var t in next)
                 Transactions.Add(t);
 
             _loadedCount += next.Count;
 
-            var total = await _db.GetTransactionsCountAsync(from, to, categoryId);
+            var total = await _db.GetTransactionsCountAsync(from, to,
+                categoryName: categoryName);
             HasMoreItems = _loadedCount < total;
             UpdateCountInStatus(total);
         }
@@ -268,10 +355,6 @@ public partial class HistoryViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Тап по карточке: в обычном режиме — редактирование (пока не реализовано
-    /// в Истории), в режиме мультивыбора — toggle выбора.
-    /// </summary>
     [RelayCommand]
     private void HandleCardTap(Transaction? transaction)
     {
@@ -281,7 +364,6 @@ public partial class HistoryViewModel : ObservableObject
         {
             ToggleSelection(transaction);
         }
-        // Вне режима выбора пока ничего — редактирование в Истории появится позже
     }
 
     // ==================== Вспомогательные ====================
@@ -310,10 +392,11 @@ public partial class HistoryViewModel : ObservableObject
         await _db.InitializeAsync();
 
         var (from, to) = GetDateRange();
-        var categoryId = GetSelectedCategoryId();
+        var categoryName = GetSelectedCategoryName();
 
-        var list = await _db.GetTransactionsAsync(from, to, categoryId,
-            limit: PageSize, offset: 0);
+        var list = await _db.GetTransactionsAsync(from, to,
+            limit: PageSize, offset: 0,
+            categoryName: categoryName);
 
         Transactions.Clear();
         foreach (var t in list)
@@ -321,11 +404,13 @@ public partial class HistoryViewModel : ObservableObject
 
         _loadedCount = list.Count;
 
-        var (income, expense) = await _db.GetSummaryAsync(from, to, categoryId);
+        var (income, expense) = await _db.GetSummaryAsync(from, to,
+            categoryName: categoryName);
         SummaryIncome = income;
         SummaryExpense = expense;
 
-        var total = await _db.GetTransactionsCountAsync(from, to, categoryId);
+        var total = await _db.GetTransactionsCountAsync(from, to,
+            categoryName: categoryName);
         HasMoreItems = _loadedCount < total;
 
         UpdateCountInStatus(total);
@@ -333,7 +418,6 @@ public partial class HistoryViewModel : ObservableObject
         OnPropertyChanged(nameof(IsBalanceNegative));
         OnPropertyChanged(nameof(CanEnterSelectionMode));
 
-        // Сбрасываем режим выбора при любой перезагрузке
         _selectedIds.Clear();
         SelectedCount = 0;
         IsSelectionMode = false;
@@ -354,16 +438,42 @@ public partial class HistoryViewModel : ObservableObject
 
             var categories = await _db.GetAllCategoriesAsync();
 
+            var previousFilterName = GetSelectedCategoryName();
+
             CategoryFilterItems.Clear();
-            CategoryFilterItems.Add(new CategoryFilterItem { Id = null, Name = "Все категории" });
+            CategoryFilterItems.Add(new CategoryFilterItem
+            {
+                Id = null,
+                Name = "Все категории",
+                FilterName = "",
+            });
+
             foreach (var c in categories)
                 CategoryFilterItems.Add(new CategoryFilterItem
                 {
                     Id = c.Id,
                     Name = $"{c.Name} ({(c.Type == TransactionType.Income ? "доход" : "расход")})",
+                    FilterName = c.Name,
                 });
 
+            // Восстанавливаем выбор по имени, если он был
+            if (!string.IsNullOrEmpty(previousFilterName))
+            {
+                for (int i = 0; i < CategoryFilterItems.Count; i++)
+                {
+                    if (CategoryFilterItems[i].FilterName == previousFilterName)
+                    {
+                        _suppressFilterReload = true;
+                        SelectedCategoryIndex = i;
+                        _suppressFilterReload = false;
+                        return;
+                    }
+                }
+            }
+
+            _suppressFilterReload = true;
             SelectedCategoryIndex = 0;
+            _suppressFilterReload = false;
         }
         catch (Exception ex)
         {
@@ -371,11 +481,17 @@ public partial class HistoryViewModel : ObservableObject
         }
     }
 
-    private int? GetSelectedCategoryId()
+    /// <summary>
+    /// Возвращает чистое имя выбранной категории (без суффикса типа).
+    /// Пустая строка означает «Все категории».
+    /// </summary>
+    private string? GetSelectedCategoryName()
     {
         if (SelectedCategoryIndex < 0 || SelectedCategoryIndex >= CategoryFilterItems.Count)
             return null;
-        return CategoryFilterItems[SelectedCategoryIndex].Id;
+
+        var item = CategoryFilterItems[SelectedCategoryIndex];
+        return string.IsNullOrEmpty(item.FilterName) ? null : item.FilterName;
     }
 
     private (DateTime? From, DateTime? To) GetDateRange()
@@ -419,6 +535,17 @@ public partial class HistoryViewModel : ObservableObject
 public class CategoryFilterItem
 {
     public int? Id { get; set; }
+
+    /// <summary>
+    /// Отображаемое имя — «Имя (расход)» или «Имя (удалена)».
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Чистое имя категории для фильтра — без суффикса типа.
+    /// Пустая строка = «Все категории» (фильтр отключён).
+    /// </summary>
+    public string FilterName { get; set; } = string.Empty;
+
     public override string ToString() => Name;
 }

@@ -101,16 +101,17 @@ public class DatabaseService
     /// categoryId = null означает «без фильтра по категории».
     /// </summary>
     public async Task<List<Transaction>> GetTransactionsAsync(
-        DateTime? fromInclusive = null,
-        DateTime? toInclusive = null,
-        int? categoryId = null,
-        int limit = 100,
-        int offset = 0)
+    DateTime? fromInclusive = null,
+    DateTime? toInclusive = null,
+    int? categoryId = null,
+    int limit = 100,
+    int offset = 0,
+    string? categoryName = null)
     {
         var db = await GetConnectionAsync();
         var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId);
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName);
 
         return filtered
             .OrderByDescending(t => t.Date)
@@ -125,13 +126,14 @@ public class DatabaseService
     /// показывать ли кнопку «Показать ещё».
     /// </summary>
     public async Task<int> GetTransactionsCountAsync(
-    DateTime? fromInclusive = null,
-    DateTime? toInclusive = null,
-    int? categoryId = null)
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? categoryId = null,
+        string? categoryName = null)
     {
         var db = await GetConnectionAsync();
         var all = await db.Table<Transaction>().ToListAsync();
-        return ApplyFilters(all, fromInclusive, toInclusive, categoryId).Count();
+        return ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName).Count();
     }
     
     /// <summary>
@@ -139,10 +141,11 @@ public class DatabaseService
     /// и в GetTransactionsCountAsync, чтобы логика была в одном месте.
     /// </summary>
     private static IEnumerable<Transaction> ApplyFilters(
-        IEnumerable<Transaction> source,
-        DateTime? fromInclusive,
-        DateTime? toInclusive,
-        int? categoryId)
+    IEnumerable<Transaction> source,
+    DateTime? fromInclusive,
+    DateTime? toInclusive,
+    int? categoryId,
+    string? categoryName = null)
     {
         var result = source;
 
@@ -150,8 +153,13 @@ public class DatabaseService
             result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
         if (toInclusive.HasValue)
             result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
+
+        // Приоритет у Id — если задан, фильтруем по нему.
+        // Если Id нет, но есть имя — по имени (для удалённых категорий).
         if (categoryId.HasValue)
             result = result.Where(t => t.CategoryId == categoryId.Value);
+        else if (!string.IsNullOrEmpty(categoryName))
+            result = result.Where(t => t.CategoryName == categoryName);
 
         return result;
     }
@@ -171,14 +179,15 @@ public class DatabaseService
     /// с учётом фильтра по категории.
     /// </summary>
     public async Task<(decimal Income, decimal Expense)> GetSummaryAsync(
-        DateTime? fromInclusive = null,
-        DateTime? toInclusive = null,
-        int? categoryId = null)
+    DateTime? fromInclusive = null,
+    DateTime? toInclusive = null,
+    int? categoryId = null,
+    string? categoryName = null)
     {
         var db = await GetConnectionAsync();
         var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId);
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName);
 
         decimal income = 0, expense = 0;
         foreach (var t in filtered)

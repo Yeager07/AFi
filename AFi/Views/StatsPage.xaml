@@ -7,6 +7,7 @@
              xmlns:microcharts="clr-namespace:Microcharts.Maui;assembly=Microcharts.Maui"
              x:Class="AFi.Views.StatsPage"
              x:DataType="vm:StatsViewModel"
+             x:Name="PageRoot"
              Title="Статистика">
 
     <ContentPage.Resources>
@@ -228,6 +229,13 @@
                     </Grid>
                 </Border>
 
+                <!-- Подсказка про тап -->
+                <Label Text="Нажмите на категорию ниже, чтобы увидеть все операции этой категории"
+                       FontSize="11"
+                       TextColor="Gray"
+                       HorizontalOptions="Center"
+                       IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}" />
+
                 <!-- Заголовки колонок легенды -->
                 <Grid ColumnDefinitions="20,*,Auto,Auto"
                       ColumnSpacing="10"
@@ -253,44 +261,55 @@
                            HorizontalOptions="End" />
                 </Grid>
 
-                <!-- Легенда -->
+                <!-- Легенда (кликабельная) -->
                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
                                      Spacing="6"
                                      IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="models:LegendItem">
-                            <Grid ColumnDefinitions="20,*,Auto,Auto"
-                                  ColumnSpacing="10"
-                                  Padding="4,2">
+                            <Border Stroke="LightGray"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="8,6"
+                                    BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.GoToHistoryCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
 
-                                <Border Grid.Column="0"
-                                        WidthRequest="16"
-                                        HeightRequest="16"
-                                        StrokeThickness="0"
-                                        StrokeShape="RoundRectangle 4"
-                                        BackgroundColor="{Binding Color}"
-                                        VerticalOptions="Center" />
+                                <Grid ColumnDefinitions="20,*,Auto,Auto"
+                                      ColumnSpacing="10">
 
-                                <Label Grid.Column="1"
-                                       Text="{Binding CategoryName}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
+                                    <Border Grid.Column="0"
+                                            WidthRequest="16"
+                                            HeightRequest="16"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 4"
+                                            BackgroundColor="{Binding Color}"
+                                            VerticalOptions="Center" />
 
-                                <Label Grid.Column="2"
-                                       Text="{Binding AmountText}"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       VerticalOptions="Center"
-                                       HorizontalOptions="End" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding CategoryName}"
+                                           FontSize="14"
+                                           VerticalOptions="Center" />
 
-                                <Label Grid.Column="3"
-                                       Text="{Binding PercentText}"
-                                       FontSize="12"
-                                       TextColor="Gray"
-                                       WidthRequest="50"
-                                       VerticalOptions="Center"
-                                       HorizontalOptions="End" />
-                            </Grid>
+                                    <Label Grid.Column="2"
+                                           Text="{Binding AmountText}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           VerticalOptions="Center"
+                                           HorizontalOptions="End" />
+
+                                    <Label Grid.Column="3"
+                                           Text="{Binding PercentText}"
+                                           FontSize="12"
+                                           TextColor="Gray"
+                                           WidthRequest="50"
+                                           VerticalOptions="Center"
+                                           HorizontalOptions="End" />
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>

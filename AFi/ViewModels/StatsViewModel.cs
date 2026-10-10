@@ -37,10 +37,6 @@ public partial class StatsViewModel : ObservableObject
 
     public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
 
-    /// <summary>
-    /// Показывать ли фильтр периода. В режиме «Динамика» он не нужен —
-    /// там всегда последние 6 месяцев.
-    /// </summary>
     public bool IsFilterVisible => IsDonutMode;
 
     // ==================== Тип диаграммы ====================
@@ -72,10 +68,6 @@ public partial class StatsViewModel : ObservableObject
     [ObservableProperty] private Chart? _incomeBarChart;
     [ObservableProperty] private Chart? _expenseBarChart;
 
-    /// <summary>
-    /// По умолчанию true — до первой загрузки показываем заглушку,
-    /// а не «0 ₽» в центре диаграммы.
-    /// </summary>
     [ObservableProperty] private bool _hasNoData = true;
 
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -139,6 +131,29 @@ public partial class StatsViewModel : ObservableObject
         if (ChartModeIndex == 1) return;
         ChartModeIndex = 1;
         await ReloadSummaryForCurrentModeAsync();
+    }
+
+    /// <summary>
+    /// Переход на страницу «История» с тем же периодом и категорией,
+    /// что выбраны в Статистике.
+    /// </summary>
+    [RelayCommand]
+    private async Task GoToHistoryAsync(LegendItem? item)
+    {
+        if (item is null) return;
+
+        var fi = SelectedFilterIndex;
+        var categoryParam = Uri.EscapeDataString(item.CategoryName);
+
+        var url = $"history-push?filterIndex={fi}&category={categoryParam}";
+
+        // Для «Свой период» нужно передать сами даты
+        if (fi == 9)
+        {
+            url += $"&from={CustomFromDate:yyyy-MM-dd}&to={CustomToDate:yyyy-MM-dd}";
+        }
+
+        await Shell.Current.GoToAsync(url);
     }
 
     // ==================== Загрузка данных ====================
