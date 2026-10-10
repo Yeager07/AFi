@@ -46,6 +46,7 @@ public class DatabaseService
             await _connection.CreateTableAsync<Transaction>();
 
             await SeedDefaultCategoriesAsync();
+            await MigrateIconsAsync();
 
             _initialized = true;
         }
@@ -202,8 +203,9 @@ public class DatabaseService
     /// <summary>
     /// Возвращает сумму расходов в разбивке по категориям за период.
     /// Отсортировано по убыванию суммы — для диаграммы и легенды.
+    /// Возвращает имя, иконку и сумму по каждой категории.
     /// </summary>
-    public async Task<List<(string CategoryName, decimal Sum)>> GetExpensesByCategoryAsync(
+    public async Task<List<(string CategoryName, string Icon, decimal Sum)>> GetExpensesByCategoryAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null)
     {
@@ -215,7 +217,10 @@ public class DatabaseService
 
         return filtered
             .GroupBy(t => t.CategoryName)
-            .Select(g => (CategoryName: g.Key, Sum: g.Sum(t => t.Amount)))
+            .Select(g => (
+                CategoryName: g.Key,
+                Icon: g.First().CategoryIcon ?? string.Empty,
+                Sum: g.Sum(t => t.Amount)))
             .OrderByDescending(x => x.Sum)
             .ToList();
     }
@@ -358,25 +363,97 @@ public class DatabaseService
         var defaults = new List<Category>
         {
             // ============ Расходы ============
-            new() { Name = "Аренда",                  Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Закупки (сырьё)",         Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Налоги",                  Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Коммунальные услуги",     Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "АЗС",                     Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Транспорт",               Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Кафе и рестораны",        Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Дом и ремонт",            Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Одежда и обувь",          Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Подписки",                Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Цветы",                   Type = TransactionType.Expense, IsDefault = true },
-            new() { Name = "Прочее",                  Type = TransactionType.Expense, IsDefault = true },
+            new() { Name = "Аренда",              Type = TransactionType.Expense, IsDefault = true, Icon = "🏠" },
+            new() { Name = "Закупки (сырьё)",     Type = TransactionType.Expense, IsDefault = true, Icon = "📦" },
+            new() { Name = "Налоги",              Type = TransactionType.Expense, IsDefault = true, Icon = "📄" },
+            new() { Name = "Коммунальные услуги", Type = TransactionType.Expense, IsDefault = true, Icon = "💡" },
+            new() { Name = "АЗС",                 Type = TransactionType.Expense, IsDefault = true, Icon = "⛽" },
+            new() { Name = "Транспорт",           Type = TransactionType.Expense, IsDefault = true, Icon = "🚗" },
+            new() { Name = "Кафе и рестораны",    Type = TransactionType.Expense, IsDefault = true, Icon = "🍽️" },
+            new() { Name = "Дом и ремонт",        Type = TransactionType.Expense, IsDefault = true, Icon = "🔨" },
+            new() { Name = "Одежда и обувь",      Type = TransactionType.Expense, IsDefault = true, Icon = "👕" },
+            new() { Name = "Подписки",            Type = TransactionType.Expense, IsDefault = true, Icon = "📱" },
+            new() { Name = "Цветы",               Type = TransactionType.Expense, IsDefault = true, Icon = "💐" },
+            new() { Name = "Прочее",              Type = TransactionType.Expense, IsDefault = true, Icon = "❓" },
 
             // ============ Доходы ============
-            new() { Name = "Выручка",                 Type = TransactionType.Income,  IsDefault = true },
-            new() { Name = "Зарплата",                Type = TransactionType.Income,  IsDefault = true },
-            new() { Name = "Прочие поступления",      Type = TransactionType.Income,  IsDefault = true },
+            new() { Name = "Выручка",             Type = TransactionType.Income,  IsDefault = true, Icon = "💰" },
+            new() { Name = "Зарплата",            Type = TransactionType.Income,  IsDefault = true, Icon = "💵" },
+            new() { Name = "Прочие поступления",  Type = TransactionType.Income,  IsDefault = true, Icon = "💸" },
         };
 
         await db.InsertAllAsync(defaults);
+    }
+
+    /// <summary>
+    /// Миграция иконок. Для существующих БД, где колонка Icon ещё NULL/пустая,
+    /// заполняет её значениями по имени категории. Для транзакций — копирует
+    /// иконку из категории по имени, если CategoryIcon пуст.
+    /// Метод идемпотентен: если иконка уже заполнена, ничего не меняет.
+    /// </summary>
+    private async Task MigrateIconsAsync()
+    {
+        var db = _connection!;
+
+        // Словарь имя → иконка для дефолтных категорий
+        var defaultIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Аренда"] = "🏠",
+            ["Закупки (сырьё)"] = "📦",
+            ["Налоги"] = "📄",
+            ["Коммунальные услуги"] = "💡",
+            ["АЗС"] = "⛽",
+            ["Транспорт"] = "🚗",
+            ["Кафе и рестораны"] = "🍽️",
+            ["Дом и ремонт"] = "🔨",
+            ["Одежда и обувь"] = "👕",
+            ["Подписки"] = "📱",
+            ["Цветы"] = "💐",
+            ["Прочее"] = "❓",
+            ["Выручка"] = "💰",
+            ["Зарплата"] = "💵",
+            ["Прочие поступления"] = "💸",
+        };
+
+        // 1. Категории — заполняем пустые иконки
+        var categories = await db.Table<Category>().ToListAsync();
+        var categoriesToUpdate = new List<Category>();
+
+        foreach (var c in categories)
+        {
+            if (!string.IsNullOrEmpty(c.Icon)) continue;
+
+            c.Icon = defaultIcons.TryGetValue(c.Name, out var icon)
+                ? icon
+                : "👤";  // пользовательская категория по умолчанию
+
+            categoriesToUpdate.Add(c);
+        }
+
+        if (categoriesToUpdate.Count > 0)
+            await db.UpdateAllAsync(categoriesToUpdate);
+
+        // 2. Транзакции — копируем иконку по имени категории
+        var transactions = await db.Table<Transaction>().ToListAsync();
+        var transactionsToUpdate = new List<Transaction>();
+
+        // Карта имя категории → иконка (для всех категорий из БД, включая пользовательские)
+        var iconByName = categories.ToDictionary(c => c.Name, c => c.Icon, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var t in transactions)
+        {
+            if (!string.IsNullOrEmpty(t.CategoryIcon)) continue;
+
+            t.CategoryIcon = iconByName.TryGetValue(t.CategoryName, out var icon)
+                ? icon
+                : defaultIcons.TryGetValue(t.CategoryName, out var defIcon)
+                    ? defIcon
+                    : "❓";
+
+            transactionsToUpdate.Add(t);
+        }
+
+        if (transactionsToUpdate.Count > 0)
+            await db.UpdateAllAsync(transactionsToUpdate);
     }
 }

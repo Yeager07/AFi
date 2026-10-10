@@ -12,6 +12,7 @@
 
     <ContentPage.Resources>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
     </ContentPage.Resources>
 
     <ScrollView>
@@ -229,7 +230,6 @@
                     </Grid>
                 </Border>
 
-                <!-- Подсказка про тап -->
                 <Label Text="Нажмите на категорию ниже, чтобы увидеть все операции этой категории"
                        FontSize="11"
                        TextColor="Gray"
@@ -289,10 +289,17 @@
                                             BackgroundColor="{Binding Color}"
                                             VerticalOptions="Center" />
 
-                                    <Label Grid.Column="1"
-                                           Text="{Binding CategoryName}"
-                                           FontSize="14"
-                                           VerticalOptions="Center" />
+                                    <HorizontalStackLayout Grid.Column="1"
+                                                           Spacing="6"
+                                                           VerticalOptions="Center">
+                                        <Label Text="{Binding Icon}"
+                                               FontSize="16"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding Icon, Converter={StaticResource IsNotEmptyConverter}}" />
+                                        <Label Text="{Binding CategoryName}"
+                                               FontSize="14"
+                                               VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
 
                                     <Label Grid.Column="2"
                                            Text="{Binding AmountText}"

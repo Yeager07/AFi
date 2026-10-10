@@ -86,7 +86,7 @@
 
                         <Label Text="Категория" FontSize="14" />
                         <Picker ItemsSource="{Binding AvailableCategories}"
-                                ItemDisplayBinding="{Binding Name}"
+                                ItemDisplayBinding="{Binding DisplayName}"
                                 SelectedItem="{Binding SelectedCategory}" />
 
                         <Label Text="Дата" FontSize="14" />
@@ -247,7 +247,7 @@
                                               RowDefinitions="Auto,Auto">
 
                                             <Label Grid.Row="0" Grid.Column="0"
-                                                   Text="{Binding CategoryName}"
+                                                   Text="{Binding DisplayCategoryName}"
                                                    FontSize="15"
                                                    FontAttributes="Bold" />
 
@@ -325,7 +325,7 @@
                                         </Border>
 
                                         <Label Grid.Row="0" Grid.Column="1"
-                                               Text="{Binding CategoryName}"
+                                               Text="{Binding DisplayCategoryName}"
                                                FontSize="15"
                                                FontAttributes="Bold" />
 

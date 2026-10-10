@@ -15,16 +15,24 @@ public class Category
     [NotNull, MaxLength(50)]
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    /// К какой группе относится: расходная или доходная.
-    /// Категории разных типов не смешиваются в Picker'е.
-    /// </summary>
     public TransactionType Type { get; set; }
 
-    /// <summary>
-    /// true — предустановленная категория, false — созданная пользователем.
-    /// Пока не используется (управление категориями будет на Этапе 2),
-    /// но закладываем сразу, чтобы не переделывать схему БД.
-    /// </summary>
     public bool IsDefault { get; set; }
+
+    /// <summary>
+    /// Иконка-эмодзи для визуального отображения категории.
+    /// Хранится как одна кодовая точка (например, "🏠").
+    /// У пользовательских категорий по умолчанию "👤".
+    /// </summary>
+    [MaxLength(10)]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Отображаемое имя с иконкой: "🏠 Аренда".
+    /// Не сохраняется в БД. Используется в Picker и других местах,
+    /// где нужен компактный текст.
+    /// </summary>
+    [Ignore]
+    public string DisplayName =>
+        string.IsNullOrEmpty(Icon) ? Name : $"{Icon} {Name}";
 }

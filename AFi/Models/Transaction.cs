@@ -23,6 +23,13 @@ public partial class Transaction : ObservableObject
     [MaxLength(50)]
     public string CategoryName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Иконка категории на момент создания операции. Денормализация —
+    /// чтобы не терять иконку при удалении или переименовании категории.
+    /// </summary>
+    [MaxLength(10)]
+    public string CategoryIcon { get; set; } = string.Empty;
+
     public DateTime Date { get; set; }
 
     [MaxLength(200)]
@@ -43,4 +50,14 @@ public partial class Transaction : ObservableObject
         get => _isSelected;
         set => SetProperty(ref _isSelected, value);
     }
+
+    /// <summary>
+    /// Отображаемое имя категории с иконкой: "🏠 Аренда".
+    /// Не сохраняется в БД.
+    /// </summary>
+    [Ignore]
+    public string DisplayCategoryName =>
+        string.IsNullOrEmpty(CategoryIcon)
+            ? CategoryName
+            : $"{CategoryIcon} {CategoryName}";
 }

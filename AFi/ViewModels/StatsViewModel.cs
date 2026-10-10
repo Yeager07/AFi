@@ -261,6 +261,7 @@ public partial class StatsViewModel : ObservableObject
             LegendItems.Add(new LegendItem
             {
                 CategoryName = item.CategoryName,
+                Icon = item.Icon,
                 AmountText = item.Sum.ToString("N0", CultureInfo.InvariantCulture) + " ₽",
                 PercentText = $"{percent:0.#}%",
                 Color = Color.FromArgb(hex),
@@ -290,7 +291,7 @@ public partial class StatsViewModel : ObservableObject
         "#81C784", "#FFB74D", "#7986CB", "#E57373",
     };
 
-    private Chart BuildDonutChart(List<(string CategoryName, decimal Sum)> data)
+    private Chart BuildDonutChart(List<(string CategoryName, string Icon, decimal Sum)> data)
     {
         var entries = data.Select((item, index) =>
         {

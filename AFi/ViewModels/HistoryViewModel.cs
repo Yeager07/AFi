@@ -155,9 +155,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         var virtualItem = new CategoryFilterItem
         {
             Id = null,
-            Name = $"{catName} (удалена)",
+            Name = $"❓ {catName} (удалена)",
             FilterName = catName,
         };
+        
         CategoryFilterItems.Add(virtualItem);
         SelectedCategoryIndex = CategoryFilterItems.Count - 1;
     }
@@ -449,12 +450,16 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             });
 
             foreach (var c in categories)
+            {
+                var icon = string.IsNullOrEmpty(c.Icon) ? "👤" : c.Icon;
+                var typeRu = c.Type == TransactionType.Income ? "доход" : "расход";
                 CategoryFilterItems.Add(new CategoryFilterItem
                 {
                     Id = c.Id,
-                    Name = $"{c.Name} ({(c.Type == TransactionType.Income ? "доход" : "расход")})",
+                    Name = $"{icon} {c.Name} ({typeRu})",
                     FilterName = c.Name,
                 });
+            }
 
             // Восстанавливаем выбор по имени, если он был
             if (!string.IsNullOrEmpty(previousFilterName))
@@ -537,12 +542,12 @@ public class CategoryFilterItem
     public int? Id { get; set; }
 
     /// <summary>
-    /// Отображаемое имя — «Имя (расход)» или «Имя (удалена)».
+    /// Отображаемое имя — «🏠 Аренда (расход)» или «❓ Имя (удалена)».
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Чистое имя категории для фильтра — без суффикса типа.
+    /// Чистое имя категории для фильтра — без суффикса типа и иконки.
     /// Пустая строка = «Все категории» (фильтр отключён).
     /// </summary>
     public string FilterName { get; set; } = string.Empty;

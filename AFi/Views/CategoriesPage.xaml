@@ -96,46 +96,42 @@
                             StrokeThickness="1"
                             StrokeShape="RoundRectangle 8"
                             Padding="12"
-                            Margin="0,4">
+                            Margin="0,4"
+                            BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
                         <Grid ColumnDefinitions="*,Auto">
 
                             <VerticalStackLayout Grid.Column="0" Spacing="2">
-                                <Label Text="{Binding Name}"
+                                <Label Text="{Binding DisplayName}"
                                        FontSize="16"
                                        FontAttributes="Bold"
                                        VerticalOptions="Center" />
                                 <Label FontSize="11"
                                        TextColor="Gray"
-                                       IsVisible="{Binding IsDefault}">
-                                    <Label.Text>
-                                        <MultiBinding StringFormat="Предустановленная">
-                                            <Binding />
-                                        </MultiBinding>
-                                    </Label.Text>
-                                </Label>
+                                       Text="Предустановленная"
+                                       IsVisible="{Binding IsDefault}" />
                             </VerticalStackLayout>
 
                             <Button Grid.Column="1"
-                            Text="Удалить"
-                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
-                            CommandParameter="{Binding .}"
-                            BackgroundColor="Transparent"
-                            TextColor="#D32F2F"
-                            BorderColor="#D32F2F"
-                            BorderWidth="1"
-                            CornerRadius="8"
-                            FontSize="13"
-                            Padding="12,0"
-                            HeightRequest="36">
+                                    Text="Удалить"
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="#D32F2F"
+                                    BorderColor="#D32F2F"
+                                    BorderWidth="1"
+                                    CornerRadius="8"
+                                    FontSize="13"
+                                    Padding="12,0"
+                                    HeightRequest="36">
                                 <Button.Triggers>
                                     <DataTrigger TargetType="Button"
-                                                Binding="{Binding IsDefault}"
-                                                Value="True">
+                                                 Binding="{Binding IsDefault}"
+                                                 Value="True">
                                         <Setter Property="IsVisible" Value="False" />
                                     </DataTrigger>
                                 </Button.Triggers>
                             </Button>
-                            
+
                         </Grid>
                     </Border>
                 </DataTemplate>

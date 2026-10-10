@@ -199,6 +199,7 @@ public partial class MainViewModel : ObservableObject
             {
                 _editingTransaction.CategoryId = SelectedCategory.Id;
                 _editingTransaction.CategoryName = SelectedCategory.Name;
+                _editingTransaction.CategoryIcon = SelectedCategory.Icon;
                 _editingTransaction.Date = Date;
                 _editingTransaction.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
@@ -220,6 +221,7 @@ public partial class MainViewModel : ObservableObject
                     Type = CurrentType,
                     CategoryId = SelectedCategory.Id,
                     CategoryName = SelectedCategory.Name,
+                    CategoryIcon = SelectedCategory.Icon,
                     Date = Date,
                     Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
                     CreatedAt = DateTime.Now

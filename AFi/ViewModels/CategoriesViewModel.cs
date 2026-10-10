@@ -120,6 +120,7 @@ public partial class CategoriesViewModel : ObservableObject
                 Name = name,
                 Type = CurrentType,
                 IsDefault = false,
+                Icon = "👤",   // стандартная иконка для пользовательских категорий
             };
 
             await _db.AddCategoryAsync(category);
