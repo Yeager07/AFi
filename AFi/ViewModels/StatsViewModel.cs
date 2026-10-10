@@ -12,6 +12,7 @@ namespace AFi.ViewModels;
 public partial class StatsViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
+    private readonly IThemeService _themeService;
 
     // ==================== Фильтр периода ====================
 
@@ -73,9 +74,32 @@ public partial class StatsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
 
-    public StatsViewModel(DatabaseService db)
+    // ==================== Кэш последних данных ====================
+
+    /// <summary>
+    /// Последние данные для столбчатых диаграмм. Нужны, чтобы
+    /// перестроить диаграммы при смене темы без запроса к БД.
+    /// </summary>
+    private List<(DateTime Month, decimal Income, decimal Expense)> _lastMonthly = new();
+
+    public StatsViewModel(DatabaseService db, IThemeService themeService)
     {
         _db = db;
+        _themeService = themeService;
+
+        // Перестраиваем диаграммы при смене темы
+        _themeService.ThemeChanged += OnThemeChanged;
+    }
+
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        // Перестраиваем только столбчатые диаграммы — они зависят от темы.
+        // Круговая использует фиксированную палитру и перестройки не требует.
+        if (_lastMonthly.Count > 0)
+        {
+            IncomeBarChart = BuildBarChart(_lastMonthly, income: true);
+            ExpenseBarChart = BuildBarChart(_lastMonthly, income: false);
+        }
     }
 
     // ==================== Реакции ====================
@@ -134,8 +158,7 @@ public partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Переход на страницу «История» с тем же периодом и категорией,
-    /// что выбраны в Статистике.
+    /// Переход на страницу «История» с тем же периодом и категорией.
     /// </summary>
     [RelayCommand]
     private async Task GoToHistoryAsync(LegendItem? item)
@@ -147,7 +170,6 @@ public partial class StatsViewModel : ObservableObject
 
         var url = $"history-push?filterIndex={fi}&category={categoryParam}";
 
-        // Для «Свой период» нужно передать сами даты
         if (fi == 9)
         {
             url += $"&from={CustomFromDate:yyyy-MM-dd}&to={CustomToDate:yyyy-MM-dd}";
@@ -276,20 +298,26 @@ public partial class StatsViewModel : ObservableObject
         var from = firstOfCurrentMonth.AddMonths(-5);
         var to = today;
 
-        var monthly = await _db.GetMonthlyTotalsAsync(from, to);
+        _lastMonthly = await _db.GetMonthlyTotalsAsync(from, to);
 
-        IncomeBarChart = BuildBarChart(monthly, income: true);
-        ExpenseBarChart = BuildBarChart(monthly, income: false);
+        IncomeBarChart = BuildBarChart(_lastMonthly, income: true);
+        ExpenseBarChart = BuildBarChart(_lastMonthly, income: false);
     }
 
-    // ==================== Построение диаграмм ====================
+    // ==================== Палитра круговой диаграммы ====================
 
+    /// <summary>
+    /// Фиксированная палитра для сегментов круговой диаграммы.
+    /// Яркая, работает во всех темах. Не меняется при смене темы.
+    /// </summary>
     private static readonly string[] ChartPalette =
     {
         "#FF6B6B", "#4ECDC4", "#FFD93D", "#A8E6CF",
         "#B388FF", "#FF8A65", "#4DD0E1", "#BA68C8",
         "#81C784", "#FFB74D", "#7986CB", "#E57373",
     };
+
+    // ==================== Построение диаграмм ====================
 
     private Chart BuildDonutChart(List<(string CategoryName, string Icon, decimal Sum)> data)
     {
@@ -315,9 +343,9 @@ public partial class StatsViewModel : ObservableObject
         List<(DateTime Month, decimal Income, decimal Expense)> monthly,
         bool income)
     {
-        var barColor = income
-            ? SKColor.Parse("#2E7D32")
-            : SKColor.Parse("#D32F2F");
+        // Цвета берём из текущей темы — они меняются при переключении.
+        var barColor = GetThemeColor(income ? "SuccessColor" : "DangerColor");
+        var textColor = GetThemeColor("TextPrimaryColor");
 
         var culture = new CultureInfo("ru-RU");
 
@@ -344,8 +372,8 @@ public partial class StatsViewModel : ObservableObject
                     ? value.ToString("N0", CultureInfo.InvariantCulture)
                     : string.Empty,
                 Color = barColor,
-                TextColor = SKColors.Gray,
-                ValueLabelColor = SKColors.Gray,
+                TextColor = textColor,
+                ValueLabelColor = textColor,
             };
         }).ToArray();
 
@@ -356,6 +384,26 @@ public partial class StatsViewModel : ObservableObject
             LabelTextSize = 28,
             ValueLabelTextSize = 24,
         };
+    }
+
+    // ==================== Работа с темой ====================
+
+    /// <summary>
+    /// Достаёт цвет из текущей темы по ключу. Возвращает fallback,
+    /// если ключ не найден.
+    /// </summary>
+    private static SKColor GetThemeColor(string key)
+    {
+        if (Application.Current?.Resources.TryGetValue(key, out var value) == true
+            && value is Color color)
+        {
+            return new SKColor(
+                (byte)(color.Red * 255),
+                (byte)(color.Green * 255),
+                (byte)(color.Blue * 255),
+                (byte)(color.Alpha * 255));
+        }
+        return SKColors.Gray;
     }
 
     // ==================== Даты ====================
