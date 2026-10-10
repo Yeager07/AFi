@@ -188,4 +188,9 @@ public class ThemeService : IThemeService
         var result = ApplyTheme(saved);
         Debug.WriteLine($"[ThemeService] ApplySavedTheme: {result}");
     }
+
+    public IReadOnlyDictionary<string, string> GetThemeColors(string themeKey)
+    {
+        return GetTheme(themeKey);
+    }
 }

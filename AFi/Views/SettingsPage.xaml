@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
+             x:Class="AFi.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             x:Name="PageRoot"
+             Title="Настройки"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="15" Spacing="12">
+
+            <Label Text="Тема оформления"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   Margin="0,4,0,0" />
+
+            <Label Text="Выберите понравившееся оформление. Тема применяется ко всему приложению и сохраняется при закрытии."
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+            <CollectionView ItemsSource="{Binding Themes}"
+                            SelectionMode="None">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical"
+                                     Span="2"
+                                     HorizontalItemSpacing="10"
+                                     VerticalItemSpacing="10" />
+                </CollectionView.ItemsLayout>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ThemePreviewItem">
+                        <Border Stroke="{DynamicResource CardBorderColor}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10"
+                                BackgroundColor="{DynamicResource CardBackgroundColor}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.SelectThemeCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+
+                            <VerticalStackLayout Spacing="10">
+
+                                <!-- Палитра темы: 4 вертикальные полоски -->
+                                <Border StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 8"
+                                        HeightRequest="60">
+                                    <Grid ColumnDefinitions="*,*,*,*">
+                                        <BoxView Grid.Column="0"
+                                                 Color="{Binding PreviewBackground}" />
+                                        <BoxView Grid.Column="1"
+                                                 Color="{Binding PreviewCard}" />
+                                        <BoxView Grid.Column="2"
+                                                 Color="{Binding PreviewPrimary}" />
+                                        <BoxView Grid.Column="3"
+                                                 Color="{Binding PreviewText}" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Название темы + индикатор выбора -->
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+
+                                    <Label Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimaryColor}"
+                                           VerticalOptions="Center" />
+
+                                    <Border Grid.Column="1"
+                                            WidthRequest="22"
+                                            HeightRequest="22"
+                                            StrokeShape="RoundRectangle 11"
+                                            Stroke="{DynamicResource PrimaryColor}"
+                                            StrokeThickness="2"
+                                            BackgroundColor="Transparent"
+                                            Padding="0"
+                                            VerticalOptions="Center">
+                                        <Label Text="✓"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource PrimaryColor}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding IsSelected}" />
+                                    </Border>
+
+                                </Grid>
+
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="{Binding StatusMessage}"
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}"
+                   HorizontalOptions="Center"
+                   Margin="0,4,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

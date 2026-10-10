@@ -26,21 +26,24 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        // ==================== DI-регистрация ====================
-
+        // Сервисы
         builder.Services.AddSingleton<DatabaseService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IThemeService, ThemeService>();
 
+        // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddTransient<CategoriesViewModel>();
         builder.Services.AddTransient<HistoryViewModel>();
         builder.Services.AddTransient<StatsViewModel>();
+        builder.Services.AddTransient<SettingsViewModel>();
 
+        // Страницы
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddTransient<CategoriesPage>();
         builder.Services.AddTransient<HistoryPage>();
         builder.Services.AddTransient<StatsPage>();
+        builder.Services.AddTransient<SettingsPage>();
 
         return builder.Build();
     }

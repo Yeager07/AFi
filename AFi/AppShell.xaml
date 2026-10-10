@@ -34,7 +34,6 @@
         </Grid>
     </Shell.FlyoutHeader>
 
-    <!-- Кастомный вид пункта меню: рамка + иконка + название -->
     <Shell.ItemTemplate>
         <DataTemplate>
             <Border Stroke="{DynamicResource CardBorderColor}"
@@ -76,6 +75,10 @@
 
     <FlyoutItem Title="Категории" Route="CategoriesPage">
         <ShellContent ContentTemplate="{DataTemplate views:CategoriesPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Настройки" Route="SettingsPage">
+        <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
     </FlyoutItem>
 
 </Shell>

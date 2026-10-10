@@ -2,18 +2,15 @@ using System.Globalization;
 
 namespace AFi.Converters;
 
-/// <summary>
-/// Преобразует название пункта меню Shell в эмодзи-иконку.
-/// Используется в Shell.ItemTemplate — чтобы у каждого пункта была иконка.
-/// </summary>
 public class TitleToEmojiConverter : IValueConverter
 {
     private static readonly Dictionary<string, string> Map = new()
     {
-        ["Главная"] = "🏠",
-        ["История"] = "📜",
-        ["Статистика"] = "📊",
-        ["Категории"] = "🏷️",
+        ["Главная"]     = "🏠",
+        ["История"]     = "📜",
+        ["Статистика"]  = "📊",
+        ["Категории"]   = "🏷️",
+        ["Настройки"]   = "⚙️",
     };
 
     public object Convert(object? value, Type targetType,

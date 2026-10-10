@@ -9,15 +9,6 @@
              Title="Категории"
              BackgroundColor="{DynamicResource PageBackgroundColor}">
 
-    <ContentPage.ToolbarItems>
-        <!-- ВРЕМЕННО для проверки темизации. Уберём на шаге 3.4.3 -->
-        <ToolbarItem x:Name="ThemeIconItem"
-                     Text="☀️"
-                     Order="Primary"
-                     Priority="0"
-                     Clicked="OnToggleThemeClicked" />
-    </ContentPage.ToolbarItems>
-
     <Grid RowDefinitions="Auto,Auto,*,Auto"
           Padding="20"
           RowSpacing="15">
