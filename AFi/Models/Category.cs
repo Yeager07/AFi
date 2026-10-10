@@ -35,4 +35,9 @@ public class Category
     [Ignore]
     public string DisplayName =>
         string.IsNullOrEmpty(Icon) ? Name : $"{Icon} {Name}";
+
+    /// <summary>
+    /// Для отображения в ThemedPicker и других местах, где нужен ToString().
+    /// </summary>
+    public override string ToString() => DisplayName;
 }

@@ -52,56 +52,60 @@ public class ThemeService : IThemeService
 
     private static readonly Dictionary<string, string> SpaceTheme = new()
     {
-        ["PrimaryColor"]           = "#9B7EE8",
-        ["PrimaryTextColor"]       = "#FFFFFF",
-        ["PageBackgroundColor"]    = "#0A0E27",   // глубокий космический синий
-        ["CardBackgroundColor"]    = "#131938",
-        ["CardBorderColor"]        = "#2A3358",
-        ["TextPrimaryColor"]       = "#FFFFFF",
-        ["TextSecondaryColor"]     = "#8A96C0",
-        ["SuccessColor"]           = "#4CAF50",
-        ["DangerColor"]            = "#FF6B6B",
-        ["WarningColor"]           = "#FFD700",   // звёздное золото
-        ["DividerColor"]           = "#2A3358",
-        ["ShellBackgroundColor"]   = "#131938",
-        ["ShellTextColor"]         = "#FFFFFF",
-        ["FlyoutBackgroundColor"]  = "#0A0E27",
+        // Палитра в стиле Interstellar / NASA:
+        // глубокий холодный космос, голубой акцент (океанская планета),
+        // сдержанные бирюзовые и оранжевые оттенки.
+        ["PrimaryColor"]           = "#64B5F6",   // холодный голубой
+        ["PrimaryTextColor"]       = "#0B1426",   // тёмный на голубом
+        ["PageBackgroundColor"]    = "#0B1426",   // глубокий тёмно-синий
+        ["CardBackgroundColor"]    = "#16233D",   // тёмно-синие карточки
+        ["CardBorderColor"]        = "#2C4166",   // холодный сине-серый
+        ["TextPrimaryColor"]       = "#E8EFF7",   // почти белый
+        ["TextSecondaryColor"]     = "#8FA3BD",   // холодный серо-синий
+        ["SuccessColor"]           = "#4DB6AC",   // бирюзовый
+        ["DangerColor"]            = "#EF5350",   // холодный красный
+        ["WarningColor"]           = "#FFA726",   // оранжевый
+        ["DividerColor"]           = "#2C4166",
+        ["ShellBackgroundColor"]   = "#16233D",
+        ["ShellTextColor"]         = "#E8EFF7",
+        ["FlyoutBackgroundColor"]  = "#0B1426",
     };
 
     private static readonly Dictionary<string, string> HalloweenTheme = new()
     {
-        ["PrimaryColor"]           = "#FF7A1A",   // тыквенный оранжевый
-        ["PrimaryTextColor"]       = "#1A0F2E",
-        ["PageBackgroundColor"]    = "#1A0F2E",   // тёмно-фиолетовый
-        ["CardBackgroundColor"]    = "#241539",
-        ["CardBorderColor"]        = "#3D2857",
-        ["TextPrimaryColor"]       = "#F5E6D3",   // тёплый белый (как свеча)
-        ["TextSecondaryColor"]     = "#A88CC0",
-        ["SuccessColor"]           = "#7CB342",   // ядовито-зелёный
-        ["DangerColor"]            = "#E53935",
+        // Тыква, костёр, ядовитый котёл, «Кошмар перед Рождеством».
+        ["PrimaryColor"]           = "#FF6D00",   // тыква, ярче
+        ["PrimaryTextColor"]       = "#0D0614",   // угольно-чёрный на оранжевом
+        ["PageBackgroundColor"]    = "#0D0614",   // угольно-фиолетовый
+        ["CardBackgroundColor"]    = "#1F0E33",   // тёмно-фиолетовые карточки
+        ["CardBorderColor"]        = "#3D2357",
+        ["TextPrimaryColor"]       = "#FFE8C8",   // цвет свечи
+        ["TextSecondaryColor"]     = "#9B7FB8",   // бледно-фиолетовый
+        ["SuccessColor"]           = "#9CCC65",   // ядовито-зелёный
+        ["DangerColor"]            = "#C62828",   // кровь
         ["WarningColor"]           = "#FFB300",
-        ["DividerColor"]           = "#3D2857",
-        ["ShellBackgroundColor"]   = "#241539",
-        ["ShellTextColor"]         = "#F5E6D3",
-        ["FlyoutBackgroundColor"]  = "#1A0F2E",
+        ["DividerColor"]           = "#3D2357",
+        ["ShellBackgroundColor"]   = "#1F0E33",
+        ["ShellTextColor"]         = "#FFE8C8",
+        ["FlyoutBackgroundColor"]  = "#0D0614",
     };
 
-    private static readonly Dictionary<string, string> PixelTheme = new()
+    private static readonly Dictionary<string, string> ArcadeTheme = new()
     {
-        ["PrimaryColor"]           = "#00A8FF",   // ярко-синий, «8-бит»
-        ["PrimaryTextColor"]       = "#FFFFFF",
-        ["PageBackgroundColor"]    = "#1B1B2F",
-        ["CardBackgroundColor"]    = "#252540",
-        ["CardBorderColor"]        = "#4A4A6E",
+        ["PrimaryColor"]           = "#FFD700",
+        ["PrimaryTextColor"]       = "#000000",
+        ["PageBackgroundColor"]    = "#000000",
+        ["CardBackgroundColor"]    = "#0F0F2E",
+        ["CardBorderColor"]        = "#2121DE",
         ["TextPrimaryColor"]       = "#FFFFFF",
-        ["TextSecondaryColor"]     = "#A0A0C0",
-        ["SuccessColor"]           = "#7CB342",
-        ["DangerColor"]            = "#FF5252",
-        ["WarningColor"]           = "#FFD700",
-        ["DividerColor"]           = "#4A4A6E",
-        ["ShellBackgroundColor"]   = "#252540",
+        ["TextSecondaryColor"]     = "#8B8BC0",
+        ["SuccessColor"]           = "#00E5FF",
+        ["DangerColor"]            = "#FF3030",
+        ["WarningColor"]           = "#FFB852",
+        ["DividerColor"]           = "#2121DE",
+        ["ShellBackgroundColor"]   = "#0F0F2E",
         ["ShellTextColor"]         = "#FFFFFF",
-        ["FlyoutBackgroundColor"]  = "#1B1B2F",
+        ["FlyoutBackgroundColor"]  = "#000000",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> AllThemes = new()
@@ -110,7 +114,7 @@ public class ThemeService : IThemeService
         ["Dark"]      = DarkTheme,
         ["Space"]     = SpaceTheme,
         ["Halloween"] = HalloweenTheme,
-        ["Pixel"]     = PixelTheme,
+        ["Arcade"]    = ArcadeTheme,
     };
 
     private static readonly Dictionary<string, string> DisplayNames = new()
@@ -119,11 +123,11 @@ public class ThemeService : IThemeService
         ["Dark"]      = "Тёмная",
         ["Space"]     = "Космос",
         ["Halloween"] = "Хеллоуин",
-        ["Pixel"]     = "Пиксельная",
+        ["Arcade"]    = "Аркадная",
     };
 
     public IReadOnlyList<string> AvailableThemeKeys { get; } =
-        new List<string> { "Light", "Dark", "Space", "Halloween", "Pixel" };
+        new List<string> { "Light", "Dark", "Space", "Halloween", "Arcade" };
 
     public string GetDisplayName(string themeKey) =>
         DisplayNames.TryGetValue(themeKey, out var name) ? name : themeKey;

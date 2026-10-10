@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:AFi.ViewModels"
              xmlns:models="clr-namespace:AFi.Models"
              xmlns:converters="clr-namespace:AFi.Converters"
+             xmlns:controls="clr-namespace:AFi.Controls"
              x:Class="AFi.Views.MainPage"
              x:DataType="vm:MainViewModel"
              x:Name="PageRoot"
@@ -82,26 +83,15 @@
                         <Label Text="Тип"
                                FontSize="14"
                                TextColor="{DynamicResource TextPrimaryColor}" />
-                        <Picker ItemsSource="{Binding TypeOptions}"
-                                SelectedIndex="{Binding SelectedTypeIndex}"
-                                TextColor="{DynamicResource TextPrimaryColor}"
-                                IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}">
-                            <Picker.Triggers>
-                                <DataTrigger TargetType="Picker"
-                                             Binding="{Binding IsEditing}"
-                                             Value="True">
-                                    <Setter Property="BackgroundColor" Value="{DynamicResource DividerColor}" />
-                                </DataTrigger>
-                            </Picker.Triggers>
-                        </Picker>
+                        <controls:ThemedPicker x:Name="TypePicker"
+                                               Title="Тип операции"
+                                               IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}" />
 
                         <Label Text="Категория"
-                               FontSize="14"
-                               TextColor="{DynamicResource TextPrimaryColor}" />
-                        <Picker ItemsSource="{Binding AvailableCategories}"
-                                ItemDisplayBinding="{Binding DisplayName}"
-                                SelectedItem="{Binding SelectedCategory}"
-                                TextColor="{DynamicResource TextPrimaryColor}" />
+                            FontSize="14"
+                            TextColor="{DynamicResource TextPrimaryColor}" />
+                        <controls:ThemedPicker x:Name="CategoryPicker"
+                                            Title="Категория" />
 
                         <Label Text="Дата"
                                FontSize="14"
@@ -244,7 +234,7 @@
                                                             CommandParameter="{Binding .}" />
                                                     </Border.GestureRecognizers>
                                                     <Label Text="Удалить"
-                                                           TextColor="{DynamicResource PrimaryTextColor}"
+                                                           TextColor="White"
                                                            FontAttributes="Bold"
                                                            FontSize="14"
                                                            HorizontalOptions="Center"

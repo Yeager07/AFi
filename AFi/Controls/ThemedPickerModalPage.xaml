@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ThemedPickerModalPage"
+             BackgroundColor="#80000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="20">
+        <Border Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 14"
+                Padding="0"
+                VerticalOptions="Center"
+                HorizontalOptions="Fill"
+                MaximumHeightRequest="500"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+            <Grid RowDefinitions="Auto,*,Auto">
+
+                <Label x:Name="HeaderLabel"
+                       Grid.Row="0"
+                       Text="Выберите"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource TextPrimaryColor}"
+                       Padding="20,15,20,10" />
+
+                <ScrollView Grid.Row="1">
+                    <VerticalStackLayout x:Name="ItemsContainer" Spacing="0" />
+                </ScrollView>
+
+                <Button Grid.Row="2"
+                        Text="Отмена"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        Margin="15,8,15,15"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        FontSize="14" />
+
+            </Grid>
+        </Border>
+    </Grid>
+
+</ContentPage>

@@ -47,6 +47,8 @@ public partial class SettingsViewModel : ObservableObject
                 item.PreviewPrimary = Color.FromArgb(primary);
             if (colors.TryGetValue("TextPrimaryColor", out var text))
                 item.PreviewText = Color.FromArgb(text);
+            if (colors.TryGetValue("TextSecondaryColor", out var secondary))
+                item.PreviewSecondary = Color.FromArgb(secondary);
 
             Themes.Add(item);
         }

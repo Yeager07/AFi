@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ThemedPicker"
+             x:Name="Root">
+
+    <Border x:Name="ContainerBorder"
+            Stroke="{DynamicResource CardBorderColor}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 6"
+            Padding="12,10"
+            BackgroundColor="{DynamicResource CardBackgroundColor}">
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnTapped" />
+        </Border.GestureRecognizers>
+
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Label x:Name="DisplayLabel"
+                   Grid.Column="0"
+                   FontSize="14"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   VerticalOptions="Center" />
+            <Label Grid.Column="1"
+                   Text="▼"
+                   FontSize="10"
+                   TextColor="{DynamicResource TextSecondaryColor}"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Border>
+
+</ContentView>

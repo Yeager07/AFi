@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:AFi.ViewModels"
              xmlns:models="clr-namespace:AFi.Models"
              xmlns:converters="clr-namespace:AFi.Converters"
+             xmlns:controls="clr-namespace:AFi.Controls"
              xmlns:microcharts="clr-namespace:Microcharts.Maui;assembly=Microcharts.Maui"
              x:Class="AFi.Views.StatsPage"
              x:DataType="vm:StatsViewModel"
@@ -34,11 +35,9 @@
                                VerticalOptions="Center"
                                FontSize="14"
                                TextColor="{DynamicResource TextPrimaryColor}" />
-                        <Picker Grid.Column="1"
-                                ItemsSource="{Binding FilterOptions}"
-                                SelectedIndex="{Binding SelectedFilterIndex}"
-                                FontSize="14"
-                                TextColor="{DynamicResource TextPrimaryColor}" />
+                        <controls:ThemedPicker Grid.Column="1"
+                                               x:Name="PeriodPicker"
+                                               Title="Период" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto,*,Auto,*"

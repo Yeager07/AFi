@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:AFi.ViewModels"
              xmlns:models="clr-namespace:AFi.Models"
              xmlns:converters="clr-namespace:AFi.Converters"
+             xmlns:controls="clr-namespace:AFi.Controls"
              x:Class="AFi.Views.HistoryPage"
              x:DataType="vm:HistoryViewModel"
              x:Name="PageRoot"
@@ -34,11 +35,9 @@
                                VerticalOptions="Center"
                                FontSize="14"
                                TextColor="{DynamicResource TextPrimaryColor}" />
-                        <Picker Grid.Column="1"
-                                ItemsSource="{Binding FilterOptions}"
-                                SelectedIndex="{Binding SelectedFilterIndex}"
-                                FontSize="14"
-                                TextColor="{DynamicResource TextPrimaryColor}" />
+                        <controls:ThemedPicker Grid.Column="1"
+                                               x:Name="PeriodPicker"
+                                               Title="Период" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto,*,Auto,*"
@@ -83,12 +82,9 @@
                                VerticalOptions="Center"
                                FontSize="14"
                                TextColor="{DynamicResource TextPrimaryColor}" />
-                        <Picker Grid.Column="1"
-                                ItemsSource="{Binding CategoryFilterItems}"
-                                ItemDisplayBinding="{Binding Name}"
-                                SelectedIndex="{Binding SelectedCategoryIndex}"
-                                FontSize="14"
-                                TextColor="{DynamicResource TextPrimaryColor}" />
+                        <controls:ThemedPicker Grid.Column="1"
+                                               x:Name="CategoryPicker"
+                                               Title="Категория" />
                     </Grid>
 
                 </VerticalStackLayout>
@@ -211,7 +207,7 @@
                                                             CommandParameter="{Binding .}" />
                                                     </Border.GestureRecognizers>
                                                     <Label Text="Удалить"
-                                                           TextColor="{DynamicResource PrimaryTextColor}"
+                                                           TextColor="White"
                                                            FontAttributes="Bold"
                                                            FontSize="14"
                                                            HorizontalOptions="Center"
