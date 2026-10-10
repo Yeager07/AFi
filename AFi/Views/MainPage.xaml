@@ -7,7 +7,8 @@
              x:Class="AFi.Views.MainPage"
              x:DataType="vm:MainViewModel"
              x:Name="PageRoot"
-             Title="AFi">
+             Title="AFi"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
 
     <ContentPage.Resources>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
@@ -18,14 +19,15 @@
             <VerticalStackLayout Padding="20" Spacing="15">
 
                 <!-- ==================== Карточка баланса ==================== -->
-                <Border Stroke="LightGray"
+                <Border Stroke="{DynamicResource CardBorderColor}"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 12"
-                        Padding="20">
+                        Padding="20"
+                        BackgroundColor="{DynamicResource CardBackgroundColor}">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="Текущий баланс"
                                FontSize="14"
-                               TextColor="Gray" />
+                               TextColor="{DynamicResource TextSecondaryColor}" />
                         <Label Text="{Binding CurrentBalance, StringFormat='{0:N0} ₽'}"
                                FontSize="30"
                                FontAttributes="Bold">
@@ -33,12 +35,12 @@
                                 <DataTrigger TargetType="Label"
                                              Binding="{Binding IsBalanceNegative}"
                                              Value="True">
-                                    <Setter Property="TextColor" Value="#D32F2F" />
+                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
                                 </DataTrigger>
                                 <DataTrigger TargetType="Label"
                                              Binding="{Binding IsBalanceNegative}"
                                              Value="False">
-                                    <Setter Property="TextColor" Value="#2E7D32" />
+                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
                                 </DataTrigger>
                             </Label.Triggers>
                         </Label>
@@ -46,64 +48,83 @@
                 </Border>
 
                 <!-- ==================== Форма добавления ==================== -->
-                <Border Stroke="LightGray"
+                <Border Stroke="{DynamicResource CardBorderColor}"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 10"
-                        Padding="15">
+                        Padding="15"
+                        BackgroundColor="{DynamicResource CardBackgroundColor}">
                     <VerticalStackLayout Spacing="10">
 
                         <Label Text="{Binding FormTitle}"
                                FontSize="18"
-                               FontAttributes="Bold" />
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
 
-                        <Label Text="Сумма" FontSize="14" />
+                        <Label Text="Сумма"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
                         <Entry Placeholder="Например, 500"
                                Keyboard="Numeric"
                                Text="{Binding AmountText}"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               PlaceholderColor="{DynamicResource TextSecondaryColor}"
                                IsReadOnly="{Binding IsEditing}">
                             <Entry.Triggers>
                                 <DataTrigger TargetType="Entry"
                                              Binding="{Binding IsEditing}"
                                              Value="True">
-                                    <Setter Property="BackgroundColor" Value="#F0F0F0" />
-                                    <Setter Property="TextColor" Value="#808080" />
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource DividerColor}" />
+                                    <Setter Property="TextColor" Value="{DynamicResource TextSecondaryColor}" />
                                 </DataTrigger>
                             </Entry.Triggers>
                         </Entry>
 
-                        <Label Text="Тип" FontSize="14" />
+                        <Label Text="Тип"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
                         <Picker ItemsSource="{Binding TypeOptions}"
                                 SelectedIndex="{Binding SelectedTypeIndex}"
+                                TextColor="{DynamicResource TextPrimaryColor}"
                                 IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}">
                             <Picker.Triggers>
                                 <DataTrigger TargetType="Picker"
                                              Binding="{Binding IsEditing}"
                                              Value="True">
-                                    <Setter Property="BackgroundColor" Value="#F0F0F0" />
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource DividerColor}" />
                                 </DataTrigger>
                             </Picker.Triggers>
                         </Picker>
 
-                        <Label Text="Категория" FontSize="14" />
+                        <Label Text="Категория"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
                         <Picker ItemsSource="{Binding AvailableCategories}"
                                 ItemDisplayBinding="{Binding DisplayName}"
-                                SelectedItem="{Binding SelectedCategory}" />
+                                SelectedItem="{Binding SelectedCategory}"
+                                TextColor="{DynamicResource TextPrimaryColor}" />
 
-                        <Label Text="Дата" FontSize="14" />
+                        <Label Text="Дата"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
                         <DatePicker Date="{Binding Date}"
                                     MaximumDate="{Binding MaxDate}"
-                                    Format="dd.MM.yyyy" />
+                                    Format="dd.MM.yyyy"
+                                    TextColor="{DynamicResource TextPrimaryColor}" />
 
-                        <Label Text="Комментарий (необязательно)" FontSize="14" />
+                        <Label Text="Комментарий (необязательно)"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
                         <Entry Placeholder="Например, закупка зерна"
-                               Text="{Binding Note}" />
+                               Text="{Binding Note}"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               PlaceholderColor="{DynamicResource TextSecondaryColor}" />
 
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,10,0,0">
                             <Button Grid.Column="0"
                                     Text="{Binding SubmitButtonText}"
                                     Command="{Binding SaveCommand}"
-                                    BackgroundColor="#512BD4"
-                                    TextColor="White"
+                                    BackgroundColor="{DynamicResource PrimaryColor}"
+                                    TextColor="{DynamicResource PrimaryTextColor}"
                                     CornerRadius="8"
                                     HeightRequest="48" />
 
@@ -112,8 +133,8 @@
                                     Command="{Binding CancelEditCommand}"
                                     IsVisible="{Binding IsEditing}"
                                     BackgroundColor="Transparent"
-                                    TextColor="#512BD4"
-                                    BorderColor="#512BD4"
+                                    TextColor="{DynamicResource PrimaryColor}"
+                                    BorderColor="{DynamicResource PrimaryColor}"
                                     BorderWidth="1"
                                     CornerRadius="8"
                                     HeightRequest="48"
@@ -122,7 +143,7 @@
 
                         <Label Text="{Binding StatusMessage}"
                                FontSize="13"
-                               TextColor="Gray"
+                               TextColor="{DynamicResource TextSecondaryColor}"
                                HorizontalOptions="Center" />
 
                     </VerticalStackLayout>
@@ -134,6 +155,7 @@
                            Text="Последние операции"
                            FontSize="18"
                            FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimaryColor}"
                            VerticalOptions="Center" />
 
                     <Button Grid.Column="1"
@@ -141,8 +163,8 @@
                             Command="{Binding EnterSelectionModeCommand}"
                             IsVisible="{Binding CanEnterSelectionMode}"
                             BackgroundColor="Transparent"
-                            TextColor="#512BD4"
-                            BorderColor="#512BD4"
+                            TextColor="{DynamicResource PrimaryColor}"
+                            BorderColor="{DynamicResource PrimaryColor}"
                             BorderWidth="1"
                             CornerRadius="8"
                             HeightRequest="36"
@@ -159,12 +181,12 @@
                         <VerticalStackLayout Spacing="10" Padding="20">
                             <Label Text="Нет операций за последние 30 дней"
                                    FontSize="14"
-                                   TextColor="Gray"
+                                   TextColor="{DynamicResource TextSecondaryColor}"
                                    HorizontalOptions="Center" />
                             <Button Text="Вся история"
                                     Command="{Binding GoToHistoryCommand}"
-                                    BackgroundColor="#512BD4"
-                                    TextColor="White"
+                                    BackgroundColor="{DynamicResource PrimaryColor}"
+                                    TextColor="{DynamicResource PrimaryTextColor}"
                                     CornerRadius="8"
                                     HeightRequest="44" />
                         </VerticalStackLayout>
@@ -178,7 +200,7 @@
                                        Text="{Binding DateLabel}"
                                        FontSize="14"
                                        FontAttributes="Bold"
-                                       TextColor="#512BD4" />
+                                       TextColor="{DynamicResource PrimaryColor}" />
                                 <Label Grid.Column="1"
                                        Text="{Binding SummaryText}"
                                        FontSize="14"
@@ -187,12 +209,12 @@
                                         <DataTrigger TargetType="Label"
                                                      Binding="{Binding IsPositive}"
                                                      Value="True">
-                                            <Setter Property="TextColor" Value="#2E7D32" />
+                                            <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
                                         </DataTrigger>
                                         <DataTrigger TargetType="Label"
                                                      Binding="{Binding IsPositive}"
                                                      Value="False">
-                                            <Setter Property="TextColor" Value="#D32F2F" />
+                                            <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
                                         </DataTrigger>
                                     </Label.Triggers>
                                 </Label>
@@ -212,7 +234,7 @@
                                             <SwipeItemView>
                                                 <Border StrokeThickness="0"
                                                         StrokeShape="RoundRectangle 8"
-                                                        BackgroundColor="#D32F2F"
+                                                        BackgroundColor="{DynamicResource DangerColor}"
                                                         WidthRequest="95"
                                                         Padding="0"
                                                         Margin="6,0,0,0">
@@ -222,7 +244,7 @@
                                                             CommandParameter="{Binding .}" />
                                                     </Border.GestureRecognizers>
                                                     <Label Text="Удалить"
-                                                           TextColor="White"
+                                                           TextColor="{DynamicResource PrimaryTextColor}"
                                                            FontAttributes="Bold"
                                                            FontSize="14"
                                                            HorizontalOptions="Center"
@@ -232,11 +254,11 @@
                                         </SwipeItems>
                                     </SwipeView.RightItems>
 
-                                    <Border Stroke="LightGray"
+                                    <Border Stroke="{DynamicResource CardBorderColor}"
                                             StrokeThickness="1"
                                             StrokeShape="RoundRectangle 8"
                                             Padding="12"
-                                            BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                                            BackgroundColor="{DynamicResource CardBackgroundColor}">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer
                                                 Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
@@ -249,7 +271,8 @@
                                             <Label Grid.Row="0" Grid.Column="0"
                                                    Text="{Binding DisplayCategoryName}"
                                                    FontSize="15"
-                                                   FontAttributes="Bold" />
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource TextPrimaryColor}" />
 
                                             <Label Grid.Row="0" Grid.Column="1"
                                                    Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
@@ -260,12 +283,12 @@
                                                     <DataTrigger TargetType="Label"
                                                                  Binding="{Binding Type}"
                                                                  Value="1">
-                                                        <Setter Property="TextColor" Value="#D32F2F" />
+                                                        <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
                                                     </DataTrigger>
                                                     <DataTrigger TargetType="Label"
                                                                  Binding="{Binding Type}"
                                                                  Value="0">
-                                                        <Setter Property="TextColor" Value="#2E7D32" />
+                                                        <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
                                                     </DataTrigger>
                                                 </Label.Triggers>
                                             </Label>
@@ -273,7 +296,7 @@
                                             <Label Grid.Row="1" Grid.Column="0"
                                                    Grid.ColumnSpan="2"
                                                    FontSize="12"
-                                                   TextColor="Gray">
+                                                   TextColor="{DynamicResource TextSecondaryColor}">
                                                 <Label.Text>
                                                     <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
                                                         <Binding Path="Date" />
@@ -288,12 +311,12 @@
 
                                 <!-- ==================== РЕЖИМ ВЫБОРА: карточка без свайпа ==================== -->
                                 <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
-                                        Stroke="LightGray"
+                                        Stroke="{DynamicResource CardBorderColor}"
                                         StrokeThickness="1"
                                         StrokeShape="RoundRectangle 8"
                                         Padding="12"
                                         Margin="0,4"
-                                        BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                                        BackgroundColor="{DynamicResource CardBackgroundColor}">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
@@ -308,7 +331,7 @@
                                                 WidthRequest="26"
                                                 HeightRequest="26"
                                                 StrokeShape="RoundRectangle 13"
-                                                Stroke="#512BD4"
+                                                Stroke="{DynamicResource PrimaryColor}"
                                                 StrokeThickness="2"
                                                 BackgroundColor="Transparent"
                                                 Padding="0"
@@ -318,7 +341,7 @@
                                             <Label Text="✓"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
-                                                   TextColor="#512BD4"
+                                                   TextColor="{DynamicResource PrimaryColor}"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center"
                                                    IsVisible="{Binding IsSelected}" />
@@ -327,7 +350,8 @@
                                         <Label Grid.Row="0" Grid.Column="1"
                                                Text="{Binding DisplayCategoryName}"
                                                FontSize="15"
-                                               FontAttributes="Bold" />
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource TextPrimaryColor}" />
 
                                         <Label Grid.Row="0" Grid.Column="2"
                                                Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
@@ -338,12 +362,12 @@
                                                 <DataTrigger TargetType="Label"
                                                              Binding="{Binding Type}"
                                                              Value="1">
-                                                    <Setter Property="TextColor" Value="#D32F2F" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
                                                 </DataTrigger>
                                                 <DataTrigger TargetType="Label"
                                                              Binding="{Binding Type}"
                                                              Value="0">
-                                                    <Setter Property="TextColor" Value="#2E7D32" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -351,7 +375,7 @@
                                         <Label Grid.Row="1" Grid.Column="1"
                                                Grid.ColumnSpan="2"
                                                FontSize="12"
-                                               TextColor="Gray">
+                                               TextColor="{DynamicResource TextSecondaryColor}">
                                             <Label.Text>
                                                 <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
                                                     <Binding Path="Date" />
@@ -371,8 +395,8 @@
                 <!-- ==================== Показать ещё / Вся история ==================== -->
                 <Button Text="{Binding ShowMoreButtonText}"
                         IsVisible="{Binding HasAnyTransactions}"
-                        BackgroundColor="#512BD4"
-                        TextColor="White"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
                         CornerRadius="8"
                         HeightRequest="44"
                         Margin="0,5,0,0">
@@ -423,7 +447,7 @@
                         Text="Удалить"
                         Command="{Binding DeleteSelectedCommand}"
                         IsEnabled="{Binding HasSelection}"
-                        BackgroundColor="#D32F2F"
+                        BackgroundColor="{DynamicResource DangerColor}"
                         TextColor="White"
                         CornerRadius="8"
                         HeightRequest="40"

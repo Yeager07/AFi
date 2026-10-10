@@ -4,23 +4,63 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:AFi.Views"
+    xmlns:converters="clr-namespace:AFi.Converters"
     Shell.FlyoutBehavior="Flyout"
+    Shell.BackgroundColor="{DynamicResource ShellBackgroundColor}"
+    Shell.ForegroundColor="{DynamicResource ShellTextColor}"
+    Shell.TitleColor="{DynamicResource ShellTextColor}"
+    Shell.FlyoutBackgroundColor="{DynamicResource FlyoutBackgroundColor}"
+    Shell.DisabledColor="{DynamicResource TextSecondaryColor}"
+    Shell.UnselectedColor="{DynamicResource TextSecondaryColor}"
     Title="AFi">
 
+    <Shell.Resources>
+        <converters:TitleToEmojiConverter x:Key="TitleToEmojiConverter" />
+    </Shell.Resources>
+
     <Shell.FlyoutHeader>
-        <Grid BackgroundColor="#512BD4" HeightRequest="120">
+        <Grid BackgroundColor="{DynamicResource PrimaryColor}" HeightRequest="120">
             <VerticalStackLayout VerticalOptions="Center"
                                  Padding="20,0">
                 <Label Text="AFi"
-                       TextColor="White"
+                       TextColor="{DynamicResource PrimaryTextColor}"
                        FontSize="32"
                        FontAttributes="Bold" />
                 <Label Text="Accounting of Finances"
-                       TextColor="#E0D5FF"
-                       FontSize="12" />
+                       TextColor="{DynamicResource PrimaryTextColor}"
+                       FontSize="12"
+                       Opacity="0.8" />
             </VerticalStackLayout>
         </Grid>
     </Shell.FlyoutHeader>
+
+    <!-- Кастомный вид пункта меню: рамка + иконка + название -->
+    <Shell.ItemTemplate>
+        <DataTemplate>
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="12,10"
+                    Margin="10,3"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+
+                    <Label Grid.Column="0"
+                           Text="{Binding Title, Converter={StaticResource TitleToEmojiConverter}}"
+                           FontSize="20"
+                           VerticalOptions="Center" />
+
+                    <Label Grid.Column="1"
+                           Text="{Binding Title}"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           VerticalOptions="Center" />
+
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Shell.ItemTemplate>
 
     <FlyoutItem Title="Главная" Route="MainPage">
         <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />

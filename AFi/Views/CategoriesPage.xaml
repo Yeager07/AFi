@@ -6,7 +6,17 @@
              x:Class="AFi.Views.CategoriesPage"
              x:DataType="vm:CategoriesViewModel"
              x:Name="PageRoot"
-             Title="Категории">
+             Title="Категории"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ContentPage.ToolbarItems>
+        <!-- ВРЕМЕННО для проверки темизации. Уберём на шаге 3.4.3 -->
+        <ToolbarItem x:Name="ThemeIconItem"
+                     Text="☀️"
+                     Order="Primary"
+                     Priority="0"
+                     Clicked="OnToggleThemeClicked" />
+    </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto"
           Padding="20"
@@ -15,27 +25,28 @@
         <!-- ==================== Табы ==================== -->
         <Grid Grid.Row="0"
               ColumnDefinitions="*,*"
-              ColumnSpacing="0">
+              ColumnSpacing="8">
 
             <Button Grid.Column="0"
                     Text="Расходы"
                     Command="{Binding SelectExpensesTabCommand}"
-                    CornerRadius="8,0,0,8"
+                    CornerRadius="8"
                     HeightRequest="44"
                     FontSize="15">
                 <Button.Triggers>
                     <DataTrigger TargetType="Button"
                                  Binding="{Binding SelectedTabIndex}"
                                  Value="0">
-                        <Setter Property="BackgroundColor" Value="#512BD4" />
-                        <Setter Property="TextColor" Value="White" />
+                        <Setter Property="BackgroundColor" Value="{DynamicResource PrimaryColor}" />
+                        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+                        <Setter Property="BorderWidth" Value="0" />
                     </DataTrigger>
                     <DataTrigger TargetType="Button"
                                  Binding="{Binding SelectedTabIndex}"
                                  Value="1">
                         <Setter Property="BackgroundColor" Value="Transparent" />
-                        <Setter Property="TextColor" Value="#512BD4" />
-                        <Setter Property="BorderColor" Value="#512BD4" />
+                        <Setter Property="TextColor" Value="{DynamicResource PrimaryColor}" />
+                        <Setter Property="BorderColor" Value="{DynamicResource PrimaryColor}" />
                         <Setter Property="BorderWidth" Value="1" />
                     </DataTrigger>
                 </Button.Triggers>
@@ -44,22 +55,23 @@
             <Button Grid.Column="1"
                     Text="Доходы"
                     Command="{Binding SelectIncomeTabCommand}"
-                    CornerRadius="0,8,8,0"
+                    CornerRadius="8"
                     HeightRequest="44"
                     FontSize="15">
                 <Button.Triggers>
                     <DataTrigger TargetType="Button"
                                  Binding="{Binding SelectedTabIndex}"
                                  Value="1">
-                        <Setter Property="BackgroundColor" Value="#512BD4" />
-                        <Setter Property="TextColor" Value="White" />
+                        <Setter Property="BackgroundColor" Value="{DynamicResource PrimaryColor}" />
+                        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+                        <Setter Property="BorderWidth" Value="0" />
                     </DataTrigger>
                     <DataTrigger TargetType="Button"
                                  Binding="{Binding SelectedTabIndex}"
                                  Value="0">
                         <Setter Property="BackgroundColor" Value="Transparent" />
-                        <Setter Property="TextColor" Value="#512BD4" />
-                        <Setter Property="BorderColor" Value="#512BD4" />
+                        <Setter Property="TextColor" Value="{DynamicResource PrimaryColor}" />
+                        <Setter Property="BorderColor" Value="{DynamicResource PrimaryColor}" />
                         <Setter Property="BorderWidth" Value="1" />
                     </DataTrigger>
                 </Button.Triggers>
@@ -71,8 +83,8 @@
         <Button Grid.Row="1"
                 Text="+ Добавить категорию"
                 Command="{Binding AddCategoryCommand}"
-                BackgroundColor="#2E7D32"
-                TextColor="White"
+                BackgroundColor="{DynamicResource SuccessColor}"
+                TextColor="{DynamicResource PrimaryTextColor}"
                 CornerRadius="8"
                 HeightRequest="48"
                 FontSize="15" />
@@ -85,28 +97,29 @@
             <CollectionView.EmptyView>
                 <Label Text="Пока нет категорий"
                        FontSize="14"
-                       TextColor="Gray"
+                       TextColor="{DynamicResource TextSecondaryColor}"
                        HorizontalOptions="Center"
                        VerticalOptions="Center" />
             </CollectionView.EmptyView>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Category">
-                    <Border Stroke="LightGray"
+                    <Border Stroke="{DynamicResource CardBorderColor}"
                             StrokeThickness="1"
                             StrokeShape="RoundRectangle 8"
                             Padding="12"
                             Margin="0,4"
-                            BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}">
+                            BackgroundColor="{DynamicResource CardBackgroundColor}">
                         <Grid ColumnDefinitions="*,Auto">
 
                             <VerticalStackLayout Grid.Column="0" Spacing="2">
                                 <Label Text="{Binding DisplayName}"
                                        FontSize="16"
                                        FontAttributes="Bold"
+                                       TextColor="{DynamicResource TextPrimaryColor}"
                                        VerticalOptions="Center" />
                                 <Label FontSize="11"
-                                       TextColor="Gray"
+                                       TextColor="{DynamicResource TextSecondaryColor}"
                                        Text="Предустановленная"
                                        IsVisible="{Binding IsDefault}" />
                             </VerticalStackLayout>
@@ -116,8 +129,8 @@
                                     Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteCategoryCommand}"
                                     CommandParameter="{Binding .}"
                                     BackgroundColor="Transparent"
-                                    TextColor="#D32F2F"
-                                    BorderColor="#D32F2F"
+                                    TextColor="{DynamicResource DangerColor}"
+                                    BorderColor="{DynamicResource DangerColor}"
                                     BorderWidth="1"
                                     CornerRadius="8"
                                     FontSize="13"
@@ -142,7 +155,7 @@
         <Label Grid.Row="3"
                Text="{Binding StatusMessage}"
                FontSize="13"
-               TextColor="Gray"
+               TextColor="{DynamicResource TextSecondaryColor}"
                HorizontalOptions="Center" />
 
     </Grid>

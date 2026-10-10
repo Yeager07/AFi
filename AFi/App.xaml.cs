@@ -1,16 +1,23 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AFi.Services;
 
 namespace AFi;
 
 public partial class App : Application
 {
-	public App()
-	{
-		InitializeComponent();
-	}
+    private readonly IThemeService _themeService;
 
-	protected override Window CreateWindow(IActivationState? activationState)
-	{
-		return new Window(new AppShell());
-	}
+    public App(IThemeService themeService)
+    {
+        InitializeComponent();
+
+        _themeService = themeService;
+
+        // Применяем сохранённую тему (по умолчанию — Light)
+        _themeService.ApplySavedTheme();
+    }
+
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new AppShell());
+    }
 }
