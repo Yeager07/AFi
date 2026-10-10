@@ -6,12 +6,12 @@ namespace AFi.Services;
 public interface IThemeService
 {
     /// <summary>
-    /// Применить тему по имени словаря ("Light", "Dark", и т.п.).
+    /// Применить тему по ключу ("Light", "Dark", "Space", "Halloween", "Pixel").
     /// </summary>
     string ApplyTheme(string themeName);
 
     /// <summary>
-    /// Текущее имя темы.
+    /// Текущий ключ темы.
     /// </summary>
     string CurrentThemeName { get; }
 
@@ -21,8 +21,18 @@ public interface IThemeService
     void ApplySavedTheme();
 
     /// <summary>
-    /// Событие: тема была изменена. Подписчики могут обновить UI,
-    /// зависящий от темы (например, иконку в Toolbar).
+    /// Событие: тема была изменена.
     /// </summary>
     event EventHandler? ThemeChanged;
+
+    /// <summary>
+    /// Список всех доступных ключей тем в порядке отображения.
+    /// </summary>
+    IReadOnlyList<string> AvailableThemeKeys { get; }
+
+    /// <summary>
+    /// Возвращает человекочитаемое название темы по её ключу
+    /// ("Light" → "Светлая").
+    /// </summary>
+    string GetDisplayName(string themeKey);
 }
