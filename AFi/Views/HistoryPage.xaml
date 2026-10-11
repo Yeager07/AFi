@@ -243,10 +243,9 @@
                                             </Label.Text>
                                         </Label>
 
-                                        <!-- Индикатор позиций -->
                                         <Grid Grid.Row="2" Grid.Column="0"
                                               Grid.ColumnSpan="2"
-                                              IsVisible="{Binding HasItems}"
+                                              IsVisible="{Binding HasExtraDetails}"
                                               Margin="0,6,0,0">
                                             <Grid.GestureRecognizers>
                                                 <TapGestureRecognizer
@@ -272,7 +271,7 @@
                                                     </Label.Triggers>
                                                 </Label>
 
-                                                <Label Text="{Binding ItemsCounterText}"
+                                                <Label Text="{Binding ExtraDetailsLabel}"
                                                        FontSize="11"
                                                        FontAttributes="Bold"
                                                        TextColor="{DynamicResource PrimaryColor}"
@@ -280,39 +279,60 @@
                                             </HorizontalStackLayout>
                                         </Grid>
 
-                                        <!-- Развёрнутый список позиций -->
                                         <VerticalStackLayout Grid.Row="3"
                                                              Grid.Column="0"
                                                              Grid.ColumnSpan="2"
-                                                             BindableLayout.ItemsSource="{Binding Items}"
                                                              IsVisible="{Binding IsExpanded}"
-                                                             Spacing="4"
+                                                             Spacing="10"
                                                              Margin="0,8,0,0">
-                                            <BindableLayout.ItemTemplate>
-                                                <DataTemplate x:DataType="models:TransactionItem">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto"
-                                                          ColumnSpacing="8">
-                                                        <Label Grid.Column="0"
-                                                               Text="{Binding Name}"
-                                                               FontSize="12"
-                                                               TextColor="{DynamicResource TextPrimaryColor}"
-                                                               LineBreakMode="TailTruncation" />
 
-                                                        <Label Grid.Column="1"
-                                                               Text="{Binding SummaryText}"
-                                                               FontSize="11"
-                                                               TextColor="{DynamicResource TextSecondaryColor}" />
+                                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
+                                                                 IsVisible="{Binding HasItems}"
+                                                                 Spacing="4">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:TransactionItem">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                                              ColumnSpacing="8">
+                                                            <Label Grid.Column="0"
+                                                                   Text="{Binding Name}"
+                                                                   FontSize="12"
+                                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                                   LineBreakMode="TailTruncation" />
 
-                                                        <Label Grid.Column="2"
-                                                               Text="{Binding TotalText}"
-                                                               FontSize="12"
-                                                               FontAttributes="Bold"
-                                                               TextColor="{DynamicResource TextPrimaryColor}"
-                                                               WidthRequest="70"
-                                                               HorizontalTextAlignment="End" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </BindableLayout.ItemTemplate>
+                                                            <Label Grid.Column="1"
+                                                                   Text="{Binding SummaryText}"
+                                                                   FontSize="11"
+                                                                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+                                                            <Label Grid.Column="2"
+                                                                   Text="{Binding TotalText}"
+                                                                   FontSize="12"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                                   WidthRequest="70"
+                                                                   HorizontalTextAlignment="End" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </VerticalStackLayout>
+
+                                            <Border IsVisible="{Binding HasReceipt}"
+                                                    Stroke="{DynamicResource CardBorderColor}"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 6"
+                                                    Padding="0"
+                                                    WidthRequest="100"
+                                                    HeightRequest="100"
+                                                    HorizontalOptions="Start">
+                                                <Border.GestureRecognizers>
+                                                    <TapGestureRecognizer
+                                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ViewReceiptCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                                </Border.GestureRecognizers>
+                                                <Image Source="{Binding ReceiptImageSource}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
                                         </VerticalStackLayout>
 
                                     </Grid>

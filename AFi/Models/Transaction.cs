@@ -7,7 +7,7 @@ namespace AFi.Models;
 /// <summary>
 /// Одна финансовая операция: доход или расход.
 /// Наследуется от ObservableObject, чтобы UI мгновенно реагировал
-/// на изменение IsSelected и IsExpanded.
+/// на изменение IsSelected, IsExpanded и ReceiptImageSource.
 /// </summary>
 [Table("transactions")]
 public partial class Transaction : ObservableObject
@@ -34,13 +34,25 @@ public partial class Transaction : ObservableObject
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-    /// <summary>
-    /// Имя файла с фото чека (только имя, без пути).
-    /// Полный путь собирается через ReceiptService.GetFullPath().
-    /// null — фото не прикреплено.
-    /// </summary>
+    private string? _receiptImagePath;
+
     [MaxLength(100)]
-    public string? ReceiptImagePath { get; set; }
+    public string? ReceiptImagePath
+    {
+        get => _receiptImagePath;
+        set
+        {
+            if (SetProperty(ref _receiptImagePath, value))
+            {
+                OnPropertyChanged(nameof(HasReceipt));
+                OnPropertyChanged(nameof(HasExtraDetails));
+                OnPropertyChanged(nameof(ExtraDetailsLabel));
+            }
+        }
+    }
+
+    [Ignore]
+    public bool HasReceipt => !string.IsNullOrEmpty(ReceiptImagePath);
 
     // ==================== Временные флаги UI ====================
 
@@ -55,9 +67,6 @@ public partial class Transaction : ObservableObject
 
     private bool _isExpanded;
 
-    /// <summary>
-    /// Развёрнута ли карточка в списке для показа позиций чека.
-    /// </summary>
     [Ignore]
     public bool IsExpanded
     {
@@ -65,14 +74,19 @@ public partial class Transaction : ObservableObject
         set => SetProperty(ref _isExpanded, value);
     }
 
+    private ImageSource? _receiptImageSource;
+
+    [Ignore]
+    public ImageSource? ReceiptImageSource
+    {
+        get => _receiptImageSource;
+        set => SetProperty(ref _receiptImageSource, value);
+    }
+
     // ==================== Позиции чека ====================
 
     private ObservableCollection<TransactionItem>? _items;
 
-    /// <summary>
-    /// Позиции чека для этой операции. Загружаются лениво вместе
-    /// со списком операций (одним запросом на все видимые).
-    /// </summary>
     [Ignore]
     public ObservableCollection<TransactionItem> Items
     {
@@ -83,19 +97,21 @@ public partial class Transaction : ObservableObject
             {
                 OnPropertyChanged(nameof(HasItems));
                 OnPropertyChanged(nameof(ItemsCounterText));
+                OnPropertyChanged(nameof(HasExtraDetails));
+                OnPropertyChanged(nameof(ExtraDetailsLabel));
             }
         }
     }
 
-    /// <summary>
-    /// true, если у операции есть хотя бы одна позиция.
-    /// </summary>
     [Ignore]
     public bool HasItems => Items.Count > 0;
 
     /// <summary>
-    /// Текст счётчика позиций: "3 позиции".
+    /// Есть ли что показать в развёрнутом виде: позиции или фото.
     /// </summary>
+    [Ignore]
+    public bool HasExtraDetails => HasItems || HasReceipt;
+
     [Ignore]
     public string ItemsCounterText
     {
@@ -118,7 +134,20 @@ public partial class Transaction : ObservableObject
         }
     }
 
-    // ==================== Отображение ====================
+    /// <summary>
+    /// Строка-индикатор деталей: «3 позиции · фото чека».
+    /// </summary>
+    [Ignore]
+    public string ExtraDetailsLabel
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (HasItems) parts.Add(ItemsCounterText);
+            if (HasReceipt) parts.Add("фото чека");
+            return string.Join(" · ", parts);
+        }
+    }
 
     [Ignore]
     public string DisplayCategoryName =>

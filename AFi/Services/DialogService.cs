@@ -59,4 +59,17 @@ public class DialogService : IDialogService
 
         return await modal.WaitForResultAsync();
     }
+
+    public async Task ShowReceiptAsync(ImageSource source)
+    {
+        var page = Shell.Current?.CurrentPage
+                   ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+
+        if (page is null)
+            return;
+
+        var modal = new Controls.ReceiptViewerPage(source);
+
+        await page.Navigation.PushModalAsync(modal);
+    }
 }

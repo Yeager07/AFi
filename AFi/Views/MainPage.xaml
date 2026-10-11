@@ -211,70 +211,79 @@
                                IsVisible="{Binding HasAmountMismatch}" />
 
                         <!-- ==================== Фото чека ==================== -->
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
-                            <Label Grid.Column="0"
-                                   Text="Фото чека (необязательно)"
-                                   FontSize="14"
-                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                   VerticalOptions="Center" />
+                        <Label Text="Фото чека (необязательно)"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               Margin="0,5,0,0" />
+
+                        <!-- Превью + кнопки, если фото прикреплено -->
+                        <Grid ColumnDefinitions="Auto,*"
+                              ColumnSpacing="10"
+                              IsVisible="{Binding HasReceipt}">
+
+                            <Border Grid.Column="0"
+                                    Stroke="{DynamicResource CardBorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="0"
+                                    WidthRequest="90"
+                                    HeightRequest="90">
+                                <Image Source="{Binding CurrentReceiptImageSource}"
+                                       Aspect="AspectFill" />
+                            </Border>
+
+                            <VerticalStackLayout Grid.Column="1"
+                                                 Spacing="6"
+                                                 VerticalOptions="Center">
+                                <Button Text="Заменить из галереи"
+                                        Command="{Binding PickReceiptFromGalleryCommand}"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{DynamicResource PrimaryColor}"
+                                        BorderColor="{DynamicResource PrimaryColor}"
+                                        BorderWidth="1"
+                                        CornerRadius="8"
+                                        FontSize="12"
+                                        HeightRequest="32" />
+
+                                <Button Text="Удалить фото"
+                                        Command="{Binding RemoveReceiptCommand}"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{DynamicResource DangerColor}"
+                                        BorderColor="{DynamicResource DangerColor}"
+                                        BorderWidth="1"
+                                        CornerRadius="8"
+                                        FontSize="12"
+                                        HeightRequest="32" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Кнопки, если фото не прикреплено -->
+                        <Grid ColumnDefinitions="*,*"
+                              ColumnSpacing="8"
+                              IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}">
+
+                            <Button Grid.Column="0"
+                                    Text="📷 Снять"
+                                    Command="{Binding CaptureReceiptFromCameraCommand}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="{DynamicResource PrimaryColor}"
+                                    BorderColor="{DynamicResource PrimaryColor}"
+                                    BorderWidth="1"
+                                    CornerRadius="8"
+                                    FontSize="13"
+                                    HeightRequest="40" />
 
                             <Button Grid.Column="1"
-                                    Text="+ Прикрепить"
+                                    Text="🖼️ Из галереи"
                                     Command="{Binding PickReceiptFromGalleryCommand}"
                                     BackgroundColor="Transparent"
                                     TextColor="{DynamicResource PrimaryColor}"
                                     BorderColor="{DynamicResource PrimaryColor}"
                                     BorderWidth="1"
                                     CornerRadius="8"
-                                    HeightRequest="32"
-                                    FontSize="12"
-                                    Padding="10,0"
-                                    IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}" />
+                                    FontSize="13"
+                                    HeightRequest="40" />
                         </Grid>
-
-                        <!-- Превью фото + кнопки когда фото есть -->
-                        <Border IsVisible="{Binding HasReceipt}"
-                                Stroke="{DynamicResource CardBorderColor}"
-                                StrokeThickness="1"
-                                StrokeShape="RoundRectangle 8"
-                                Padding="8"
-                                BackgroundColor="{DynamicResource CardBackgroundColor}">
-                            <VerticalStackLayout Spacing="8">
-                                <Image Source="{Binding CurrentReceiptImageSource}"
-                                       Aspect="AspectFill"
-                                       HeightRequest="200"
-                                       HorizontalOptions="Fill">
-                                    <Image.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding ViewReceiptCommand}" />
-                                    </Image.GestureRecognizers>
-                                </Image>
-
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                    <Button Grid.Column="0"
-                                            Text="Заменить"
-                                            Command="{Binding PickReceiptFromGalleryCommand}"
-                                            BackgroundColor="Transparent"
-                                            TextColor="{DynamicResource PrimaryColor}"
-                                            BorderColor="{DynamicResource PrimaryColor}"
-                                            BorderWidth="1"
-                                            CornerRadius="8"
-                                            HeightRequest="36"
-                                            FontSize="13" />
-
-                                    <Button Grid.Column="1"
-                                            Text="Удалить"
-                                            Command="{Binding RemoveReceiptCommand}"
-                                            BackgroundColor="Transparent"
-                                            TextColor="{DynamicResource DangerColor}"
-                                            BorderColor="{DynamicResource DangerColor}"
-                                            BorderWidth="1"
-                                            CornerRadius="8"
-                                            HeightRequest="36"
-                                            FontSize="13" />
-                                </Grid>
-                            </VerticalStackLayout>
-                        </Border>
 
                         <!-- ==================== Кнопки формы ==================== -->
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,10,0,0">
@@ -438,10 +447,10 @@
                                             </Label.Text>
                                         </Label>
 
-                                        <!-- Индикатор позиций -->
+                                        <!-- Индикатор деталей -->
                                         <Grid Grid.Row="2" Grid.Column="0"
                                               Grid.ColumnSpan="2"
-                                              IsVisible="{Binding HasItems}"
+                                              IsVisible="{Binding HasExtraDetails}"
                                               Margin="0,6,0,0">
                                             <Grid.GestureRecognizers>
                                                 <TapGestureRecognizer
@@ -467,7 +476,7 @@
                                                     </Label.Triggers>
                                                 </Label>
 
-                                                <Label Text="{Binding ItemsCounterText}"
+                                                <Label Text="{Binding ExtraDetailsLabel}"
                                                        FontSize="11"
                                                        FontAttributes="Bold"
                                                        TextColor="{DynamicResource PrimaryColor}"
@@ -475,39 +484,63 @@
                                             </HorizontalStackLayout>
                                         </Grid>
 
-                                        <!-- Развёрнутый список позиций -->
+                                        <!-- Развёрнутое содержимое -->
                                         <VerticalStackLayout Grid.Row="3"
                                                              Grid.Column="0"
                                                              Grid.ColumnSpan="2"
-                                                             BindableLayout.ItemsSource="{Binding Items}"
                                                              IsVisible="{Binding IsExpanded}"
-                                                             Spacing="4"
+                                                             Spacing="10"
                                                              Margin="0,8,0,0">
-                                            <BindableLayout.ItemTemplate>
-                                                <DataTemplate x:DataType="models:TransactionItem">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto"
-                                                          ColumnSpacing="8">
-                                                        <Label Grid.Column="0"
-                                                               Text="{Binding Name}"
-                                                               FontSize="12"
-                                                               TextColor="{DynamicResource TextPrimaryColor}"
-                                                               LineBreakMode="TailTruncation" />
 
-                                                        <Label Grid.Column="1"
-                                                               Text="{Binding SummaryText}"
-                                                               FontSize="11"
-                                                               TextColor="{DynamicResource TextSecondaryColor}" />
+                                            <!-- Позиции -->
+                                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
+                                                                 IsVisible="{Binding HasItems}"
+                                                                 Spacing="4">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:TransactionItem">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                                              ColumnSpacing="8">
+                                                            <Label Grid.Column="0"
+                                                                   Text="{Binding Name}"
+                                                                   FontSize="12"
+                                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                                   LineBreakMode="TailTruncation" />
 
-                                                        <Label Grid.Column="2"
-                                                               Text="{Binding TotalText}"
-                                                               FontSize="12"
-                                                               FontAttributes="Bold"
-                                                               TextColor="{DynamicResource TextPrimaryColor}"
-                                                               WidthRequest="70"
-                                                               HorizontalTextAlignment="End" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </BindableLayout.ItemTemplate>
+                                                            <Label Grid.Column="1"
+                                                                   Text="{Binding SummaryText}"
+                                                                   FontSize="11"
+                                                                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+                                                            <Label Grid.Column="2"
+                                                                   Text="{Binding TotalText}"
+                                                                   FontSize="12"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                                   WidthRequest="70"
+                                                                   HorizontalTextAlignment="End" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </VerticalStackLayout>
+
+                                            <!-- Превью фото чека -->
+                                            <Border IsVisible="{Binding HasReceipt}"
+                                                    Stroke="{DynamicResource CardBorderColor}"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 6"
+                                                    Padding="0"
+                                                    WidthRequest="100"
+                                                    HeightRequest="100"
+                                                    HorizontalOptions="Start">
+                                                <Border.GestureRecognizers>
+                                                    <TapGestureRecognizer
+                                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ViewReceiptCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                                </Border.GestureRecognizers>
+                                                <Image Source="{Binding ReceiptImageSource}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
                                         </VerticalStackLayout>
 
                                     </Grid>

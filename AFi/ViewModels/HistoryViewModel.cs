@@ -12,6 +12,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
     private readonly DatabaseService _db;
     private readonly IDialogService _dialogs;
+    private readonly IReceiptService _receipts;
 
     private int _loadedCount;
     private readonly HashSet<int> _selectedIds = new();
@@ -71,14 +72,13 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     public bool HasSelection => SelectedCount > 0;
     public bool CanEnterSelectionMode => !IsSelectionMode && HasTransactions;
 
-    // ==================== Pending category filter ====================
-
     private string? _pendingCategoryName;
 
-    public HistoryViewModel(DatabaseService db, IDialogService dialogs)
+    public HistoryViewModel(DatabaseService db, IDialogService dialogs, IReceiptService receipts)
     {
         _db = db;
         _dialogs = dialogs;
+        _receipts = receipts;
     }
 
     // ==================== Применение query-параметров ====================
@@ -212,7 +212,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 limit: PageSize, offset: _loadedCount,
                 categoryName: categoryName);
 
-            // Догружаем позиции для новых операций
             var newIds = next.Select(t => t.Id).ToList();
             var newItemsByTransaction = await _db.GetItemsForTransactionsAsync(newIds);
 
@@ -224,6 +223,13 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                     foreach (var item in items)
                         collection.Add(item);
                     t.Items = collection;
+                }
+
+                if (!string.IsNullOrEmpty(t.ReceiptImagePath))
+                {
+                    var path = _receipts.GetFullPath(t.ReceiptImagePath);
+                    if (path is not null)
+                        t.ReceiptImageSource = ImageSource.FromFile(path);
                 }
             }
 
@@ -274,9 +280,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    /// <summary>
-    /// Развернуть/свернуть карточку для показа позиций чека.
-    /// </summary>
     [RelayCommand]
     private void ToggleExpand(Transaction? transaction)
     {
@@ -284,6 +287,17 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         if (IsSelectionMode) return;
 
         transaction.IsExpanded = !transaction.IsExpanded;
+    }
+
+    /// <summary>
+    /// Открыть фото чека на весь экран.
+    /// </summary>
+    [RelayCommand]
+    private async Task ViewReceiptAsync(Transaction? transaction)
+    {
+        if (transaction?.ReceiptImageSource is null) return;
+
+        await _dialogs.ShowReceiptAsync(transaction.ReceiptImageSource);
     }
 
     // ==================== Удаление ====================
@@ -314,6 +328,9 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         IsBusy = true;
         try
         {
+            if (!string.IsNullOrEmpty(transaction.ReceiptImagePath))
+                await _receipts.DeleteAsync(transaction.ReceiptImagePath);
+
             await _db.DeleteTransactionAsync(transaction.Id);
             await LoadCoreAsync();
             StatusMessage = "Операция удалена";
@@ -387,7 +404,16 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         try
         {
             foreach (var id in _selectedIds.ToList())
+            {
+                var transaction = Transactions.FirstOrDefault(t => t.Id == id);
+                if (transaction is not null
+                    && !string.IsNullOrEmpty(transaction.ReceiptImagePath))
+                {
+                    await _receipts.DeleteAsync(transaction.ReceiptImagePath);
+                }
+
                 await _db.DeleteTransactionAsync(id);
+            }
 
             _selectedIds.Clear();
             SelectedCount = 0;
@@ -439,7 +465,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             limit: PageSize, offset: 0,
             categoryName: categoryName);
 
-        // Загружаем позиции для всех показанных операций одним запросом
         var ids = list.Select(t => t.Id).ToList();
         var itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);
 
@@ -451,6 +476,13 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 foreach (var item in items)
                     collection.Add(item);
                 t.Items = collection;
+            }
+
+            if (!string.IsNullOrEmpty(t.ReceiptImagePath))
+            {
+                var path = _receipts.GetFullPath(t.ReceiptImagePath);
+                if (path is not null)
+                    t.ReceiptImageSource = ImageSource.FromFile(path);
             }
         }
 

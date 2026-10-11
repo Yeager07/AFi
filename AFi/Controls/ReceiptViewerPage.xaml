@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ReceiptViewerPage"
+             BackgroundColor="#E0000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Заголовок с кнопкой закрытия -->
+        <Grid Grid.Row="0"
+              Padding="15"
+              ColumnDefinitions="*,Auto">
+            <Label Grid.Column="0"
+                   Text="Фото чека"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   VerticalOptions="Center" />
+
+            <Button Grid.Column="1"
+                    Text="✕"
+                    Clicked="OnCloseClicked"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="22"
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    Padding="0"
+                    CornerRadius="22" />
+        </Grid>
+
+        <!-- Область просмотра: Image растягивается на весь Grid -->
+        <Grid x:Name="ImageContainer"
+              Grid.Row="1"
+              Padding="15"
+              BackgroundColor="Transparent">
+
+            <Image x:Name="ImageViewer"
+                   Aspect="AspectFit"
+                   HorizontalOptions="Fill"
+                   VerticalOptions="Fill">
+                <Image.GestureRecognizers>
+                    <PinchGestureRecognizer PinchUpdated="OnPinchUpdated" />
+                    <PanGestureRecognizer PanUpdated="OnPanUpdated" />
+                </Image.GestureRecognizers>
+            </Image>
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
