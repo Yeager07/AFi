@@ -11,6 +11,11 @@ namespace AFi.ViewModels;
 
 public partial class StatsViewModel : ObservableObject
 {
+    /// <summary>
+    /// Сколько топ-позиций показывать в развёрнутой карточке категории.
+    /// </summary>
+    private const int TopItemsCount = 5;
+
     private readonly DatabaseService _db;
     private readonly IThemeService _themeService;
 
@@ -37,7 +42,6 @@ public partial class StatsViewModel : ObservableObject
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
     public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
-
     public bool IsFilterVisible => IsDonutMode;
 
     // ==================== Тип диаграммы ====================
@@ -74,12 +78,6 @@ public partial class StatsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
 
-    // ==================== Кэш последних данных ====================
-
-    /// <summary>
-    /// Последние данные для столбчатых диаграмм. Нужны, чтобы
-    /// перестроить диаграммы при смене темы без запроса к БД.
-    /// </summary>
     private List<(DateTime Month, decimal Income, decimal Expense)> _lastMonthly = new();
 
     public StatsViewModel(DatabaseService db, IThemeService themeService)
@@ -87,14 +85,11 @@ public partial class StatsViewModel : ObservableObject
         _db = db;
         _themeService = themeService;
 
-        // Перестраиваем диаграммы при смене темы
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
     {
-        // Перестраиваем только столбчатые диаграммы — они зависят от темы.
-        // Круговая использует фиксированную палитру и перестройки не требует.
         if (_lastMonthly.Count > 0)
         {
             IncomeBarChart = BuildBarChart(_lastMonthly, income: true);
@@ -158,7 +153,7 @@ public partial class StatsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Переход на страницу «История» с тем же периодом и категорией.
+    /// Переход в Историю с фильтром по категории и периоду.
     /// </summary>
     [RelayCommand]
     private async Task GoToHistoryAsync(LegendItem? item)
@@ -176,6 +171,18 @@ public partial class StatsViewModel : ObservableObject
         }
 
         await Shell.Current.GoToAsync(url);
+    }
+
+    /// <summary>
+    /// Развернуть/свернуть карточку категории для показа топа позиций.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleLegendExpand(LegendItem? item)
+    {
+        if (item is null) return;
+        if (!item.HasTopItems) return;
+
+        item.IsExpanded = !item.IsExpanded;
     }
 
     // ==================== Загрузка данных ====================
@@ -272,6 +279,20 @@ public partial class StatsViewModel : ObservableObject
 
         ExpenseChart = BuildDonutChart(breakdown);
 
+        // Загружаем все расходы за период и их позиции одним запросом,
+        // чтобы потом для каждой категории собрать топ позиций.
+        var allTransactions = await _db.GetTransactionsAsync(from, to);
+        var expenses = allTransactions
+            .Where(t => t.Type == TransactionType.Expense)
+            .ToList();
+
+        Dictionary<int, List<TransactionItem>> itemsByTransaction = new();
+        if (expenses.Count > 0)
+        {
+            var ids = expenses.Select(t => t.Id).ToList();
+            itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);
+        }
+
         for (int i = 0; i < breakdown.Count; i++)
         {
             var item = breakdown[i];
@@ -280,14 +301,45 @@ public partial class StatsViewModel : ObservableObject
                 ? item.Sum / totalExpense * 100m
                 : 0m;
 
-            LegendItems.Add(new LegendItem
+            var legendItem = new LegendItem
             {
                 CategoryName = item.CategoryName,
                 Icon = item.Icon,
                 AmountText = item.Sum.ToString("N0", CultureInfo.InvariantCulture) + " ₽",
                 PercentText = $"{percent:0.#}%",
                 Color = Color.FromArgb(hex),
-            });
+            };
+
+            // Собираем позиции операций этой категории
+            var categoryTransactionIds = expenses
+                .Where(t => t.CategoryName == item.CategoryName)
+                .Select(t => t.Id)
+                .ToHashSet();
+
+            var allItems = itemsByTransaction
+                .Where(kvp => categoryTransactionIds.Contains(kvp.Key))
+                .SelectMany(kvp => kvp.Value)
+                .ToList();
+
+            if (allItems.Count > 0)
+            {
+                var topItems = allItems
+                    .GroupBy(x => x.Name)
+                    .Select(g => new TopItem
+                    {
+                        Name = g.Key,
+                        TotalAmount = g.Sum(x => x.Total),
+                        PurchaseCount = g.Count(),
+                    })
+                    .OrderByDescending(x => x.TotalAmount)
+                    .Take(TopItemsCount)
+                    .ToList();
+
+                legendItem.TopItems = topItems;
+                legendItem.HasTopItems = true;
+            }
+
+            LegendItems.Add(legendItem);
         }
     }
 
@@ -304,20 +356,14 @@ public partial class StatsViewModel : ObservableObject
         ExpenseBarChart = BuildBarChart(_lastMonthly, income: false);
     }
 
-    // ==================== Палитра круговой диаграммы ====================
+    // ==================== Построение диаграмм ====================
 
-    /// <summary>
-    /// Фиксированная палитра для сегментов круговой диаграммы.
-    /// Яркая, работает во всех темах. Не меняется при смене темы.
-    /// </summary>
     private static readonly string[] ChartPalette =
     {
         "#FF6B6B", "#4ECDC4", "#FFD93D", "#A8E6CF",
         "#B388FF", "#FF8A65", "#4DD0E1", "#BA68C8",
         "#81C784", "#FFB74D", "#7986CB", "#E57373",
     };
-
-    // ==================== Построение диаграмм ====================
 
     private Chart BuildDonutChart(List<(string CategoryName, string Icon, decimal Sum)> data)
     {
@@ -343,7 +389,6 @@ public partial class StatsViewModel : ObservableObject
         List<(DateTime Month, decimal Income, decimal Expense)> monthly,
         bool income)
     {
-        // Цвета берём из текущей темы — они меняются при переключении.
         var barColor = GetThemeColor(income ? "SuccessColor" : "DangerColor");
         var textColor = GetThemeColor("TextPrimaryColor");
 
@@ -386,12 +431,6 @@ public partial class StatsViewModel : ObservableObject
         };
     }
 
-    // ==================== Работа с темой ====================
-
-    /// <summary>
-    /// Достаёт цвет из текущей темы по ключу. Возвращает fallback,
-    /// если ключ не найден.
-    /// </summary>
     private static SKColor GetThemeColor(string key)
     {
         if (Application.Current?.Resources.TryGetValue(key, out var value) == true
