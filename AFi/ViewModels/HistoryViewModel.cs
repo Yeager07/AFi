@@ -17,6 +17,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     private int _loadedCount;
     private readonly HashSet<int> _selectedIds = new();
     private bool _suppressFilterReload;
+    private bool _filtersLoaded;
 
     // ==================== Фильтры ====================
 
@@ -183,8 +184,17 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     private async Task LoadAsync()
     {
         MaxDate = DateTime.Today;
-        await ReloadFiltersAsync();
-        ApplyPendingCategoryFilter();
+
+        // Фильтры пересобираем только при первом заходе.
+        // При повторных OnAppearing (возврат с модалки Picker-а,
+        // переключение страниц) сохраняем уже выбранные значения.
+        if (!_filtersLoaded)
+        {
+            await ReloadFiltersAsync();
+            ApplyPendingCategoryFilter();
+            _filtersLoaded = true;
+        }
+
         await ReloadAsync();
     }
 
@@ -624,5 +634,19 @@ public class CategoryFilterItem
     public int? Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string FilterName { get; set; } = string.Empty;
+
     public override string ToString() => Name;
+
+    /// <summary>
+    /// Сравнение по FilterName — чтобы IndexOf находил категорию
+    /// даже после пересоздания коллекции в ReloadFiltersAsync
+    /// (при возврате на страницу или с модалки Picker-а).
+    /// </summary>
+    public override bool Equals(object? obj)
+    {
+        if (obj is not CategoryFilterItem other) return false;
+        return FilterName == other.FilterName;
+    }
+
+    public override int GetHashCode() => FilterName?.GetHashCode() ?? 0;
 }

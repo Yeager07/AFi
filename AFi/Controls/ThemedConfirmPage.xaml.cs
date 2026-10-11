@@ -19,14 +19,32 @@ public partial class ThemedConfirmPage : ContentPage
 
     private async void OnAcceptClicked(object? sender, EventArgs e)
     {
-        await Navigation.PopModalAsync();
+        // Сначала отдаём результат — вызывающий код сразу продолжит работу.
+        // Модалка закроется следом, уже без блокировки.
         _tcs.TrySetResult(true);
+
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch
+        {
+            // Тихо — если PopModal по какой-то причине не сработал,
+            // не валим UI. Результат уже отдан.
+        }
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        await Navigation.PopModalAsync();
         _tcs.TrySetResult(false);
+
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch
+        {
+        }
     }
 
     protected override bool OnBackButtonPressed()
