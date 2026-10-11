@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SQLite;
 
@@ -13,9 +14,6 @@ public partial class TransactionItem : ObservableObject
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
 
-    /// <summary>
-    /// Id операции, к которой привязана позиция.
-    /// </summary>
     [Indexed]
     public int TransactionId { get; set; }
 
@@ -28,24 +26,53 @@ public partial class TransactionItem : ObservableObject
     public decimal Quantity { get; set; } = 1m;
 
     /// <summary>
-    /// Цена за единицу. Общая стоимость позиции = Quantity × UnitPrice.
+    /// Цена за единицу.
     /// </summary>
     public decimal UnitPrice { get; set; }
 
-    /// <summary>
-    /// Порядок отображения в списке.
-    /// </summary>
     public int SortOrder { get; set; }
 
-    /// <summary>
-    /// Общая стоимость позиции — вычисляется.
-    /// </summary>
+    // ==================== Строковые обёртки для Entry ====================
+
+    private string? _quantityText;
+    private string? _unitPriceText;
+
+    [Ignore]
+    public string QuantityText
+    {
+        get => _quantityText ??= FormatDecimal(Quantity);
+        set
+        {
+            if (SetProperty(ref _quantityText, value))
+            {
+                Quantity = ParseDecimal(value, fallback: Quantity);
+                NotifyTotals();
+            }
+        }
+    }
+
+    [Ignore]
+    public string UnitPriceText
+    {
+        get => _unitPriceText ??= FormatDecimal(UnitPrice);
+        set
+        {
+            if (SetProperty(ref _unitPriceText, value))
+            {
+                UnitPrice = ParseDecimal(value, fallback: UnitPrice);
+                NotifyTotals();
+            }
+        }
+    }
+
+    // ==================== Вычисляемые ====================
+
     [Ignore]
     public decimal Total => Quantity * UnitPrice;
 
-    /// <summary>
-    /// Форматированное отображение: «2 × 89 ₽ = 178 ₽».
-    /// </summary>
+    [Ignore]
+    public string TotalText => $"{Total:N0} ₽";
+
     [Ignore]
     public string SummaryText
     {
@@ -54,14 +81,31 @@ public partial class TransactionItem : ObservableObject
             var qtyText = Quantity == Math.Floor(Quantity)
                 ? ((int)Quantity).ToString()
                 : Quantity.ToString("0.##");
-
             return $"{qtyText} × {UnitPrice:N0} ₽";
         }
     }
 
-    /// <summary>
-    /// Форматированная общая стоимость: «178 ₽».
-    /// </summary>
-    [Ignore]
-    public string TotalText => $"{Total:N0} ₽";
+    private void NotifyTotals()
+    {
+        OnPropertyChanged(nameof(Total));
+        OnPropertyChanged(nameof(TotalText));
+        OnPropertyChanged(nameof(SummaryText));
+    }
+
+    private static string FormatDecimal(decimal value)
+    {
+        return value == Math.Floor(value)
+            ? ((int)value).ToString()
+            : value.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private static decimal ParseDecimal(string? text, decimal fallback)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 0m;
+        var normalized = text.Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number,
+                                CultureInfo.InvariantCulture, out var value)
+            ? value
+            : fallback;
+    }
 }

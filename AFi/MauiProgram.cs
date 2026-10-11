@@ -33,7 +33,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IReminderService, ReminderService>();
-        builder.Services.AddSingleton<ForecastService>();
+        builder.Services.AddSingleton<IReceiptService, ReceiptService>();
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();

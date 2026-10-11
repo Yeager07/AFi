@@ -584,4 +584,39 @@ public class DatabaseService
             .Where(i => i.TransactionId == transactionId)
             .CountAsync();
     }
+
+    /// <summary>
+    /// Возвращает позиции сразу для нескольких операций за один запрос.
+    /// Используется при загрузке списка, чтобы не делать N+1 запросов.
+    /// </summary>
+    public async Task<Dictionary<int, List<TransactionItem>>> GetItemsForTransactionsAsync(
+        List<int> transactionIds)
+    {
+        var result = new Dictionary<int, List<TransactionItem>>();
+
+        if (transactionIds.Count == 0)
+            return result;
+
+        var db = await GetConnectionAsync();
+
+        // SQLite-net не умеет IN с параметрами напрямую, поэтому строим строку
+        // с плейсхолдерами
+        var placeholders = string.Join(",", transactionIds.Select(_ => "?"));
+        var sql = $"SELECT * FROM transaction_items WHERE TransactionId IN ({placeholders}) " +
+                $"ORDER BY TransactionId, SortOrder";
+
+        var items = await db.QueryAsync<TransactionItem>(sql, transactionIds.Cast<object>().ToArray());
+
+        foreach (var item in items)
+        {
+            if (!result.TryGetValue(item.TransactionId, out var list))
+            {
+                list = new List<TransactionItem>();
+                result[item.TransactionId] = list;
+            }
+            list.Add(item);
+        }
+
+        return result;
+    }
 }

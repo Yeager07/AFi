@@ -92,6 +92,17 @@ public partial class MainPage : ContentPage
         };
     }
 
+    // ==================== Позиции чека ====================
+
+    /// <summary>
+    /// Пересчитывает итог по позициям, когда пользователь меняет
+    /// количество или цену в любом поле позиции.
+    /// </summary>
+    private void OnItemEntryChanged(object? sender, TextChangedEventArgs e)
+    {
+        _viewModel.RefreshItemsTotal();
+    }
+
     // ==================== Жизненный цикл ====================
 
     protected override async void OnAppearing()
@@ -99,7 +110,6 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
         await _viewModel.LoadCommand.ExecuteAsync(null);
 
-        // Синхронизируем оба Picker после загрузки
         var typeIdx = _viewModel.SelectedTypeIndex;
         if (typeIdx >= 0 && typeIdx < _viewModel.TypeOptions.Count)
             TypePicker.SelectedItem = _viewModel.TypeOptions[typeIdx];
@@ -107,10 +117,6 @@ public partial class MainPage : ContentPage
         CategoryPicker.SelectedItem = _viewModel.SelectedCategory;
     }
 
-    /// <summary>
-    /// Системная кнопка «назад» на Android. Если активен режим
-    /// мультивыбора — отменяем выбор и не выходим.
-    /// </summary>
     protected override bool OnBackButtonPressed()
     {
         if (_viewModel.IsSelectionMode)

@@ -41,6 +41,27 @@ public partial class MainViewModel : ObservableObject
     public string SubmitButtonText => IsEditing ? "Обновить" : "Сохранить";
     public bool IsBalanceNegative => CurrentBalance < 0;
 
+    // ==================== Позиции чека ====================
+
+    /// <summary>
+    /// Текущие позиции формы. При создании операции — пустые,
+    /// при редактировании — загружаются из БД.
+    /// </summary>
+    public ObservableCollection<TransactionItem> CurrentItems { get; } = new();
+
+    [ObservableProperty] private bool _hasItems;
+
+    /// <summary>
+    /// Итоговая строка «Сумма по позициям: X ₽».
+    /// </summary>
+    [ObservableProperty] private string _itemsTotalText = string.Empty;
+
+    /// <summary>
+    /// Показать ли предупреждение о расхождении суммы операции и суммы позиций.
+    /// </summary>
+    [ObservableProperty] private bool _hasAmountMismatch;
+    [ObservableProperty] private string _amountMismatchText = string.Empty;
+
     // ==================== Списки ====================
 
     public ObservableCollection<string> TypeOptions { get; } = new()
@@ -63,7 +84,6 @@ public partial class MainViewModel : ObservableObject
     // ==================== Мультивыбор ====================
 
     [ObservableProperty] private bool _isSelectionMode;
-
     [ObservableProperty] private int _selectedCount;
 
     public bool HasSelection => SelectedCount > 0;
@@ -79,6 +99,9 @@ public partial class MainViewModel : ObservableObject
     {
         _db = db;
         _dialogs = dialogs;
+
+        // Пересчитывать итог при каждом изменении коллекции позиций
+        CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
     // ==================== Реакции ====================
@@ -97,6 +120,9 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsSelectionModeChanged(bool value) =>
         OnPropertyChanged(nameof(CanEnterSelectionMode));
+
+    partial void OnAmountTextChanged(string value) =>
+        RefreshAmountMismatch();
 
     // ==================== Загрузка и навигация ====================
 
@@ -143,12 +169,103 @@ public partial class MainViewModel : ObservableObject
         await Shell.Current.GoToAsync("history-push");
     }
 
+    // ==================== Позиции чека ====================
+
+    [RelayCommand]
+    private void AddItem()
+    {
+        CurrentItems.Add(new TransactionItem
+        {
+            Name = string.Empty,
+            Quantity = 1m,
+            UnitPrice = 0m,
+        });
+    }
+
+    [RelayCommand]
+    private void RemoveItem(TransactionItem? item)
+    {
+        if (item is null) return;
+        CurrentItems.Remove(item);
+    }
+
+    /// <summary>
+    /// Пересчитывает итог по позициям и обновляет состояние UI.
+    /// Вызывается автоматически при изменении коллекции, а также
+    /// из code-behind при вводе в Entry позиции.
+    /// </summary>
+    public void RefreshItemsTotal()
+    {
+        HasItems = CurrentItems.Count > 0;
+
+        if (!HasItems)
+        {
+            ItemsTotalText = string.Empty;
+            RefreshAmountMismatch();
+            return;
+        }
+
+        var total = CurrentItems.Sum(i => i.Total);
+        ItemsTotalText = $"Сумма по позициям: {total:N0} ₽";
+
+        RefreshAmountMismatch();
+    }
+
+    /// <summary>
+    /// Показывает предупреждение, если сумма операции не совпадает с суммой позиций.
+    /// </summary>
+    private void RefreshAmountMismatch()
+    {
+        if (!HasItems)
+        {
+            HasAmountMismatch = false;
+            AmountMismatchText = string.Empty;
+            return;
+        }
+
+        // Парсим сумму из поля «Сумма»
+        var normalized = (AmountText ?? string.Empty).Replace(',', '.');
+        if (!decimal.TryParse(normalized, NumberStyles.Number,
+                              CultureInfo.InvariantCulture, out var amount))
+        {
+            HasAmountMismatch = false;
+            AmountMismatchText = string.Empty;
+            return;
+        }
+
+        var itemsTotal = CurrentItems.Sum(i => i.Total);
+        var diff = amount - itemsTotal;
+
+        if (Math.Abs(diff) < 0.01m)
+        {
+            HasAmountMismatch = false;
+            AmountMismatchText = string.Empty;
+            return;
+        }
+
+        HasAmountMismatch = true;
+        AmountMismatchText = diff > 0
+            ? $"Позиции: {itemsTotal:N0} ₽. Сумма операции больше на {diff:N0} ₽."
+            : $"Позиции: {itemsTotal:N0} ₽. Сумма операции меньше на {Math.Abs(diff):N0} ₽.";
+    }
+
     // ==================== Сохранение ====================
 
     [RelayCommand]
     private async Task SaveAsync()
     {
         if (IsBusy) return;
+
+        // Если есть позиции — сумма всегда = сумме позиций,
+        // и при создании, и при редактировании.
+        // Позиции считаются "источником истины".
+        decimal? itemsTotal = null;
+        if (HasItems)
+        {
+            itemsTotal = CurrentItems.Sum(i => i.Total);
+            if (itemsTotal > 0)
+                AmountText = itemsTotal.Value.ToString("0.##", CultureInfo.InvariantCulture);
+        }
 
         decimal amount;
         if (_editingTransaction is not null)
@@ -159,7 +276,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (string.IsNullOrWhiteSpace(AmountText))
             {
-                StatusMessage = "Введите сумму";
+                StatusMessage = "Введите сумму или добавьте позиции";
                 return;
             }
 
@@ -190,9 +307,26 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        // Валидация позиций
+        foreach (var item in CurrentItems)
+        {
+            if (string.IsNullOrWhiteSpace(item.Name))
+            {
+                StatusMessage = "У всех позиций должно быть название";
+                return;
+            }
+            if (item.Quantity <= 0)
+            {
+                StatusMessage = "У всех позиций должно быть количество больше нуля";
+                return;
+            }
+        }
+
         IsBusy = true;
         try
         {
+            int transactionId;
+
             if (_editingTransaction is not null)
             {
                 _editingTransaction.CategoryId = SelectedCategory.Id;
@@ -201,7 +335,14 @@ public partial class MainViewModel : ObservableObject
                 _editingTransaction.Date = Date;
                 _editingTransaction.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
+                // Если есть позиции — обновляем сумму из них,
+                // иначе сумма остаётся неизменной (immutable)
+                if (itemsTotal.HasValue && itemsTotal.Value > 0)
+                    _editingTransaction.Amount = itemsTotal.Value;
+
                 await _db.UpdateTransactionAsync(_editingTransaction);
+
+                transactionId = _editingTransaction.Id;
 
                 _editingTransactionId = null;
                 _editingTransaction = null;
@@ -226,8 +367,13 @@ public partial class MainViewModel : ObservableObject
                 };
 
                 await _db.AddTransactionAsync(transaction);
+                transactionId = transaction.Id;
+
                 StatusMessage = "Операция сохранена";
             }
+
+            // Сохраняем позиции чека
+            await _db.ReplaceItemsForTransactionAsync(transactionId, CurrentItems.ToList());
 
             ResetForm();
 
@@ -270,6 +416,14 @@ public partial class MainViewModel : ObservableObject
         Date = transaction.Date;
         Note = transaction.Note ?? string.Empty;
 
+        // Загружаем позиции чека
+        CurrentItems.Clear();
+        var items = await _db.GetItemsForTransactionAsync(transaction.Id);
+        foreach (var item in items)
+            CurrentItems.Add(item);
+
+        RefreshItemsTotal();
+
         OnPropertyChanged(nameof(IsEditing));
         OnPropertyChanged(nameof(FormTitle));
         OnPropertyChanged(nameof(SubmitButtonText));
@@ -287,6 +441,8 @@ public partial class MainViewModel : ObservableObject
         Note = string.Empty;
         StatusMessage = string.Empty;
 
+        CurrentItems.Clear();
+
         OnPropertyChanged(nameof(IsEditing));
         OnPropertyChanged(nameof(FormTitle));
         OnPropertyChanged(nameof(SubmitButtonText));
@@ -294,21 +450,12 @@ public partial class MainViewModel : ObservableObject
 
     // ==================== Удаление ====================
 
-    /// <summary>
-    /// Команда удаления, вызываемая по кнопке «Удалить» в других сценариях
-    /// (например, из истории, если там понадобится). С подтверждением.
-    /// </summary>
     [RelayCommand]
     private async Task DeleteTransactionAsync(Transaction? transaction)
     {
         await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
     }
 
-    /// <summary>
-    /// Общая логика удаления. Вызывается либо из ActionSheet
-    /// (skipConfirmation=true, потому что пользователь уже выбрал «Удалить»),
-    /// либо из отдельной команды DeleteTransaction (с подтверждением).
-    /// </summary>
     private async Task DeleteTransactionCoreAsync(Transaction? transaction, bool skipConfirmation)
     {
         if (transaction is null || IsBusy) return;
@@ -352,10 +499,6 @@ public partial class MainViewModel : ObservableObject
 
     // ==================== Тап по карточке ====================
 
-    /// <summary>
-    /// Тап по карточке: в режиме выбора — toggle, в обычном — диалог
-    /// с выбором «Редактировать / Удалить».
-    /// </summary>
     [RelayCommand]
     private async Task HandleCardTapAsync(Transaction? transaction)
     {
@@ -384,6 +527,19 @@ public partial class MainViewModel : ObservableObject
         {
             await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
         }
+    }
+
+    /// <summary>
+    /// Развернуть/свернуть карточку операции для показа позиций чека.
+    /// В режиме мультивыбора не работает — там тап переключает выбор.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleExpand(Transaction? transaction)
+    {
+        if (transaction is null) return;
+        if (IsSelectionMode) return;
+
+        transaction.IsExpanded = !transaction.IsExpanded;
     }
 
     // ==================== Мультивыбор ====================
@@ -508,10 +664,25 @@ public partial class MainViewModel : ObservableObject
 
             var toShow = all.Take(_loadedCount).ToList();
 
+            // Загружаем позиции одним запросом для всех показанных операций
+            var ids = toShow.Select(t => t.Id).ToList();
+            var itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);
+
+            foreach (var t in toShow)
+            {
+                if (itemsByTransaction.TryGetValue(t.Id, out var items))
+                {
+                    var collection = new System.Collections.ObjectModel.ObservableCollection<TransactionItem>();
+                    foreach (var item in items)
+                        collection.Add(item);
+                    t.Items = collection;
+                }
+            }
+
             TransactionGroups.Clear();
             foreach (var g in toShow
-                         .GroupBy(t => t.Date.Date)
-                         .OrderByDescending(g => g.Key))
+                        .GroupBy(t => t.Date.Date)
+                        .OrderByDescending(g => g.Key))
             {
                 TransactionGroups.Add(new TransactionGroup(g.Key, g.ToList()));
             }
@@ -548,6 +719,7 @@ public partial class MainViewModel : ObservableObject
     {
         AmountText = string.Empty;
         Note = string.Empty;
+        CurrentItems.Clear();
     }
 
     private static string Plural(int count, string one, string few, string many)

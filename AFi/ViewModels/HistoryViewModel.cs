@@ -69,8 +69,11 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     [ObservableProperty] private int _selectedCount;
 
     public bool HasSelection => SelectedCount > 0;
-
     public bool CanEnterSelectionMode => !IsSelectionMode && HasTransactions;
+
+    // ==================== Pending category filter ====================
+
+    private string? _pendingCategoryName;
 
     public HistoryViewModel(DatabaseService db, IDialogService dialogs)
     {
@@ -80,11 +83,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
     // ==================== Применение query-параметров ====================
 
-    /// <summary>
-    /// Вызывается MAUI Shell при навигации с query-параметрами
-    /// (filterIndex, при необходимости from/to, category).
-    /// Устанавливает фильтры ДО того, как сработает OnAppearing → LoadCommand.
-    /// </summary>
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         _suppressFilterReload = true;
@@ -109,8 +107,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 CustomToDate = toDate;
             }
 
-            // Фильтр по категории — ищем по чистому имени (FilterName).
-            // Если категории в списке нет (удалена) — добавляем виртуальную запись.
             if (query.TryGetValue("category", out var catObj)
                 && catObj is string catName
                 && !string.IsNullOrWhiteSpace(catName))
@@ -124,16 +120,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    /// <summary>
-    /// Имя категории из query-параметра, ожидающее применения после
-    /// того, как CategoryFilterItems будет загружен.
-    /// </summary>
-    private string? _pendingCategoryName;
-
-    /// <summary>
-    /// Применяет отложенный фильтр по категории после загрузки списка.
-    /// Вызывается в LoadAsync после ReloadFiltersAsync.
-    /// </summary>
     private void ApplyPendingCategoryFilter()
     {
         if (string.IsNullOrWhiteSpace(_pendingCategoryName)) return;
@@ -141,26 +127,27 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         var catName = _pendingCategoryName;
         _pendingCategoryName = null;
 
-        // Ищем категорию по чистому имени
         for (int i = 0; i < CategoryFilterItems.Count; i++)
         {
             if (CategoryFilterItems[i].FilterName == catName)
             {
+                _suppressFilterReload = true;
                 SelectedCategoryIndex = i;
+                _suppressFilterReload = false;
                 return;
             }
         }
 
-        // Не нашли — категория была удалена. Добавляем виртуальную запись.
         var virtualItem = new CategoryFilterItem
         {
             Id = null,
             Name = $"❓ {catName} (удалена)",
             FilterName = catName,
         };
-        
         CategoryFilterItems.Add(virtualItem);
+        _suppressFilterReload = true;
         SelectedCategoryIndex = CategoryFilterItems.Count - 1;
+        _suppressFilterReload = false;
     }
 
     // ==================== Реакции ====================
@@ -225,6 +212,21 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 limit: PageSize, offset: _loadedCount,
                 categoryName: categoryName);
 
+            // Догружаем позиции для новых операций
+            var newIds = next.Select(t => t.Id).ToList();
+            var newItemsByTransaction = await _db.GetItemsForTransactionsAsync(newIds);
+
+            foreach (var t in next)
+            {
+                if (newItemsByTransaction.TryGetValue(t.Id, out var items))
+                {
+                    var collection = new ObservableCollection<TransactionItem>();
+                    foreach (var item in items)
+                        collection.Add(item);
+                    t.Items = collection;
+                }
+            }
+
             foreach (var t in next)
                 Transactions.Add(t);
 
@@ -245,6 +247,47 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
+    // ==================== Тап по карточке ====================
+
+    [RelayCommand]
+    private async Task HandleCardTapAsync(Transaction? transaction)
+    {
+        if (transaction is null) return;
+
+        if (IsSelectionMode)
+        {
+            ToggleSelection(transaction);
+            return;
+        }
+
+        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+        var title = $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}";
+
+        var choice = await _dialogs.ShowActionSheetAsync(
+            title,
+            "Отмена",
+            "Удалить");
+
+        if (choice == "Удалить")
+        {
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
+        }
+    }
+
+    /// <summary>
+    /// Развернуть/свернуть карточку для показа позиций чека.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleExpand(Transaction? transaction)
+    {
+        if (transaction is null) return;
+        if (IsSelectionMode) return;
+
+        transaction.IsExpanded = !transaction.IsExpanded;
+    }
+
+    // ==================== Удаление ====================
+
     [RelayCommand]
     private async Task DeleteTransactionAsync(Transaction? transaction)
     {
@@ -259,8 +302,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         {
             var sign = transaction.Type == TransactionType.Income ? "+" : "−";
             var message = $"Удалить операцию?\n\n" +
-                        $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
-                        $"{transaction.Date:dd.MM.yyyy}";
+                          $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
+                          $"{transaction.Date:dd.MM.yyyy}";
 
             var confirmed = await _dialogs.ConfirmAsync(
                 "Удаление", message, "Удалить", "Отмена");
@@ -364,30 +407,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    [RelayCommand]
-    private async Task HandleCardTapAsync(Transaction? transaction)
-    {
-        if (transaction is null) return;
-
-        if (IsSelectionMode)
-        {
-            ToggleSelection(transaction);
-            return;
-        }
-
-        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
-        var title = $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}";
-
-        var choice = await _dialogs.ShowActionSheetAsync(
-            title,
-            "Отмена",
-            "Удалить");
-
-        if (choice == "Удалить")
-        {
-            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
-        }
-    }
     // ==================== Вспомогательные ====================
 
     private async Task ReloadAsync()
@@ -419,6 +438,21 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         var list = await _db.GetTransactionsAsync(from, to,
             limit: PageSize, offset: 0,
             categoryName: categoryName);
+
+        // Загружаем позиции для всех показанных операций одним запросом
+        var ids = list.Select(t => t.Id).ToList();
+        var itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);
+
+        foreach (var t in list)
+        {
+            if (itemsByTransaction.TryGetValue(t.Id, out var items))
+            {
+                var collection = new ObservableCollection<TransactionItem>();
+                foreach (var item in items)
+                    collection.Add(item);
+                t.Items = collection;
+            }
+        }
 
         Transactions.Clear();
         foreach (var t in list)
@@ -482,7 +516,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 });
             }
 
-            // Восстанавливаем выбор по имени, если он был
             if (!string.IsNullOrEmpty(previousFilterName))
             {
                 for (int i = 0; i < CategoryFilterItems.Count; i++)
@@ -507,10 +540,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    /// <summary>
-    /// Возвращает чистое имя выбранной категории (без суффикса типа).
-    /// Пустая строка означает «Все категории».
-    /// </summary>
     private string? GetSelectedCategoryName()
     {
         if (SelectedCategoryIndex < 0 || SelectedCategoryIndex >= CategoryFilterItems.Count)
@@ -561,17 +590,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 public class CategoryFilterItem
 {
     public int? Id { get; set; }
-
-    /// <summary>
-    /// Отображаемое имя — «🏠 Аренда (расход)» или «❓ Имя (удалена)».
-    /// </summary>
     public string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Чистое имя категории для фильтра — без суффикса типа и иконки.
-    /// Пустая строка = «Все категории» (фильтр отключён).
-    /// </summary>
     public string FilterName { get; set; } = string.Empty;
-
     public override string ToString() => Name;
 }
