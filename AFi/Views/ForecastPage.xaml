@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
+             xmlns:converters="clr-namespace:AFi.Converters"
+             x:Class="AFi.Views.ForecastPage"
+             x:DataType="vm:ForecastViewModel"
+             x:Name="PageRoot"
+             Title="Прогноз"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:OpacityConverter x:Key="OpacityConverter" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          Padding="15"
+          RowSpacing="12">
+
+        <!-- ==================== Итоговая карточка ==================== -->
+        <Border Grid.Row="0"
+                Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 12"
+                Padding="18"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Ожидаемые расходы на следующий месяц"
+                       FontSize="13"
+                       TextColor="{DynamicResource TextSecondaryColor}" />
+                <Label Text="{Binding TotalText}"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource PrimaryColor}" />
+                <Label Text="{Binding PeriodText, StringFormat='На основе данных за: {0}'}"
+                       FontSize="11"
+                       TextColor="{DynamicResource TextSecondaryColor}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- ==================== Пояснение алгоритма ==================== -->
+        <Border Grid.Row="1"
+                Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 10"
+                Padding="12"
+                BackgroundColor="{DynamicResource CardBackgroundColor}"
+                IsVisible="{Binding HasAnyData}">
+            <VerticalStackLayout Spacing="3">
+                <Label Text="Как считается прогноз"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource TextPrimaryColor}" />
+                <Label Text="Категории, встречавшиеся все 3 месяца — по медиане. Встречавшиеся 2 месяца — по среднему. Разовые траты (1 месяц) не учитываются."
+                       FontSize="11"
+                       TextColor="{DynamicResource TextSecondaryColor}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- ==================== Список категорий ==================== -->
+        <Grid Grid.Row="2" RowDefinitions="Auto,*" RowSpacing="6">
+
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto"
+                  Padding="4,0"
+                  IsVisible="{Binding HasAnyData}">
+                <Label Grid.Column="0"
+                       Text="Категория"
+                       FontSize="11"
+                       TextColor="{DynamicResource TextSecondaryColor}"
+                       FontAttributes="Bold" />
+                <Label Grid.Column="1"
+                       Text="Прогноз"
+                       FontSize="11"
+                       TextColor="{DynamicResource TextSecondaryColor}"
+                       FontAttributes="Bold"
+                       HorizontalOptions="End" />
+            </Grid>
+
+            <CollectionView Grid.Row="1"
+                            ItemsSource="{Binding Items}"
+                            SelectionMode="None">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Spacing="10"
+                                         Padding="20"
+                                         HorizontalOptions="Center"
+                                         VerticalOptions="Center">
+                        <Label Text="🔮"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label Text="Недостаточно данных"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               HorizontalOptions="Center" />
+                        <Label Text="Для прогноза нужно минимум 2 полных месяца с операциями по одной категории"
+                               FontSize="12"
+                               TextColor="{DynamicResource TextSecondaryColor}"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ForecastItem">
+                        <Border Stroke="{DynamicResource CardBorderColor}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="12"
+                                Margin="0,4"
+                                BackgroundColor="{DynamicResource CardBackgroundColor}"
+                                Opacity="{Binding IsIncluded, Converter={StaticResource OpacityConverter}}">
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  RowDefinitions="Auto,Auto">
+
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding DisplayName}"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource TextPrimaryColor}" />
+
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="{Binding PredictedSumText}"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="End"
+                                       TextColor="{DynamicResource PrimaryColor}"
+                                       IsVisible="{Binding IsIncluded}" />
+
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="не в прогнозе"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                       HorizontalOptions="End"
+                                       IsVisible="{Binding IsIncluded, Converter={StaticResource InverseBoolConverter}}" />
+
+                                <Label Grid.Row="1" Grid.Column="0"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding FrequencyText}"
+                                       FontSize="11"
+                                       TextColor="{DynamicResource TextSecondaryColor}" />
+
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+
+        <Label Grid.Row="3"
+               Text="{Binding StatusMessage}"
+               FontSize="12"
+               TextColor="{DynamicResource TextSecondaryColor}"
+               HorizontalOptions="Center" />
+
+    </Grid>
+
+</ContentPage>

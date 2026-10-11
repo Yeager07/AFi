@@ -33,6 +33,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IReminderService, ReminderService>();
+        builder.Services.AddSingleton<ForecastService>();
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
@@ -42,6 +43,7 @@ public static class MauiProgram
         builder.Services.AddTransient<SettingsViewModel>();
         builder.Services.AddTransient<RecurringViewModel>();
         builder.Services.AddTransient<RecurringEditViewModel>();
+        builder.Services.AddTransient<ForecastViewModel>();
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
@@ -51,6 +53,7 @@ public static class MauiProgram
         builder.Services.AddTransient<SettingsPage>();
         builder.Services.AddTransient<RecurringPage>();
         builder.Services.AddTransient<RecurringEditPage>();
+        builder.Services.AddTransient<ForecastPage>();
 
         return builder.Build();
     }
