@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
 
     private readonly DatabaseService _db;
     private readonly IDialogService _dialogs;
+    private readonly IReceiptService _receipts;
 
     private int? _editingTransactionId;
     private Transaction? _editingTransaction;
@@ -23,6 +24,17 @@ public partial class MainViewModel : ObservableObject
     private int _totalInPeriod;
 
     private readonly HashSet<int> _selectedIds = new();
+
+    /// <summary>
+    /// Имя файла фото чека в форме. null — фото не прикреплено.
+    /// </summary>
+    private string? _currentReceiptFileName;
+
+    /// <summary>
+    /// Имя файла чека при начале редактирования — чтобы удалить
+    /// старый файл, если пользователь заменит или удалит фото.
+    /// </summary>
+    private string? _originalReceiptFileName;
 
     // ==================== Состояние формы ====================
 
@@ -41,24 +53,23 @@ public partial class MainViewModel : ObservableObject
     public string SubmitButtonText => IsEditing ? "Обновить" : "Сохранить";
     public bool IsBalanceNegative => CurrentBalance < 0;
 
-    // ==================== Позиции чека ====================
+    // ==================== Фото чека ====================
+
+    [ObservableProperty] private bool _hasReceipt;
 
     /// <summary>
-    /// Текущие позиции формы. При создании операции — пустые,
-    /// при редактировании — загружаются из БД.
+    /// Источник для Image в форме — превью прикреплённого фото.
     /// </summary>
+    [ObservableProperty] private ImageSource? _currentReceiptImageSource;
+
+    // ==================== Позиции чека ====================
+
     public ObservableCollection<TransactionItem> CurrentItems { get; } = new();
 
     [ObservableProperty] private bool _hasItems;
 
-    /// <summary>
-    /// Итоговая строка «Сумма по позициям: X ₽».
-    /// </summary>
     [ObservableProperty] private string _itemsTotalText = string.Empty;
 
-    /// <summary>
-    /// Показать ли предупреждение о расхождении суммы операции и суммы позиций.
-    /// </summary>
     [ObservableProperty] private bool _hasAmountMismatch;
     [ObservableProperty] private string _amountMismatchText = string.Empty;
 
@@ -95,12 +106,12 @@ public partial class MainViewModel : ObservableObject
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
-    public MainViewModel(DatabaseService db, IDialogService dialogs)
+    public MainViewModel(DatabaseService db, IDialogService dialogs, IReceiptService receipts)
     {
         _db = db;
         _dialogs = dialogs;
+        _receipts = receipts;
 
-        // Пересчитывать итог при каждом изменении коллекции позиций
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
@@ -189,11 +200,6 @@ public partial class MainViewModel : ObservableObject
         CurrentItems.Remove(item);
     }
 
-    /// <summary>
-    /// Пересчитывает итог по позициям и обновляет состояние UI.
-    /// Вызывается автоматически при изменении коллекции, а также
-    /// из code-behind при вводе в Entry позиции.
-    /// </summary>
     public void RefreshItemsTotal()
     {
         HasItems = CurrentItems.Count > 0;
@@ -211,9 +217,6 @@ public partial class MainViewModel : ObservableObject
         RefreshAmountMismatch();
     }
 
-    /// <summary>
-    /// Показывает предупреждение, если сумма операции не совпадает с суммой позиций.
-    /// </summary>
     private void RefreshAmountMismatch()
     {
         if (!HasItems)
@@ -223,7 +226,6 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // Парсим сумму из поля «Сумма»
         var normalized = (AmountText ?? string.Empty).Replace(',', '.');
         if (!decimal.TryParse(normalized, NumberStyles.Number,
                               CultureInfo.InvariantCulture, out var amount))
@@ -249,6 +251,88 @@ public partial class MainViewModel : ObservableObject
             : $"Позиции: {itemsTotal:N0} ₽. Сумма операции меньше на {Math.Abs(diff):N0} ₽.";
     }
 
+    // ==================== Фото чека ====================
+
+    /// <summary>
+    /// Выбрать фото чека из галереи.
+    /// </summary>
+    [RelayCommand]
+    private async Task PickReceiptFromGalleryAsync()
+    {
+        if (IsBusy) return;
+
+        var fileName = await _receipts.PickFromGalleryAsync();
+        if (fileName is null) return;
+
+        await SetReceiptAsync(fileName);
+    }
+
+    /// <summary>
+    /// Сделать фото чека через камеру.
+    /// </summary>
+    [RelayCommand]
+    private async Task CaptureReceiptFromCameraAsync()
+    {
+        if (IsBusy) return;
+
+        var fileName = await _receipts.CaptureFromCameraAsync();
+        if (fileName is null) return;
+
+        await SetReceiptAsync(fileName);
+    }
+
+    /// <summary>
+    /// Удалить прикреплённое фото.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveReceiptAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName)) return;
+
+        await _receipts.DeleteAsync(_currentReceiptFileName);
+
+        _currentReceiptFileName = null;
+        HasReceipt = false;
+        CurrentReceiptImageSource = null;
+    }
+
+    /// <summary>
+    /// Открыть полноэкранный просмотр фото. Пока заглушка —
+    /// модалку сделаем в 6.4.3.
+    /// </summary>
+    [RelayCommand]
+    private async Task ViewReceiptAsync()
+    {
+        if (!HasReceipt || CurrentReceiptImageSource is null)
+            return;
+
+        // TODO (6.4.3): открыть модалку с полноэкранным просмотром.
+        // Пока просто ничего не делаем — превью уже видно в форме.
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Установить новое фото. Старое (если было в этой сессии, но ещё
+    /// не сохранённое) удаляется, чтобы не копить мусор.
+    /// </summary>
+    private async Task SetReceiptAsync(string fileName)
+    {
+        // Если в форме уже было "свежее" фото (не из БД) — удалим его
+        if (!string.IsNullOrEmpty(_currentReceiptFileName)
+            && _currentReceiptFileName != _originalReceiptFileName)
+        {
+            await _receipts.DeleteAsync(_currentReceiptFileName);
+        }
+
+        _currentReceiptFileName = fileName;
+        HasReceipt = true;
+
+        var path = _receipts.GetFullPath(fileName);
+        CurrentReceiptImageSource = path is not null
+            ? ImageSource.FromFile(path)
+            : null;
+    }
+
     // ==================== Сохранение ====================
 
     [RelayCommand]
@@ -256,15 +340,11 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
 
-        // Если есть позиции — сумма всегда = сумме позиций,
-        // и при создании, и при редактировании.
-        // Позиции считаются "источником истины".
-        decimal? itemsTotal = null;
-        if (HasItems)
+        if (!IsEditing && HasItems)
         {
-            itemsTotal = CurrentItems.Sum(i => i.Total);
+            var itemsTotal = CurrentItems.Sum(i => i.Total);
             if (itemsTotal > 0)
-                AmountText = itemsTotal.Value.ToString("0.##", CultureInfo.InvariantCulture);
+                AmountText = itemsTotal.ToString("0.##", CultureInfo.InvariantCulture);
         }
 
         decimal amount;
@@ -307,7 +387,6 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // Валидация позиций
         foreach (var item in CurrentItems)
         {
             if (string.IsNullOrWhiteSpace(item.Name))
@@ -327,6 +406,14 @@ public partial class MainViewModel : ObservableObject
         {
             int transactionId;
 
+            decimal? itemsTotal = null;
+            if (HasItems)
+            {
+                itemsTotal = CurrentItems.Sum(i => i.Total);
+                if (itemsTotal > 0)
+                    AmountText = itemsTotal.Value.ToString("0.##", CultureInfo.InvariantCulture);
+            }
+
             if (_editingTransaction is not null)
             {
                 _editingTransaction.CategoryId = SelectedCategory.Id;
@@ -335,10 +422,18 @@ public partial class MainViewModel : ObservableObject
                 _editingTransaction.Date = Date;
                 _editingTransaction.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
-                // Если есть позиции — обновляем сумму из них,
-                // иначе сумма остаётся неизменной (immutable)
                 if (itemsTotal.HasValue && itemsTotal.Value > 0)
                     _editingTransaction.Amount = itemsTotal.Value;
+
+                // Работа с фото
+                if (_currentReceiptFileName != _originalReceiptFileName)
+                {
+                    // Удаляем старый файл, если он был и отличался
+                    if (!string.IsNullOrEmpty(_originalReceiptFileName))
+                        await _receipts.DeleteAsync(_originalReceiptFileName);
+
+                    _editingTransaction.ReceiptImagePath = _currentReceiptFileName;
+                }
 
                 await _db.UpdateTransactionAsync(_editingTransaction);
 
@@ -346,6 +441,8 @@ public partial class MainViewModel : ObservableObject
 
                 _editingTransactionId = null;
                 _editingTransaction = null;
+                _originalReceiptFileName = null;
+                _currentReceiptFileName = null;
                 OnPropertyChanged(nameof(IsEditing));
                 OnPropertyChanged(nameof(FormTitle));
                 OnPropertyChanged(nameof(SubmitButtonText));
@@ -363,16 +460,19 @@ public partial class MainViewModel : ObservableObject
                     CategoryIcon = SelectedCategory.Icon,
                     Date = Date,
                     Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.Now,
+                    ReceiptImagePath = _currentReceiptFileName,
                 };
 
                 await _db.AddTransactionAsync(transaction);
                 transactionId = transaction.Id;
 
+                _currentReceiptFileName = null;
+                _originalReceiptFileName = null;
+
                 StatusMessage = "Операция сохранена";
             }
 
-            // Сохраняем позиции чека
             await _db.ReplaceItemsForTransactionAsync(transactionId, CurrentItems.ToList());
 
             ResetForm();
@@ -416,7 +516,33 @@ public partial class MainViewModel : ObservableObject
         Date = transaction.Date;
         Note = transaction.Note ?? string.Empty;
 
-        // Загружаем позиции чека
+        // Загрузка фото
+        _originalReceiptFileName = transaction.ReceiptImagePath;
+        _currentReceiptFileName = transaction.ReceiptImagePath;
+
+        if (!string.IsNullOrEmpty(transaction.ReceiptImagePath))
+        {
+            var path = _receipts.GetFullPath(transaction.ReceiptImagePath);
+            if (path is not null)
+            {
+                HasReceipt = true;
+                CurrentReceiptImageSource = ImageSource.FromFile(path);
+            }
+            else
+            {
+                // Файл потерян — считаем, что фото нет
+                HasReceipt = false;
+                CurrentReceiptImageSource = null;
+                _currentReceiptFileName = null;
+            }
+        }
+        else
+        {
+            HasReceipt = false;
+            CurrentReceiptImageSource = null;
+        }
+
+        // Загрузка позиций
         CurrentItems.Clear();
         var items = await _db.GetItemsForTransactionAsync(transaction.Id);
         foreach (var item in items)
@@ -432,14 +558,27 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    private async Task CancelEditAsync()
     {
+        // Если прикрепили новое фото, но не сохранили — удаляем его,
+        // чтобы не копить мусор.
+        if (!string.IsNullOrEmpty(_currentReceiptFileName)
+            && _currentReceiptFileName != _originalReceiptFileName)
+        {
+            await _receipts.DeleteAsync(_currentReceiptFileName);
+        }
+
         _editingTransactionId = null;
         _editingTransaction = null;
+        _currentReceiptFileName = null;
+        _originalReceiptFileName = null;
 
         AmountText = string.Empty;
         Note = string.Empty;
         StatusMessage = string.Empty;
+
+        HasReceipt = false;
+        CurrentReceiptImageSource = null;
 
         CurrentItems.Clear();
 
@@ -476,10 +615,14 @@ public partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            // Удаляем фото чека, если было
+            if (!string.IsNullOrEmpty(transaction.ReceiptImagePath))
+                await _receipts.DeleteAsync(transaction.ReceiptImagePath);
+
             await _db.DeleteTransactionAsync(transaction.Id);
 
             if (_editingTransactionId == transaction.Id)
-                CancelEdit();
+                await CancelEditAsync();
 
             _loadedCount = PageSize;
             await LoadTransactionsPageAsync();
@@ -529,10 +672,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Развернуть/свернуть карточку операции для показа позиций чека.
-    /// В режиме мультивыбора не работает — там тап переключает выбор.
-    /// </summary>
     [RelayCommand]
     private void ToggleExpand(Transaction? transaction)
     {
@@ -604,7 +743,20 @@ public partial class MainViewModel : ObservableObject
         try
         {
             foreach (var id in _selectedIds.ToList())
+            {
+                // Найдём операцию, чтобы удалить фото, если есть
+                var transaction = TransactionGroups
+                    .SelectMany(g => g)
+                    .FirstOrDefault(t => t.Id == id);
+
+                if (transaction is not null
+                    && !string.IsNullOrEmpty(transaction.ReceiptImagePath))
+                {
+                    await _receipts.DeleteAsync(transaction.ReceiptImagePath);
+                }
+
                 await _db.DeleteTransactionAsync(id);
+            }
 
             _selectedIds.Clear();
             SelectedCount = 0;
@@ -664,7 +816,6 @@ public partial class MainViewModel : ObservableObject
 
             var toShow = all.Take(_loadedCount).ToList();
 
-            // Загружаем позиции одним запросом для всех показанных операций
             var ids = toShow.Select(t => t.Id).ToList();
             var itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);
 
@@ -672,7 +823,7 @@ public partial class MainViewModel : ObservableObject
             {
                 if (itemsByTransaction.TryGetValue(t.Id, out var items))
                 {
-                    var collection = new System.Collections.ObjectModel.ObservableCollection<TransactionItem>();
+                    var collection = new ObservableCollection<TransactionItem>();
                     foreach (var item in items)
                         collection.Add(item);
                     t.Items = collection;
@@ -681,8 +832,8 @@ public partial class MainViewModel : ObservableObject
 
             TransactionGroups.Clear();
             foreach (var g in toShow
-                        .GroupBy(t => t.Date.Date)
-                        .OrderByDescending(g => g.Key))
+                         .GroupBy(t => t.Date.Date)
+                         .OrderByDescending(g => g.Key))
             {
                 TransactionGroups.Add(new TransactionGroup(g.Key, g.ToList()));
             }
@@ -720,6 +871,11 @@ public partial class MainViewModel : ObservableObject
         AmountText = string.Empty;
         Note = string.Empty;
         CurrentItems.Clear();
+
+        HasReceipt = false;
+        CurrentReceiptImageSource = null;
+        _currentReceiptFileName = null;
+        _originalReceiptFileName = null;
     }
 
     private static string Plural(int count, string one, string few, string many)

@@ -210,6 +210,72 @@
                                HorizontalOptions="End"
                                IsVisible="{Binding HasAmountMismatch}" />
 
+                        <!-- ==================== Фото чека ==================== -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                            <Label Grid.Column="0"
+                                   Text="Фото чека (необязательно)"
+                                   FontSize="14"
+                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                   VerticalOptions="Center" />
+
+                            <Button Grid.Column="1"
+                                    Text="+ Прикрепить"
+                                    Command="{Binding PickReceiptFromGalleryCommand}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="{DynamicResource PrimaryColor}"
+                                    BorderColor="{DynamicResource PrimaryColor}"
+                                    BorderWidth="1"
+                                    CornerRadius="8"
+                                    HeightRequest="32"
+                                    FontSize="12"
+                                    Padding="10,0"
+                                    IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}" />
+                        </Grid>
+
+                        <!-- Превью фото + кнопки когда фото есть -->
+                        <Border IsVisible="{Binding HasReceipt}"
+                                Stroke="{DynamicResource CardBorderColor}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="8"
+                                BackgroundColor="{DynamicResource CardBackgroundColor}">
+                            <VerticalStackLayout Spacing="8">
+                                <Image Source="{Binding CurrentReceiptImageSource}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="200"
+                                       HorizontalOptions="Fill">
+                                    <Image.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding ViewReceiptCommand}" />
+                                    </Image.GestureRecognizers>
+                                </Image>
+
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0"
+                                            Text="Заменить"
+                                            Command="{Binding PickReceiptFromGalleryCommand}"
+                                            BackgroundColor="Transparent"
+                                            TextColor="{DynamicResource PrimaryColor}"
+                                            BorderColor="{DynamicResource PrimaryColor}"
+                                            BorderWidth="1"
+                                            CornerRadius="8"
+                                            HeightRequest="36"
+                                            FontSize="13" />
+
+                                    <Button Grid.Column="1"
+                                            Text="Удалить"
+                                            Command="{Binding RemoveReceiptCommand}"
+                                            BackgroundColor="Transparent"
+                                            TextColor="{DynamicResource DangerColor}"
+                                            BorderColor="{DynamicResource DangerColor}"
+                                            BorderWidth="1"
+                                            CornerRadius="8"
+                                            HeightRequest="36"
+                                            FontSize="13" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+
                         <!-- ==================== Кнопки формы ==================== -->
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,10,0,0">
                             <Button Grid.Column="0"
