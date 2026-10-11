@@ -6,11 +6,12 @@ public class TitleToEmojiConverter : IValueConverter
 {
     private static readonly Dictionary<string, string> Map = new()
     {
-        ["Главная"]     = "🏠",
-        ["История"]     = "📜",
-        ["Статистика"]  = "📊",
-        ["Категории"]   = "🏷️",
-        ["Настройки"]   = "⚙️",
+        ["Главная"]      = "🏠",
+        ["История"]      = "📜",
+        ["Статистика"]   = "📊",
+        ["Напоминания"]  = "🔔",
+        ["Категории"]    = "🏷️",
+        ["Настройки"]    = "⚙️",
     };
 
     public object Convert(object? value, Type targetType,

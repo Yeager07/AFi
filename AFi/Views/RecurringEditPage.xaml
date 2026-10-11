@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:controls="clr-namespace:AFi.Controls"
+             xmlns:converters="clr-namespace:AFi.Converters"
+             x:Class="AFi.Views.RecurringEditPage"
+             x:DataType="vm:RecurringEditViewModel"
+             x:Name="PageRoot"
+             Title="{Binding FormTitle}"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Отмена"
+                     Order="Primary"
+                     Priority="0"
+                     Command="{Binding CancelCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="15" Spacing="15">
+
+            <!-- ==================== Форма ==================== -->
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="15"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <VerticalStackLayout Spacing="10">
+
+                    <Label Text="{Binding FormTitle}"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+
+                    <Label Text="Название"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <Entry Placeholder="Например, Аренда помещения"
+                           Text="{Binding Name}"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+                    <Label Text="Сумма"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <Entry Placeholder="Например, 30000"
+                           Keyboard="Numeric"
+                           Text="{Binding AmountText}"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+                    <Label Text="Тип"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <controls:ThemedPicker x:Name="TypePicker"
+                                           Title="Тип платежа" />
+
+                    <Label Text="Категория (необязательно)"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <controls:ThemedPicker x:Name="CategoryPicker"
+                                           Title="Категория"
+                                           Placeholder="Без категории" />
+
+                    <Label Text="День месяца"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <controls:ThemedPicker x:Name="DayPicker"
+                                           Title="День месяца" />
+
+                    <Label Text="Комментарий (необязательно)"
+                           FontSize="14"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+                    <Entry Placeholder="Например, оплата за офис"
+                           Text="{Binding Note}"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+                    <!-- Напоминание вкл/выкл -->
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                            <Label Text="Напоминание"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimaryColor}" />
+                            <Label Text="Уведомление за 2 дня до даты, в 10:00"
+                                   FontSize="11"
+                                   TextColor="{DynamicResource TextSecondaryColor}" />
+                        </VerticalStackLayout>
+
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding ReminderEnabled}"
+                                VerticalOptions="Center"
+                                OnColor="{DynamicResource SuccessColor}"
+                                ThumbColor="{DynamicResource PrimaryTextColor}" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ==================== Кнопки ==================== -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Grid.Column="0"
+                        Text="Отмена"
+                        Command="{Binding CancelCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        HeightRequest="48" />
+
+                <Button Grid.Column="1"
+                        Text="Сохранить"
+                        Command="{Binding SaveCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="48" />
+            </Grid>
+
+            <Label Text="{Binding StatusMessage}"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextSecondaryColor}"
+                   HorizontalOptions="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -37,6 +37,8 @@ public static class MauiProgram
         builder.Services.AddTransient<HistoryViewModel>();
         builder.Services.AddTransient<StatsViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
+        builder.Services.AddTransient<RecurringViewModel>();
+        builder.Services.AddTransient<RecurringEditViewModel>();   // ← новый
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
@@ -44,6 +46,8 @@ public static class MauiProgram
         builder.Services.AddTransient<HistoryPage>();
         builder.Services.AddTransient<StatsPage>();
         builder.Services.AddTransient<SettingsPage>();
+        builder.Services.AddTransient<RecurringPage>();
+        builder.Services.AddTransient<RecurringEditPage>();        // ← новый
 
         return builder.Build();
     }

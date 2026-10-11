@@ -8,9 +8,10 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
 
-        // Регистрируем push-маршрут для Истории.
-        // Это позволит открыть её «поверх» Главной — со стрелкой возврата.
-        // Пункт в боковом меню при этом работает независимо.
+        // Пуш-маршрут для истории (используется из кнопки «Вся история»)
         Routing.RegisterRoute("history-push", typeof(HistoryPage));
+
+        // Пуш-маршрут для формы регулярного платежа
+        Routing.RegisterRoute("recurring-edit", typeof(RecurringEditPage));
     }
 }

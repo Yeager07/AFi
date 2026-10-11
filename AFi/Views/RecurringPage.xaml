@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AFi.ViewModels"
+             xmlns:models="clr-namespace:AFi.Models"
+             xmlns:converters="clr-namespace:AFi.Converters"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="AFi.Views.RecurringPage"
+             x:DataType="vm:RecurringViewModel"
+             x:Name="PageRoot"
+             Title="Напоминания"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto"
+          Padding="15"
+          RowSpacing="12">
+
+        <!-- ==================== Кнопка добавления ==================== -->
+        <Button Grid.Row="0"
+                Text="+ Добавить напоминание"
+                Command="{Binding AddPaymentCommand}"
+                BackgroundColor="{DynamicResource SuccessColor}"
+                TextColor="{DynamicResource PrimaryTextColor}"
+                CornerRadius="8"
+                HeightRequest="48"
+                FontSize="15" />
+
+        <!-- ==================== Список платежей ==================== -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Payments}"
+                        SelectionMode="None">
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Spacing="10"
+                                     Padding="20"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <Label Text="📅"
+                           FontSize="48"
+                           HorizontalOptions="Center" />
+                    <Label Text="Пока нет регулярных платежей"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           HorizontalOptions="Center" />
+                    <Label Text="Добавьте первый, чтобы получать напоминания"
+                           FontSize="13"
+                           TextColor="{DynamicResource TextSecondaryColor}"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:RecurringPayment">
+                    <SwipeView Margin="0,4">
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+                                <SwipeItemView>
+                                    <Border StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8"
+                                            BackgroundColor="{DynamicResource DangerColor}"
+                                            WidthRequest="95"
+                                            Padding="0"
+                                            Margin="6,0,0,0">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeletePaymentCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Удалить"
+                                               TextColor="White"
+                                               FontAttributes="Bold"
+                                               FontSize="14"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                </SwipeItemView>
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+                        <Border Stroke="{DynamicResource CardBorderColor}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource CardBackgroundColor}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.EditPaymentCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  RowDefinitions="Auto,Auto">
+
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding DisplayName}"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource TextPrimaryColor}" />
+
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="End"
+                                       TextColor="{DynamicResource TextPrimaryColor}" />
+
+                                <Label Grid.Row="1" Grid.Column="0"
+                                       Text="{Binding Subtitle}"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                       VerticalOptions="Center" />
+
+                                <!-- Переключатель вкл/выкл -->
+                                <Switch Grid.Row="1" Grid.Column="1"
+                                        IsToggled="{Binding IsEnabled}"
+                                        HorizontalOptions="End"
+                                        VerticalOptions="Center"
+                                        OnColor="{DynamicResource SuccessColor}"
+                                        ThumbColor="{DynamicResource PrimaryTextColor}">
+                                    <Switch.Behaviors>
+                                        <toolkit:EventToCommandBehavior
+                                            EventName="Toggled"
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleEnabledCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Switch.Behaviors>
+                                </Switch>
+
+                            </Grid>
+                        </Border>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- ==================== Статус ==================== -->
+        <Label Grid.Row="2"
+               Text="{Binding StatusMessage}"
+               FontSize="12"
+               TextColor="{DynamicResource TextSecondaryColor}"
+               HorizontalOptions="Center" />
+
+    </Grid>
+
+</ContentPage>
