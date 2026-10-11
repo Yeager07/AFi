@@ -6,24 +6,24 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AFi.ViewModels;
 
-/// <summary>
-/// ViewModel экрана «Регулярные платежи».
-/// Список напоминаний, удаление, включение/выключение.
-/// </summary>
 public partial class RecurringViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
     private readonly IDialogService _dialogs;
+    private readonly IReminderService _reminders;
 
     public ObservableCollection<RecurringPayment> Payments { get; } = new();
 
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
 
-    public RecurringViewModel(DatabaseService db, IDialogService dialogs)
+    public RecurringViewModel(DatabaseService db,
+                              IDialogService dialogs,
+                              IReminderService reminders)
     {
         _db = db;
         _dialogs = dialogs;
+        _reminders = reminders;
     }
 
     // ==================== Команды ====================
@@ -49,31 +49,19 @@ public partial class RecurringViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// ВРЕМЕННАЯ заглушка. Настоящая форма добавления появится в 4.3.
-    /// </summary>
     [RelayCommand]
     private async Task AddPaymentAsync()
     {
         await Shell.Current.GoToAsync("recurring-edit");
     }
 
-
-    /// <summary>
-    /// ВРЕМЕННАЯ заглушка. Редактирование — в 4.3.
-    /// </summary>
-
     [RelayCommand]
     private async Task EditPaymentAsync(RecurringPayment? payment)
     {
         if (payment is null) return;
-
         await Shell.Current.GoToAsync($"recurring-edit?id={payment.Id}");
     }
 
-    /// <summary>
-    /// Удалить платёж с подтверждением.
-    /// </summary>
     [RelayCommand]
     private async Task DeletePaymentAsync(RecurringPayment? payment)
     {
@@ -81,7 +69,7 @@ public partial class RecurringViewModel : ObservableObject
 
         var message = $"Удалить напоминание?\n\n" +
                       $"{payment.DisplayName}\n" +
-                      $"{payment.Amount:N0} ₽ · {FormatDayOfMonth(payment.DayOfMonth)}";
+                      $"{payment.Amount:N0} ₽ · {payment.DayOfMonth}-го числа";
 
         var confirmed = await _dialogs.ConfirmAsync(
             "Удаление", message, "Удалить", "Отмена");
@@ -91,7 +79,9 @@ public partial class RecurringViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            await _reminders.CancelAsync(payment);
             await _db.DeleteRecurringPaymentAsync(payment.Id);
+
             await LoadCoreAsync();
             StatusMessage = "Напоминание удалено";
         }
@@ -105,10 +95,6 @@ public partial class RecurringViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Переключить напоминание для платежа. Вызывается событием Switch.Toggled.
-    /// Сам IsEnabled уже переключён через двустороннюю привязку.
-    /// </summary>
     [RelayCommand]
     private async Task ToggleEnabledAsync(RecurringPayment? payment)
     {
@@ -118,11 +104,15 @@ public partial class RecurringViewModel : ObservableObject
         try
         {
             await _db.UpdateRecurringPaymentAsync(payment);
-            StatusMessage = payment.IsEnabled
-                ? $"Напоминание для «{payment.Name}» включено"
-                : $"Напоминание для «{payment.Name}» выключено";
 
-            // Здесь на 4.4 будет отмена/планирование уведомления
+            if (payment.IsEnabled)
+                await _reminders.ScheduleAsync(payment);
+            else
+                await _reminders.CancelAsync(payment);
+
+            StatusMessage = payment.IsEnabled
+                ? $"Напоминание «{payment.Name}» включено"
+                : $"Напоминание «{payment.Name}» выключено";
         }
         catch (Exception ex)
         {
@@ -145,13 +135,7 @@ public partial class RecurringViewModel : ObservableObject
             Payments.Add(p);
 
         StatusMessage = Payments.Count == 0
-            ? "Пока нет регулярных платежей"
+            ? "Пока нет напоминаний"
             : $"Всего напоминаний: {Payments.Count}";
     }
-
-    /// <summary>
-    /// Форматирует день месяца: "1-го числа", "5-го числа" и т.п.
-    /// Используется в карточках и диалоге удаления.
-    /// </summary>
-    public static string FormatDayOfMonth(int day) => $"{day}-го числа";
 }

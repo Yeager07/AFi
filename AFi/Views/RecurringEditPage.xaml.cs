@@ -14,6 +14,7 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         SetupTypePicker();
         SetupCategoryPicker();
         SetupDayPicker();
+        SetupDaysBeforePicker();
     }
 
     // ==================== Параметры навигации ====================
@@ -36,10 +37,6 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
     private void SetupTypePicker()
     {
         TypePicker.ItemsSource = _viewModel.TypeOptions;
-
-        var initialIdx = _viewModel.SelectedTypeIndex;
-        if (initialIdx >= 0 && initialIdx < _viewModel.TypeOptions.Count)
-            TypePicker.SelectedItem = _viewModel.TypeOptions[initialIdx];
 
         TypePicker.PropertyChanged += (_, e) =>
         {
@@ -100,10 +97,6 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
     {
         DayPicker.ItemsSource = _viewModel.DayOptions;
 
-        var initialIdx = _viewModel.SelectedDayIndex;
-        if (initialIdx >= 0 && initialIdx < _viewModel.DayOptions.Count)
-            DayPicker.SelectedItem = _viewModel.DayOptions[initialIdx];
-
         DayPicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -130,6 +123,38 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         };
     }
 
+    // ==================== Picker «За сколько дней» ====================
+
+    private void SetupDaysBeforePicker()
+    {
+        DaysBeforePicker.ItemsSource = _viewModel.DaysBeforeOptions;
+
+        DaysBeforePicker.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
+                && DaysBeforePicker.SelectedItem is string selected)
+            {
+                var idx = _viewModel.DaysBeforeOptions.IndexOf(selected);
+                if (idx >= 0 && idx != _viewModel.SelectedDaysBeforeIndex)
+                    _viewModel.SelectedDaysBeforeIndex = idx;
+            }
+        };
+
+        _viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RecurringEditViewModel.SelectedDaysBeforeIndex))
+            {
+                var idx = _viewModel.SelectedDaysBeforeIndex;
+                if (idx >= 0 && idx < _viewModel.DaysBeforeOptions.Count)
+                {
+                    var next = _viewModel.DaysBeforeOptions[idx];
+                    if (!Equals(DaysBeforePicker.SelectedItem, next))
+                        DaysBeforePicker.SelectedItem = next;
+                }
+            }
+        };
+    }
+
     // ==================== Жизненный цикл ====================
 
     protected override async void OnAppearing()
@@ -137,8 +162,8 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         base.OnAppearing();
         await _viewModel.LoadCommand.ExecuteAsync(null);
 
-        // После загрузки — синхронизируем все Picker'ы
-        CategoryPicker.ItemsSource = _viewModel.AvailableCategories;
+        // Picker'ы синхронизируем с текущим состоянием VM.
+        // Picker сам проверяет «уже установлено?» и не дёргает PropertyChanged зря.
 
         var typeIdx = _viewModel.SelectedTypeIndex;
         if (typeIdx >= 0 && typeIdx < _viewModel.TypeOptions.Count)
@@ -149,5 +174,9 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         var dayIdx = _viewModel.SelectedDayIndex;
         if (dayIdx >= 0 && dayIdx < _viewModel.DayOptions.Count)
             DayPicker.SelectedItem = _viewModel.DayOptions[dayIdx];
+
+        var daysBeforeIdx = _viewModel.SelectedDaysBeforeIndex;
+        if (daysBeforeIdx >= 0 && daysBeforeIdx < _viewModel.DaysBeforeOptions.Count)
+            DaysBeforePicker.SelectedItem = _viewModel.DaysBeforeOptions[daysBeforeIdx];
     }
 }

@@ -10,31 +10,26 @@ namespace AFi.ViewModels;
 public partial class RecurringEditViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
+    private readonly IReminderService _reminders;
 
     private int? _editingId;
     private int? _pendingCategoryId;
     private bool _suppressTypeChangeReload;
+    private bool _loadedFromDb;
 
     // ==================== Состояние формы ====================
 
     [ObservableProperty] private string _formTitle = "Новое напоминание";
-
     [ObservableProperty] private string _name = string.Empty;
-
     [ObservableProperty] private string _amountText = string.Empty;
-
     [ObservableProperty] private int _selectedTypeIndex;
-
     [ObservableProperty] private Category? _selectedCategory;
-
     [ObservableProperty] private int _selectedDayIndex;
-
+    [ObservableProperty] private int _selectedDaysBeforeIndex = 1;
+    [ObservableProperty] private TimeSpan _reminderTime = TimeSpan.FromHours(10);
     [ObservableProperty] private bool _reminderEnabled = true;
-
     [ObservableProperty] private string _note = string.Empty;
-
     [ObservableProperty] private string _statusMessage = string.Empty;
-
     [ObservableProperty] private bool _isBusy;
 
     // ==================== Списки ====================
@@ -47,6 +42,20 @@ public partial class RecurringEditViewModel : ObservableObject
 
     public ObservableCollection<int> DayOptions { get; } = new();
 
+    public ObservableCollection<string> DaysBeforeOptions { get; } = new()
+    {
+        "В день платежа",
+        "За 1 день",
+        "За 2 дня",
+        "За 3 дня",
+        "За 5 дней",
+        "За 7 дней",
+        "За 14 дней",
+        "За 30 дней",
+    };
+
+    public static readonly int[] DaysBeforeValues = { 0, 1, 2, 3, 5, 7, 14, 30 };
+
     public ObservableCollection<Category> AvailableCategories { get; } = new();
 
     public TransactionType CurrentType =>
@@ -54,9 +63,10 @@ public partial class RecurringEditViewModel : ObservableObject
 
     public bool IsEditing => _editingId.HasValue;
 
-    public RecurringEditViewModel(DatabaseService db)
+    public RecurringEditViewModel(DatabaseService db, IReminderService reminders)
     {
         _db = db;
+        _reminders = reminders;
 
         for (int i = 1; i <= 31; i++)
             DayOptions.Add(i);
@@ -68,7 +78,14 @@ public partial class RecurringEditViewModel : ObservableObject
 
     public void InitializeForEdit(int? paymentId)
     {
+        // Если уже инициализированы тем же id — не сбрасываем флаг _loadedFromDb,
+        // иначе повторный вызов ApplyQueryAttributes снова начнёт читать из БД
+        // и затрёт правки пользователя.
+        if (_editingId == paymentId)
+            return;
+
         _editingId = paymentId;
+        _loadedFromDb = false;
         FormTitle = paymentId.HasValue ? "Редактирование" : "Новое напоминание";
     }
 
@@ -92,8 +109,14 @@ public partial class RecurringEditViewModel : ObservableObject
         {
             await _db.InitializeAsync();
 
-            if (_editingId.HasValue)
+            // Читаем из БД только при первой загрузке формы.
+            // При возврате из модалок Picker-ов LoadAsync вызывается снова,
+            // но данные в форме уже актуальные — перечитывать их нельзя.
+            if (_editingId.HasValue && !_loadedFromDb)
+            {
                 await LoadExistingAsync();
+                _loadedFromDb = true;
+            }
 
             await ReloadCategoriesAsync();
         }
@@ -146,12 +169,19 @@ public partial class RecurringEditViewModel : ObservableObject
             return;
         }
 
+        if (SelectedDaysBeforeIndex < 0 || SelectedDaysBeforeIndex >= DaysBeforeValues.Length)
+        {
+            StatusMessage = "Выберите, за сколько дней напоминать";
+            return;
+        }
+
         // ==================== Сохранение ====================
 
         IsBusy = true;
         try
         {
             var day = DayOptions[SelectedDayIndex];
+            var daysBefore = DaysBeforeValues[SelectedDaysBeforeIndex];
 
             if (_editingId.HasValue)
             {
@@ -168,6 +198,8 @@ public partial class RecurringEditViewModel : ObservableObject
                 existing.Amount = amount;
                 existing.Type = CurrentType;
                 existing.DayOfMonth = day;
+                existing.ReminderDaysBefore = daysBefore;
+                existing.ReminderTime = ReminderTime;
                 existing.IsEnabled = ReminderEnabled;
                 existing.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
@@ -185,6 +217,11 @@ public partial class RecurringEditViewModel : ObservableObject
                 }
 
                 await _db.UpdateRecurringPaymentAsync(existing);
+
+                if (existing.IsEnabled)
+                    await _reminders.ScheduleAsync(existing);
+                else
+                    await _reminders.CancelAsync(existing);
             }
             else
             {
@@ -194,8 +231,8 @@ public partial class RecurringEditViewModel : ObservableObject
                     Amount = amount,
                     Type = CurrentType,
                     DayOfMonth = day,
-                    ReminderDaysBefore = 2,
-                    ReminderTime = TimeSpan.FromHours(10),
+                    ReminderDaysBefore = daysBefore,
+                    ReminderTime = ReminderTime,
                     IsEnabled = ReminderEnabled,
                     Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
                     CreatedAt = DateTime.Now,
@@ -209,6 +246,9 @@ public partial class RecurringEditViewModel : ObservableObject
                 }
 
                 await _db.AddRecurringPaymentAsync(payment);
+
+                if (payment.IsEnabled)
+                    await _reminders.ScheduleAsync(payment);
             }
 
             await Shell.Current.GoToAsync("..");
@@ -250,13 +290,15 @@ public partial class RecurringEditViewModel : ObservableObject
         AmountText = payment.Amount.ToString("0.##", CultureInfo.InvariantCulture);
         SelectedTypeIndex = payment.Type == TransactionType.Income ? 1 : 0;
         ReminderEnabled = payment.IsEnabled;
+        ReminderTime = payment.ReminderTime;
         Note = payment.Note ?? string.Empty;
 
         var dayIdx = DayOptions.IndexOf(payment.DayOfMonth);
         SelectedDayIndex = dayIdx >= 0 ? dayIdx : 0;
 
-        // ← вот ключевое: сохраняем id категории, чтобы после
-        // пересборки списка категорий восстановить выбранную
+        var daysIdx = Array.IndexOf(DaysBeforeValues, payment.ReminderDaysBefore);
+        SelectedDaysBeforeIndex = daysIdx >= 0 ? daysIdx : 2;
+
         _pendingCategoryId = payment.CategoryId;
 
         _suppressTypeChangeReload = false;
@@ -272,9 +314,6 @@ public partial class RecurringEditViewModel : ObservableObject
             foreach (var c in categories)
                 AvailableCategories.Add(c);
 
-            // Приоритет: восстановить категорию по сохранённому id
-            // (при загрузке платежа) или по уже выбранному объекту
-            // (при смене типа в UI).
             int? idToRestore = _pendingCategoryId ?? SelectedCategory?.Id;
 
             if (idToRestore.HasValue)
@@ -284,16 +323,11 @@ public partial class RecurringEditViewModel : ObservableObject
 
                 SelectedCategory = matched;
 
-                // Сбрасываем только если категория найдена.
-                // Если не найдена — оставляем pending на следующий
-                // тип (маловероятно, но пусть будет)
                 if (matched is not null)
                     _pendingCategoryId = null;
             }
             else
             {
-                // Если ранее ничего не было выбрано и сейчас ничего
-                // — ставим null (не первая категория из списка)
                 if (SelectedCategory is not null
                     && !AvailableCategories.Contains(SelectedCategory))
                 {

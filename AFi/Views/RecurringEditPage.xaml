@@ -24,7 +24,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="15" Spacing="15">
 
-            <!-- ==================== Форма ==================== -->
+            <!-- ==================== Основная форма ==================== -->
             <Border Stroke="{DynamicResource CardBorderColor}"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 10"
@@ -67,7 +67,7 @@
                                            Title="Категория"
                                            Placeholder="Без категории" />
 
-                    <Label Text="День месяца"
+                    <Label Text="День платежа в месяце"
                            FontSize="14"
                            TextColor="{DynamicResource TextPrimaryColor}" />
                     <controls:ThemedPicker x:Name="DayPicker"
@@ -81,14 +81,24 @@
                            TextColor="{DynamicResource TextPrimaryColor}"
                            PlaceholderColor="{DynamicResource TextSecondaryColor}" />
 
-                    <!-- Напоминание вкл/выкл -->
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ==================== Напоминание ==================== -->
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="15"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <VerticalStackLayout Spacing="10">
+
+                    <Grid ColumnDefinitions="*,Auto">
                         <VerticalStackLayout Grid.Column="0" Spacing="2">
                             <Label Text="Напоминание"
-                                   FontSize="14"
+                                   FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="{DynamicResource TextPrimaryColor}" />
-                            <Label Text="Уведомление за 2 дня до даты, в 10:00"
+                            <Label Text="Уведомление придёт в выбранное время"
                                    FontSize="11"
                                    TextColor="{DynamicResource TextSecondaryColor}" />
                         </VerticalStackLayout>
@@ -99,6 +109,25 @@
                                 OnColor="{DynamicResource SuccessColor}"
                                 ThumbColor="{DynamicResource PrimaryTextColor}" />
                     </Grid>
+
+                    <!-- Поля настройки напоминания — видны только если напоминание включено -->
+                    <VerticalStackLayout Spacing="10"
+                                         IsVisible="{Binding ReminderEnabled}">
+
+                        <Label Text="За сколько дней напоминать"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
+                        <controls:ThemedPicker x:Name="DaysBeforePicker"
+                                               Title="Когда напомнить" />
+
+                        <Label Text="Время напоминания"
+                               FontSize="14"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
+                        <TimePicker Time="{Binding ReminderTime}"
+                                    Format="HH:mm"
+                                    TextColor="{DynamicResource TextPrimaryColor}" />
+
+                    </VerticalStackLayout>
 
                 </VerticalStackLayout>
             </Border>

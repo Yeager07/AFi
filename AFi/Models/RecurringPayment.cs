@@ -51,9 +51,21 @@ public class RecurringPayment
         get
         {
             var dayText = $"{DayOfMonth}-го числа";
-            return string.IsNullOrWhiteSpace(Note)
-                ? dayText
-                : $"{dayText} · {Note}";
+            var reminderText = ReminderDaysBefore switch
+            {
+                0 => "в день платежа",
+                1 => "за 1 день",
+                2 => "за 2 дня",
+                3 => "за 3 дня",
+                _ => $"за {ReminderDaysBefore} дней",
+            };
+            var timeText = $"{(int)ReminderTime.TotalHours:00}:{ReminderTime.Minutes:00}";
+
+            var parts = new List<string> { dayText, $"{reminderText}, {timeText}" };
+            if (!string.IsNullOrWhiteSpace(Note))
+                parts.Add(Note);
+
+            return string.Join(" · ", parts);
         }
     }
 

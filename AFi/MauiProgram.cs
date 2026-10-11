@@ -4,6 +4,7 @@ using AFi.Views;
 using CommunityToolkit.Maui;
 using Microcharts.Maui;
 using Microsoft.Extensions.Logging;
+using Plugin.LocalNotification;
 
 namespace AFi;
 
@@ -16,6 +17,7 @@ public static class MauiProgram
             .UseMauiApp<App>()
             .UseMauiCommunityToolkit()
             .UseMicrocharts()
+            .UseLocalNotification()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -30,6 +32,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<DatabaseService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IThemeService, ThemeService>();
+        builder.Services.AddSingleton<IReminderService, ReminderService>();
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();
@@ -38,7 +41,7 @@ public static class MauiProgram
         builder.Services.AddTransient<StatsViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
         builder.Services.AddTransient<RecurringViewModel>();
-        builder.Services.AddTransient<RecurringEditViewModel>();   // ← новый
+        builder.Services.AddTransient<RecurringEditViewModel>();
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();
@@ -47,7 +50,7 @@ public static class MauiProgram
         builder.Services.AddTransient<StatsPage>();
         builder.Services.AddTransient<SettingsPage>();
         builder.Services.AddTransient<RecurringPage>();
-        builder.Services.AddTransient<RecurringEditPage>();        // ← новый
+        builder.Services.AddTransient<RecurringEditPage>();
 
         return builder.Build();
     }
