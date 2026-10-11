@@ -45,6 +45,7 @@ public class DatabaseService
             await _connection.CreateTableAsync<Category>();
             await _connection.CreateTableAsync<Transaction>();
             await _connection.CreateTableAsync<RecurringPayment>();
+            await _connection.CreateTableAsync<TransactionItem>();
 
             await SeedDefaultCategoriesAsync();
             await MigrateIconsAsync();
@@ -95,6 +96,13 @@ public class DatabaseService
     public async Task<int> DeleteTransactionAsync(int id)
     {
         var db = await GetConnectionAsync();
+
+        // Сначала удаляем позиции чека
+        await db.ExecuteAsync(
+            "DELETE FROM transaction_items WHERE TransactionId = ?",
+            id);
+
+        // Потом саму операцию
         return await db.DeleteAsync<Transaction>(id);
     }
 
@@ -509,5 +517,71 @@ public class DatabaseService
     {
         var db = await GetConnectionAsync();
         return await db.DeleteAsync<RecurringPayment>(id);
+    }
+
+    // ==================== Позиции чека ====================
+
+    /// <summary>
+    /// Возвращает все позиции для указанной операции,
+    /// отсортированные по порядку отображения.
+    /// </summary>
+    public async Task<List<TransactionItem>> GetItemsForTransactionAsync(int transactionId)
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<TransactionItem>()
+            .Where(i => i.TransactionId == transactionId)
+            .OrderBy(i => i.SortOrder)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Сохраняет позиции для операции. Удаляет все старые записи
+    /// и вставляет новые — это проще и быстрее, чем синхронизировать
+    /// по одной при каждом сохранении.
+    /// </summary>
+    public async Task ReplaceItemsForTransactionAsync(int transactionId, List<TransactionItem> items)
+    {
+        var db = await GetConnectionAsync();
+
+        // Удаляем все старые позиции
+        await db.ExecuteAsync(
+            "DELETE FROM transaction_items WHERE TransactionId = ?",
+            transactionId);
+
+        if (items.Count == 0)
+            return;
+
+        // Проставляем TransactionId и SortOrder
+        for (int i = 0; i < items.Count; i++)
+        {
+            items[i].Id = 0;
+            items[i].TransactionId = transactionId;
+            items[i].SortOrder = i;
+        }
+
+        await db.InsertAllAsync(items);
+    }
+
+    /// <summary>
+    /// Удаляет все позиции для операции. Вызывается при удалении операции.
+    /// </summary>
+    public async Task DeleteItemsForTransactionAsync(int transactionId)
+    {
+        var db = await GetConnectionAsync();
+        await db.ExecuteAsync(
+            "DELETE FROM transaction_items WHERE TransactionId = ?",
+            transactionId);
+    }
+
+    /// <summary>
+    /// Возвращает количество позиций для указанной операции.
+    /// Используется для отображения счётчика в карточке.
+    /// </summary>
+    public async Task<int> GetItemsCountForTransactionAsync(int transactionId)
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<TransactionItem>()
+            .Where(i => i.TransactionId == transactionId)
+            .CountAsync();
     }
 }
