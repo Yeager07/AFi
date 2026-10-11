@@ -44,6 +44,7 @@ public class DatabaseService
 
             await _connection.CreateTableAsync<Category>();
             await _connection.CreateTableAsync<Transaction>();
+            await _connection.CreateTableAsync<RecurringPayment>();
 
             await SeedDefaultCategoriesAsync();
             await MigrateIconsAsync();
@@ -455,5 +456,58 @@ public class DatabaseService
 
         if (transactionsToUpdate.Count > 0)
             await db.UpdateAllAsync(transactionsToUpdate);
+    }
+
+    // ==================== Регулярные платежи ====================
+
+    /// <summary>
+    /// Возвращает все регулярные платежи, отсортированные по дню месяца.
+    /// </summary>
+    public async Task<List<RecurringPayment>> GetRecurringPaymentsAsync()
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<RecurringPayment>()
+            .OrderBy(p => p.DayOfMonth)
+            .ThenBy(p => p.Name)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Возвращает только включённые платежи — те, для которых нужно
+    /// планировать уведомления.
+    /// </summary>
+    public async Task<List<RecurringPayment>> GetEnabledRecurringPaymentsAsync()
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<RecurringPayment>()
+            .Where(p => p.IsEnabled)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Добавляет новый регулярный платёж. Возвращает количество вставленных строк.
+    /// </summary>
+    public async Task<int> AddRecurringPaymentAsync(RecurringPayment payment)
+    {
+        var db = await GetConnectionAsync();
+        return await db.InsertAsync(payment);
+    }
+
+    /// <summary>
+    /// Обновляет существующий платёж.
+    /// </summary>
+    public async Task<int> UpdateRecurringPaymentAsync(RecurringPayment payment)
+    {
+        var db = await GetConnectionAsync();
+        return await db.UpdateAsync(payment);
+    }
+
+    /// <summary>
+    /// Удаляет платёж по Id.
+    /// </summary>
+    public async Task<int> DeleteRecurringPaymentAsync(int id)
+    {
+        var db = await GetConnectionAsync();
+        return await db.DeleteAsync<RecurringPayment>(id);
     }
 }
