@@ -248,17 +248,25 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     [RelayCommand]
     private async Task DeleteTransactionAsync(Transaction? transaction)
     {
+        await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
+    }
+
+    private async Task DeleteTransactionCoreAsync(Transaction? transaction, bool skipConfirmation)
+    {
         if (transaction is null || IsBusy) return;
 
-        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
-        var message = $"Удалить операцию?\n\n" +
-                      $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
-                      $"{transaction.Date:dd.MM.yyyy}";
+        if (!skipConfirmation)
+        {
+            var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+            var message = $"Удалить операцию?\n\n" +
+                        $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
+                        $"{transaction.Date:dd.MM.yyyy}";
 
-        var confirmed = await _dialogs.ConfirmAsync(
-            "Удаление", message, "Удалить", "Отмена");
+            var confirmed = await _dialogs.ConfirmAsync(
+                "Удаление", message, "Удалить", "Отмена");
 
-        if (!confirmed) return;
+            if (!confirmed) return;
+        }
 
         IsBusy = true;
         try
@@ -357,16 +365,29 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     }
 
     [RelayCommand]
-    private void HandleCardTap(Transaction? transaction)
+    private async Task HandleCardTapAsync(Transaction? transaction)
     {
         if (transaction is null) return;
 
         if (IsSelectionMode)
         {
             ToggleSelection(transaction);
+            return;
+        }
+
+        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+        var title = $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}";
+
+        var choice = await _dialogs.ShowActionSheetAsync(
+            title,
+            "Отмена",
+            "Удалить");
+
+        if (choice == "Удалить")
+        {
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
         }
     }
-
     // ==================== Вспомогательные ====================
 
     private async Task ReloadAsync()

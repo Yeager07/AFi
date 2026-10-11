@@ -14,6 +14,17 @@ public partial class MainPage : ContentPage
 
         SetupTypePicker();
         SetupCategoryPicker();
+
+        // При входе в режим редактирования — прокрутить страницу наверх,
+        // чтобы пользователь увидел форму, а не остался на карточке в списке.
+        _viewModel.PropertyChanged += async (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsEditing)
+                && _viewModel.IsEditing)
+            {
+                await MainScrollView.ScrollToAsync(0, 0, animated: true);
+            }
+        };
     }
 
     // ==================== Picker «Тип» ====================
@@ -26,7 +37,6 @@ public partial class MainPage : ContentPage
         if (initialIdx >= 0 && initialIdx < _viewModel.TypeOptions.Count)
             TypePicker.SelectedItem = _viewModel.TypeOptions[initialIdx];
 
-        // Picker → VM
         TypePicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -38,7 +48,6 @@ public partial class MainPage : ContentPage
             }
         };
 
-        // VM → Picker
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedTypeIndex))
@@ -58,13 +67,10 @@ public partial class MainPage : ContentPage
 
     private void SetupCategoryPicker()
     {
-        // ItemsSource — ссылка на ту же коллекцию, что у VM.
-        // ObservableCollection сама уведомит Picker при Clear+Add.
         CategoryPicker.ItemsSource = _viewModel.AvailableCategories;
 
         CategoryPicker.SelectedItem = _viewModel.SelectedCategory;
 
-        // Picker → VM
         CategoryPicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -75,7 +81,6 @@ public partial class MainPage : ContentPage
             }
         };
 
-        // VM → Picker
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedCategory))

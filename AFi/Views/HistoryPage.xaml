@@ -189,90 +189,64 @@
                         <DataTemplate x:DataType="models:Transaction">
                             <Grid>
 
-                                <!-- ==================== ОБЫЧНЫЙ РЕЖИМ: карточка со свайпом ==================== -->
-                                <SwipeView IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
-                                           Margin="0,4">
-                                    <SwipeView.RightItems>
-                                        <SwipeItems Mode="Reveal">
-                                            <SwipeItemView>
-                                                <Border StrokeThickness="0"
-                                                        StrokeShape="RoundRectangle 8"
-                                                        BackgroundColor="{DynamicResource DangerColor}"
-                                                        WidthRequest="95"
-                                                        Padding="0"
-                                                        Margin="6,0,0,0">
-                                                    <Border.GestureRecognizers>
-                                                        <TapGestureRecognizer
-                                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeleteTransactionCommand}"
-                                                            CommandParameter="{Binding .}" />
-                                                    </Border.GestureRecognizers>
-                                                    <Label Text="Удалить"
-                                                           TextColor="White"
-                                                           FontAttributes="Bold"
-                                                           FontSize="14"
-                                                           HorizontalOptions="Center"
-                                                           VerticalOptions="Center" />
-                                                </Border>
-                                            </SwipeItemView>
-                                        </SwipeItems>
-                                    </SwipeView.RightItems>
+                                <!-- ==================== ОБЫЧНЫЙ РЕЖИМ ==================== -->
+                                <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
+                                        Stroke="{DynamicResource CardBorderColor}"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 8"
+                                        Padding="12"
+                                        Margin="0,4"
+                                        BackgroundColor="{DynamicResource CardBackgroundColor}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
 
-                                    <Border Stroke="{DynamicResource CardBorderColor}"
-                                            StrokeThickness="1"
-                                            StrokeShape="RoundRectangle 8"
-                                            Padding="12"
-                                            BackgroundColor="{DynamicResource CardBackgroundColor}">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          RowDefinitions="Auto,Auto">
 
-                                        <Grid ColumnDefinitions="*,Auto"
-                                              RowDefinitions="Auto,Auto">
+                                        <Label Grid.Row="0" Grid.Column="0"
+                                               Text="{Binding DisplayCategoryName}"
+                                               FontSize="15"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource TextPrimaryColor}" />
 
-                                            <Label Grid.Row="0" Grid.Column="0"
-                                                   Text="{Binding DisplayCategoryName}"
-                                                   FontSize="15"
-                                                   FontAttributes="Bold"
-                                                   TextColor="{DynamicResource TextPrimaryColor}" />
+                                        <Label Grid.Row="0" Grid.Column="1"
+                                               Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                               FontSize="16"
+                                               FontAttributes="Bold"
+                                               HorizontalOptions="End">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding Type}"
+                                                             Value="1">
+                                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding Type}"
+                                                             Value="0">
+                                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
 
-                                            <Label Grid.Row="0" Grid.Column="1"
-                                                   Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                                   FontSize="16"
-                                                   FontAttributes="Bold"
-                                                   HorizontalOptions="End">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label"
-                                                                 Binding="{Binding Type}"
-                                                                 Value="1">
-                                                        <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
-                                                    </DataTrigger>
-                                                    <DataTrigger TargetType="Label"
-                                                                 Binding="{Binding Type}"
-                                                                 Value="0">
-                                                        <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
+                                        <Label Grid.Row="1" Grid.Column="0"
+                                               Grid.ColumnSpan="2"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource TextSecondaryColor}">
+                                            <Label.Text>
+                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
+                                                    <Binding Path="Date" />
+                                                    <Binding Path="Note" />
+                                                </MultiBinding>
+                                            </Label.Text>
+                                        </Label>
 
-                                            <Label Grid.Row="1" Grid.Column="0"
-                                                   Grid.ColumnSpan="2"
-                                                   FontSize="12"
-                                                   TextColor="{DynamicResource TextSecondaryColor}">
-                                                <Label.Text>
-                                                    <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                        <Binding Path="Date" />
-                                                        <Binding Path="Note" />
-                                                    </MultiBinding>
-                                                </Label.Text>
-                                            </Label>
+                                    </Grid>
+                                </Border>
 
-                                        </Grid>
-                                    </Border>
-                                </SwipeView>
-
-                                <!-- ==================== РЕЖИМ ВЫБОРА: карточка без свайпа ==================== -->
+                                <!-- ==================== РЕЖИМ ВЫБОРА ==================== -->
                                 <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
                                         Stroke="{DynamicResource CardBorderColor}"
                                         StrokeThickness="1"
@@ -377,16 +351,16 @@
         <!-- ==================== Панель мультивыбора ==================== -->
         <Border VerticalOptions="End"
                 IsVisible="{Binding IsSelectionMode}"
-                BackgroundColor="#2B2B2B"
-                Stroke="Transparent"
-                StrokeThickness="0"
+                BackgroundColor="{DynamicResource ShellBackgroundColor}"
+                Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
                 Padding="15,12"
                 Margin="0">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="15">
                 <Label Grid.Column="0"
                        Text="✕"
                        FontSize="22"
-                       TextColor="White"
+                       TextColor="{DynamicResource ShellTextColor}"
                        VerticalOptions="Center">
                     <Label.GestureRecognizers>
                         <TapGestureRecognizer Command="{Binding CancelSelectionCommand}" />
@@ -396,7 +370,7 @@
                 <Label Grid.Column="1"
                        Text="{Binding SelectedCount, StringFormat='Выбрано: {0}'}"
                        FontSize="16"
-                       TextColor="White"
+                       TextColor="{DynamicResource ShellTextColor}"
                        VerticalOptions="Center"
                        HorizontalOptions="Center" />
 
@@ -405,7 +379,7 @@
                         Command="{Binding DeleteSelectedCommand}"
                         IsEnabled="{Binding HasSelection}"
                         BackgroundColor="{DynamicResource DangerColor}"
-                        TextColor="White"
+                        TextColor="{DynamicResource PrimaryTextColor}"
                         CornerRadius="8"
                         HeightRequest="40"
                         FontSize="14"

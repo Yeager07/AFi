@@ -1,9 +1,10 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using SQLite;
 
 namespace AFi.Models;
 
 [Table("recurring_payments")]
-public class RecurringPayment
+public partial class RecurringPayment : ObservableObject
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
@@ -36,15 +37,22 @@ public class RecurringPayment
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+    private bool _isSelected;
+
+    /// <summary>
+    /// Флаг выбора для режима мультивыбора. В БД не сохраняется.
+    /// </summary>
+    [Ignore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
+
     [Ignore]
     public string DisplayName =>
         string.IsNullOrEmpty(CategoryIcon) ? Name : $"{CategoryIcon} {Name}";
 
-    /// <summary>
-    /// Готовая строка для отображения под названием в карточке:
-    /// "15-го числа · Оплата за офис".
-    /// Формируется в модели, чтобы UI просто биндился на одно свойство.
-    /// </summary>
     [Ignore]
     public string Subtitle
     {

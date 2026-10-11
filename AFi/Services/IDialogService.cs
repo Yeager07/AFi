@@ -22,4 +22,10 @@ public interface IDialogService
         string placeholder = "",
         int maxLength = -1,
         string initialValue = "");
+
+    /// <summary>
+    /// Показать список действий. Возвращает текст выбранного действия
+    /// или null, если пользователь отменил.
+    /// </summary>
+    Task<string?> ShowActionSheetAsync(string title, string cancel, params string[] actions);
 }

@@ -68,10 +68,6 @@ public partial class MainViewModel : ObservableObject
 
     public bool HasSelection => SelectedCount > 0;
 
-    /// <summary>
-    /// Кнопка «Выбрать» видна только когда мы не в режиме выбора
-    /// и есть хотя бы одна операция для выбора.
-    /// </summary>
     public bool CanEnterSelectionMode => !IsSelectionMode && HasAnyTransactions;
 
     // ==================== Тип операции ====================
@@ -102,7 +98,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnIsSelectionModeChanged(bool value) =>
         OnPropertyChanged(nameof(CanEnterSelectionMode));
 
-    // ==================== Команды ====================
+    // ==================== Загрузка и навигация ====================
 
     [RelayCommand]
     private async Task LoadAsync()
@@ -146,6 +142,8 @@ public partial class MainViewModel : ObservableObject
     {
         await Shell.Current.GoToAsync("history-push");
     }
+
+    // ==================== Сохранение ====================
 
     [RelayCommand]
     private async Task SaveAsync()
@@ -247,6 +245,8 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // ==================== Редактирование ====================
+
     [RelayCommand]
     private async Task StartEditAsync(Transaction? transaction)
     {
@@ -292,20 +292,39 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SubmitButtonText));
     }
 
+    // ==================== Удаление ====================
+
+    /// <summary>
+    /// Команда удаления, вызываемая по кнопке «Удалить» в других сценариях
+    /// (например, из истории, если там понадобится). С подтверждением.
+    /// </summary>
     [RelayCommand]
     private async Task DeleteTransactionAsync(Transaction? transaction)
     {
+        await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
+    }
+
+    /// <summary>
+    /// Общая логика удаления. Вызывается либо из ActionSheet
+    /// (skipConfirmation=true, потому что пользователь уже выбрал «Удалить»),
+    /// либо из отдельной команды DeleteTransaction (с подтверждением).
+    /// </summary>
+    private async Task DeleteTransactionCoreAsync(Transaction? transaction, bool skipConfirmation)
+    {
         if (transaction is null || IsBusy) return;
 
-        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
-        var message = $"Удалить операцию?\n\n" +
-                      $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
-                      $"{transaction.Date:dd.MM.yyyy}";
+        if (!skipConfirmation)
+        {
+            var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+            var message = $"Удалить операцию?\n\n" +
+                          $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}\n" +
+                          $"{transaction.Date:dd.MM.yyyy}";
 
-        var confirmed = await _dialogs.ConfirmAsync(
-            "Удаление", message, "Удалить", "Отмена");
+            var confirmed = await _dialogs.ConfirmAsync(
+                "Удаление", message, "Удалить", "Отмена");
 
-        if (!confirmed) return;
+            if (!confirmed) return;
+        }
 
         IsBusy = true;
         try
@@ -331,11 +350,44 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ==================== Мультивыбор ====================
+    // ==================== Тап по карточке ====================
 
     /// <summary>
-    /// Войти в режим мультивыбора (вызывается кнопкой «Выбрать»).
+    /// Тап по карточке: в режиме выбора — toggle, в обычном — диалог
+    /// с выбором «Редактировать / Удалить».
     /// </summary>
+    [RelayCommand]
+    private async Task HandleCardTapAsync(Transaction? transaction)
+    {
+        if (transaction is null) return;
+
+        if (IsSelectionMode)
+        {
+            ToggleSelection(transaction);
+            return;
+        }
+
+        var sign = transaction.Type == TransactionType.Income ? "+" : "−";
+        var title = $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}";
+
+        var choice = await _dialogs.ShowActionSheetAsync(
+            title,
+            "Отмена",
+            "Редактировать",
+            "Удалить");
+
+        if (choice == "Редактировать")
+        {
+            await StartEditAsync(transaction);
+        }
+        else if (choice == "Удалить")
+        {
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
+        }
+    }
+
+    // ==================== Мультивыбор ====================
+
     [RelayCommand]
     private void EnterSelectionMode()
     {
@@ -348,8 +400,6 @@ public partial class MainViewModel : ObservableObject
     {
         if (transaction is null || !IsSelectionMode) return;
 
-        System.Diagnostics.Debug.WriteLine($"ToggleSelection: id={transaction.Id}, before={transaction.IsSelected}");
-
         if (_selectedIds.Contains(transaction.Id))
         {
             _selectedIds.Remove(transaction.Id);
@@ -360,8 +410,6 @@ public partial class MainViewModel : ObservableObject
             _selectedIds.Add(transaction.Id);
             transaction.IsSelected = true;
         }
-
-        System.Diagnostics.Debug.WriteLine($"ToggleSelection: after={transaction.IsSelected}, count={_selectedIds.Count}");
 
         SelectedCount = _selectedIds.Count;
     }
@@ -420,24 +468,6 @@ public partial class MainViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
-
-    /// <summary>
-    /// Тап по карточке операции: в обычном режиме — редактирование,
-    /// в режиме мультивыбора — переключение выбора.
-    /// </summary>
-    [RelayCommand]
-    private async Task HandleCardTapAsync(Transaction? transaction)
-    {
-        if (transaction is null) return;
-
-        if (IsSelectionMode)
-        {
-            ToggleSelection(transaction);
-            return;
-        }
-
-        await StartEditAsync(transaction);
     }
 
     // ==================== Вспомогательные ====================

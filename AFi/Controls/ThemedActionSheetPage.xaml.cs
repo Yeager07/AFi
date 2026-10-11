@@ -1,0 +1,105 @@
+namespace AFi.Controls;
+
+public partial class ThemedActionSheetPage : ContentPage
+{
+    private readonly TaskCompletionSource<string?> _tcs = new();
+
+    public ThemedActionSheetPage(string title, string cancelText, string[] actions)
+    {
+        InitializeComponent();
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            TitleLabel.Text = title;
+            TitleLabel.IsVisible = true;
+            TitleDivider.IsVisible = true;
+        }
+        else
+        {
+            TitleLabel.IsVisible = false;
+            TitleDivider.IsVisible = false;
+        }
+
+        if (CancelButton.Content is Label cancelLabel)
+            cancelLabel.Text = cancelText;
+
+        BuildActions(actions);
+    }
+
+    public Task<string?> WaitForResultAsync() => _tcs.Task;
+
+    private void BuildActions(string[] actions)
+    {
+        foreach (var action in actions)
+        {
+            var isDestructive = action.Equals("Удалить", StringComparison.OrdinalIgnoreCase);
+            var isPrimary = !isDestructive;
+
+            var border = new Border
+            {
+                StrokeThickness = 1,
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
+                {
+                    CornerRadius = new CornerRadius(8)
+                },
+                Padding = new Thickness(15, 12),
+                BackgroundColor = Colors.Transparent,
+            };
+
+            var label = new Label
+            {
+                Text = action,
+                FontSize = 15,
+                FontAttributes = FontAttributes.Bold,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+            };
+
+            if (isDestructive)
+            {
+                border.SetDynamicResource(Border.StrokeProperty, "DangerColor");
+                label.SetDynamicResource(Label.TextColorProperty, "DangerColor");
+            }
+            else if (isPrimary)
+            {
+                border.SetDynamicResource(Border.StrokeProperty, "PrimaryColor");
+                label.SetDynamicResource(Label.TextColorProperty, "PrimaryColor");
+            }
+            else
+            {
+                border.SetDynamicResource(Border.StrokeProperty, "CardBorderColor");
+                label.SetDynamicResource(Label.TextColorProperty, "TextPrimaryColor");
+            }
+
+            border.Content = label;
+
+            var captured = action;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                // ВАЖНО: сначала закрываем модалку, и только потом
+                // сообщаем результат. Иначе вызывающий код начнёт навигацию
+                // раньше, чем модалка закроется, и Shell её проигнорирует.
+                await Navigation.PopModalAsync();
+                _tcs.TrySetResult(captured);
+            };
+            border.GestureRecognizers.Add(tap);
+
+            ActionsContainer.Children.Add(border);
+        }
+    }
+
+    private async void OnCancelTapped(object? sender, EventArgs e)
+    {
+        await Navigation.PopModalAsync();
+        _tcs.TrySetResult(null);
+    }
+
+    protected override bool OnBackButtonPressed()
+    {
+        // Возвращаем false — система закроет модалку сама,
+        // после чего TCS завершится null
+        _tcs.TrySetResult(null);
+        return base.OnBackButtonPressed();
+    }
+}

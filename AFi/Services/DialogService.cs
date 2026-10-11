@@ -11,18 +11,22 @@ public class DialogService : IDialogService
         if (page is null)
             return false;
 
-        return await page.DisplayAlertAsync(title, message, accept, cancel);
+        var modal = new Controls.ThemedConfirmPage(title, message, accept, cancel);
+
+        await page.Navigation.PushModalAsync(modal);
+
+        return await modal.WaitForResultAsync();
     }
 
     public async Task<string?> PromptAsync(
-    string title,
-    string message,
-    string placeholder = "",
-    int maxLength = -1,
-    string initialValue = "")
+        string title,
+        string message,
+        string placeholder = "",
+        int maxLength = -1,
+        string initialValue = "")
     {
         var page = Shell.Current?.CurrentPage
-                ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+                   ?? Application.Current?.Windows.FirstOrDefault()?.Page;
 
         if (page is null)
             return null;
@@ -36,5 +40,23 @@ public class DialogService : IDialogService
             maxLength: maxLength,
             keyboard: Keyboard.Text,
             initialValue: initialValue);
+    }
+
+    public async Task<string?> ShowActionSheetAsync(
+        string title,
+        string cancel,
+        params string[] actions)
+    {
+        var page = Shell.Current?.CurrentPage
+                   ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+
+        if (page is null)
+            return null;
+
+        var modal = new Controls.ThemedActionSheetPage(title, cancel, actions);
+
+        await page.Navigation.PushModalAsync(modal);
+
+        return await modal.WaitForResultAsync();
     }
 }

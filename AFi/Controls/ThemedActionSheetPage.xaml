@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ThemedActionSheetPage"
+             BackgroundColor="#80000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="15">
+        <Border Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 14"
+                Padding="0"
+                VerticalOptions="End"
+                HorizontalOptions="Fill"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+            <VerticalStackLayout Spacing="0">
+
+                <!-- ==================== Заголовок ==================== -->
+                <Label x:Name="TitleLabel"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource TextPrimaryColor}"
+                       Padding="20,18,20,14"
+                       HorizontalTextAlignment="Center"
+                       LineBreakMode="TailTruncation" />
+
+                <!-- ==================== Разделитель ==================== -->
+                <BoxView x:Name="TitleDivider"
+                         HeightRequest="1"
+                         Color="{DynamicResource DividerColor}" />
+
+                <!-- ==================== Кнопки действий ==================== -->
+                <VerticalStackLayout x:Name="ActionsContainer"
+                                     Spacing="8"
+                                     Padding="15,14,15,14" />
+
+                <!-- ==================== Разделитель ==================== -->
+                <BoxView HeightRequest="1"
+                         Color="{DynamicResource DividerColor}" />
+
+                <!-- ==================== Кнопка «Отмена» ==================== -->
+                <Border x:Name="CancelButton"
+                        Stroke="{DynamicResource CardBorderColor}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="15,12"
+                        Margin="15,14,15,15"
+                        BackgroundColor="Transparent">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCancelTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Отмена"
+                           FontSize="15"
+                           TextColor="{DynamicResource TextSecondaryColor}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>

@@ -15,135 +15,235 @@
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*,Auto"
-          Padding="15"
-          RowSpacing="12">
+    <Grid>
+        <Grid RowDefinitions="Auto,*,Auto"
+              Padding="15"
+              RowSpacing="12">
 
-        <!-- ==================== Кнопка добавления ==================== -->
-        <Button Grid.Row="0"
-                Text="+ Добавить напоминание"
-                Command="{Binding AddPaymentCommand}"
-                BackgroundColor="{DynamicResource SuccessColor}"
-                TextColor="{DynamicResource PrimaryTextColor}"
-                CornerRadius="8"
-                HeightRequest="48"
-                FontSize="15" />
+            <!-- ==================== Верхняя панель ==================== -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
 
-        <!-- ==================== Список платежей ==================== -->
-        <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding Payments}"
-                        SelectionMode="None">
+                <Button Grid.Column="0"
+                        Text="+ Добавить напоминание"
+                        Command="{Binding AddPaymentCommand}"
+                        BackgroundColor="{DynamicResource SuccessColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="48"
+                        FontSize="15" />
 
-            <CollectionView.EmptyView>
-                <VerticalStackLayout Spacing="10"
-                                     Padding="20"
-                                     HorizontalOptions="Center"
-                                     VerticalOptions="Center">
-                    <Label Text="📅"
-                           FontSize="48"
-                           HorizontalOptions="Center" />
-                    <Label Text="Пока нет регулярных платежей"
-                           FontSize="15"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource TextPrimaryColor}"
-                           HorizontalOptions="Center" />
-                    <Label Text="Добавьте первый, чтобы получать напоминания"
-                           FontSize="13"
-                           TextColor="{DynamicResource TextSecondaryColor}"
-                           HorizontalOptions="Center" />
-                </VerticalStackLayout>
-            </CollectionView.EmptyView>
+                <Button Grid.Column="1"
+                        Text="Выбрать"
+                        Command="{Binding EnterSelectionModeCommand}"
+                        IsVisible="{Binding CanEnterSelectionMode}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        HeightRequest="48"
+                        FontSize="13"
+                        Padding="12,0" />
+            </Grid>
 
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:RecurringPayment">
-                    <SwipeView Margin="0,4">
-                        <SwipeView.RightItems>
-                            <SwipeItems Mode="Reveal">
-                                <SwipeItemView>
-                                    <Border StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 8"
-                                            BackgroundColor="{DynamicResource DangerColor}"
-                                            WidthRequest="95"
-                                            Padding="0"
-                                            Margin="6,0,0,0">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.DeletePaymentCommand}"
+            <!-- ==================== Список напоминаний ==================== -->
+            <CollectionView Grid.Row="1"
+                            ItemsSource="{Binding Payments}"
+                            SelectionMode="None">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Spacing="10"
+                                         Padding="20"
+                                         HorizontalOptions="Center"
+                                         VerticalOptions="Center">
+                        <Label Text="🔔"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label Text="Пока нет напоминаний"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               HorizontalOptions="Center" />
+                        <Label Text="Добавьте первое, чтобы не забывать о регулярных платежах"
+                               FontSize="13"
+                               TextColor="{DynamicResource TextSecondaryColor}"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:RecurringPayment">
+                        <Grid>
+
+                            <!-- ==================== ОБЫЧНЫЙ РЕЖИМ ==================== -->
+                            <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
+                                    Stroke="{DynamicResource CardBorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="12"
+                                    Margin="0,4"
+                                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+
+                                <Grid ColumnDefinitions="*,Auto,Auto"
+                                      ColumnSpacing="10"
+                                      RowDefinitions="Auto,Auto">
+
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding DisplayName}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimaryColor}" />
+
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           HorizontalOptions="End"
+                                           TextColor="{DynamicResource TextPrimaryColor}" />
+
+                                    <Label Grid.Row="1" Grid.Column="0"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Subtitle}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource TextSecondaryColor}"
+                                           VerticalOptions="Center" />
+
+                                    <Switch Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
+                                            IsToggled="{Binding IsEnabled}"
+                                            HorizontalOptions="End"
+                                            VerticalOptions="Center"
+                                            OnColor="{DynamicResource SuccessColor}"
+                                            ThumbColor="{DynamicResource PrimaryTextColor}">
+                                        <Switch.Behaviors>
+                                            <toolkit:EventToCommandBehavior
+                                                EventName="Toggled"
+                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleEnabledCommand}"
                                                 CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Label Text="Удалить"
-                                               TextColor="White"
+                                        </Switch.Behaviors>
+                                    </Switch>
+
+                                </Grid>
+                            </Border>
+
+                            <!-- ==================== РЕЖИМ ВЫБОРА ==================== -->
+                            <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
+                                    Stroke="{DynamicResource CardBorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="12"
+                                    Margin="0,4"
+                                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                      ColumnSpacing="10"
+                                      RowDefinitions="Auto,Auto">
+
+                                    <!-- Кружок выбора -->
+                                    <Border Grid.Row="0" Grid.RowSpan="2"
+                                            Grid.Column="0"
+                                            WidthRequest="26"
+                                            HeightRequest="26"
+                                            StrokeShape="RoundRectangle 13"
+                                            Stroke="{DynamicResource PrimaryColor}"
+                                            StrokeThickness="2"
+                                            BackgroundColor="Transparent"
+                                            Padding="0"
+                                            VerticalOptions="Center"
+                                            HorizontalOptions="Start">
+                                        <Label Text="✓"
+                                               FontSize="16"
                                                FontAttributes="Bold"
-                                               FontSize="14"
+                                               TextColor="{DynamicResource PrimaryColor}"
                                                HorizontalOptions="Center"
-                                               VerticalOptions="Center" />
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding IsSelected}" />
                                     </Border>
-                                </SwipeItemView>
-                            </SwipeItems>
-                        </SwipeView.RightItems>
 
-                        <Border Stroke="{DynamicResource CardBorderColor}"
-                                StrokeThickness="1"
-                                StrokeShape="RoundRectangle 8"
-                                Padding="12"
-                                BackgroundColor="{DynamicResource CardBackgroundColor}">
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer
-                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.EditPaymentCommand}"
-                                    CommandParameter="{Binding .}" />
-                            </Border.GestureRecognizers>
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding DisplayName}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimaryColor}" />
 
-                            <Grid ColumnDefinitions="*,Auto"
-                                  RowDefinitions="Auto,Auto">
+                                    <Label Grid.Row="0" Grid.Column="2"
+                                           Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           HorizontalOptions="End"
+                                           TextColor="{DynamicResource TextPrimaryColor}" />
 
-                                <Label Grid.Row="0" Grid.Column="0"
-                                       Text="{Binding DisplayName}"
-                                       FontSize="15"
-                                       FontAttributes="Bold"
-                                       TextColor="{DynamicResource TextPrimaryColor}" />
+                                    <Label Grid.Row="1" Grid.Column="1"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Subtitle}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource TextSecondaryColor}" />
 
-                                <Label Grid.Row="0" Grid.Column="1"
-                                       Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                       FontSize="16"
-                                       FontAttributes="Bold"
-                                       HorizontalOptions="End"
-                                       TextColor="{DynamicResource TextPrimaryColor}" />
+                                </Grid>
+                            </Border>
 
-                                <Label Grid.Row="1" Grid.Column="0"
-                                       Text="{Binding Subtitle}"
-                                       FontSize="12"
-                                       TextColor="{DynamicResource TextSecondaryColor}"
-                                       VerticalOptions="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
-                                <!-- Переключатель вкл/выкл -->
-                                <Switch Grid.Row="1" Grid.Column="1"
-                                        IsToggled="{Binding IsEnabled}"
-                                        HorizontalOptions="End"
-                                        VerticalOptions="Center"
-                                        OnColor="{DynamicResource SuccessColor}"
-                                        ThumbColor="{DynamicResource PrimaryTextColor}">
-                                    <Switch.Behaviors>
-                                        <toolkit:EventToCommandBehavior
-                                            EventName="Toggled"
-                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleEnabledCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Switch.Behaviors>
-                                </Switch>
+            <!-- ==================== Статус ==================== -->
+            <Label Grid.Row="2"
+                   Text="{Binding StatusMessage}"
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}"
+                   HorizontalOptions="Center" />
 
-                            </Grid>
-                        </Border>
-                    </SwipeView>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        </Grid>
 
-        <!-- ==================== Статус ==================== -->
-        <Label Grid.Row="2"
-               Text="{Binding StatusMessage}"
-               FontSize="12"
-               TextColor="{DynamicResource TextSecondaryColor}"
-               HorizontalOptions="Center" />
+        <!-- ==================== Панель мультивыбора ==================== -->
+        <Border VerticalOptions="End"
+                IsVisible="{Binding IsSelectionMode}"
+                BackgroundColor="{DynamicResource ShellBackgroundColor}"
+                Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                Padding="15,12"
+                Margin="0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="15">
+                <Label Grid.Column="0"
+                       Text="✕"
+                       FontSize="22"
+                       TextColor="{DynamicResource ShellTextColor}"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding CancelSelectionCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
 
+                <Label Grid.Column="1"
+                       Text="{Binding SelectedCount, StringFormat='Выбрано: {0}'}"
+                       FontSize="16"
+                       TextColor="{DynamicResource ShellTextColor}"
+                       VerticalOptions="Center"
+                       HorizontalOptions="Center" />
+
+                <Button Grid.Column="2"
+                        Text="Удалить"
+                        Command="{Binding DeleteSelectedCommand}"
+                        IsEnabled="{Binding HasSelection}"
+                        BackgroundColor="{DynamicResource DangerColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="40"
+                        FontSize="14"
+                        Padding="16,0" />
+            </Grid>
+        </Border>
     </Grid>
 
 </ContentPage>

@@ -19,10 +19,6 @@ public partial class ThemedPickerModalPage : ContentPage
         BuildItems();
     }
 
-    /// <summary>
-    /// Возвращает Task, который завершится выбранным элементом
-    /// или null при отмене.
-    /// </summary>
     public Task<object?> WaitForResultAsync() => _tcs.Task;
 
     private void BuildItems()
@@ -77,8 +73,8 @@ public partial class ThemedPickerModalPage : ContentPage
             var tap = new TapGestureRecognizer();
             tap.Tapped += async (_, _) =>
             {
-                _tcs.TrySetResult(captured);
                 await Navigation.PopModalAsync();
+                _tcs.TrySetResult(captured);
             };
             row.GestureRecognizers.Add(tap);
 
@@ -88,8 +84,8 @@ public partial class ThemedPickerModalPage : ContentPage
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        _tcs.TrySetResult(null);
         await Navigation.PopModalAsync();
+        _tcs.TrySetResult(null);
     }
 
     protected override bool OnBackButtonPressed()
