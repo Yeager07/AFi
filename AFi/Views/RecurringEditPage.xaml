@@ -43,7 +43,8 @@
                     <Entry Placeholder="Например, Аренда помещения"
                            Text="{Binding Name}"
                            TextColor="{DynamicResource TextPrimaryColor}"
-                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                           Completed="OnEntryCompleted" />
 
                     <Label Text="Сумма"
                            FontSize="14"
@@ -52,7 +53,8 @@
                            Keyboard="Numeric"
                            Text="{Binding AmountText}"
                            TextColor="{DynamicResource TextPrimaryColor}"
-                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                           Completed="OnEntryCompleted" />
 
                     <Label Text="Тип"
                            FontSize="14"
@@ -79,7 +81,8 @@
                     <Entry Placeholder="Например, оплата за офис"
                            Text="{Binding Note}"
                            TextColor="{DynamicResource TextPrimaryColor}"
-                           PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                           Completed="OnEntryCompleted" />
 
                 </VerticalStackLayout>
             </Border>
@@ -110,7 +113,6 @@
                                 ThumbColor="{DynamicResource PrimaryTextColor}" />
                     </Grid>
 
-                    <!-- Поля настройки напоминания — видны только если напоминание включено -->
                     <VerticalStackLayout Spacing="10"
                                          IsVisible="{Binding ReminderEnabled}">
 

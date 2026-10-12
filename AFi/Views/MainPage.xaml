@@ -69,7 +69,8 @@
                                Text="{Binding AmountText}"
                                TextColor="{DynamicResource TextPrimaryColor}"
                                PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                               IsReadOnly="{Binding IsEditing}">
+                               IsReadOnly="{Binding IsEditing}"
+                               Completed="OnEntryCompleted">
                             <Entry.Triggers>
                                 <DataTrigger TargetType="Entry"
                                              Binding="{Binding IsEditing}"
@@ -107,7 +108,8 @@
                         <Entry Placeholder="Например, закупка зерна"
                                Text="{Binding Note}"
                                TextColor="{DynamicResource TextPrimaryColor}"
-                               PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+                               PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                               Completed="OnEntryCompleted" />
 
                         <!-- ==================== Позиции чека ==================== -->
                         <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
@@ -150,7 +152,8 @@
                                                    Text="{Binding Name}"
                                                    TextColor="{DynamicResource TextPrimaryColor}"
                                                    PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                                   FontSize="13" />
+                                                   FontSize="13"
+                                                   Completed="OnEntryCompleted" />
 
                                             <Entry Grid.Row="0" Grid.Column="1"
                                                    Placeholder="Кол-во"
@@ -159,7 +162,8 @@
                                                    TextColor="{DynamicResource TextPrimaryColor}"
                                                    PlaceholderColor="{DynamicResource TextSecondaryColor}"
                                                    FontSize="13"
-                                                   TextChanged="OnItemEntryChanged" />
+                                                   TextChanged="OnItemEntryChanged"
+                                                   Completed="OnEntryCompleted" />
 
                                             <Entry Grid.Row="0" Grid.Column="2"
                                                    Placeholder="Цена"
@@ -168,7 +172,8 @@
                                                    TextColor="{DynamicResource TextPrimaryColor}"
                                                    PlaceholderColor="{DynamicResource TextSecondaryColor}"
                                                    FontSize="13"
-                                                   TextChanged="OnItemEntryChanged" />
+                                                   TextChanged="OnItemEntryChanged"
+                                                   Completed="OnEntryCompleted" />
 
                                             <Label Grid.Row="0" Grid.Column="3"
                                                    Text="{Binding TotalText}"
@@ -216,7 +221,6 @@
                                TextColor="{DynamicResource TextPrimaryColor}"
                                Margin="0,5,0,0" />
 
-                        <!-- Превью + кнопки, если фото прикреплено -->
                         <Grid ColumnDefinitions="Auto,*"
                               ColumnSpacing="10"
                               IsVisible="{Binding HasReceipt}">
@@ -257,7 +261,6 @@
                             </VerticalStackLayout>
                         </Grid>
 
-                        <!-- Кнопки, если фото не прикреплено -->
                         <Grid ColumnDefinitions="*,*"
                               ColumnSpacing="8"
                               IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}">
@@ -447,7 +450,6 @@
                                             </Label.Text>
                                         </Label>
 
-                                        <!-- Индикатор деталей -->
                                         <Grid Grid.Row="2" Grid.Column="0"
                                               Grid.ColumnSpan="2"
                                               IsVisible="{Binding HasExtraDetails}"
@@ -484,7 +486,6 @@
                                             </HorizontalStackLayout>
                                         </Grid>
 
-                                        <!-- Развёрнутое содержимое -->
                                         <VerticalStackLayout Grid.Row="3"
                                                              Grid.Column="0"
                                                              Grid.ColumnSpan="2"
@@ -492,7 +493,6 @@
                                                              Spacing="10"
                                                              Margin="0,8,0,0">
 
-                                            <!-- Позиции -->
                                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
                                                                  IsVisible="{Binding HasItems}"
                                                                  Spacing="4">
@@ -523,7 +523,6 @@
                                                 </BindableLayout.ItemTemplate>
                                             </VerticalStackLayout>
 
-                                            <!-- Превью фото чека -->
                                             <Border IsVisible="{Binding HasReceipt}"
                                                     Stroke="{DynamicResource CardBorderColor}"
                                                     StrokeThickness="1"

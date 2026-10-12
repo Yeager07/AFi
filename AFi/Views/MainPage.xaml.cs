@@ -1,4 +1,5 @@
-﻿using AFi.Models;
+﻿using AFi.Helpers;
+using AFi.Models;
 using AFi.ViewModels;
 
 namespace AFi.Views;
@@ -94,13 +95,20 @@ public partial class MainPage : ContentPage
 
     // ==================== Позиции чека ====================
 
-    /// <summary>
-    /// Пересчитывает итог по позициям, когда пользователь меняет
-    /// количество или цену в любом поле позиции.
-    /// </summary>
     private void OnItemEntryChanged(object? sender, TextChangedEventArgs e)
     {
         _viewModel.RefreshItemsTotal();
+    }
+
+    // ==================== Клавиатура ====================
+
+    /// <summary>
+    /// Срабатывает при нажатии «ОК» на клавиатуре в любом Entry.
+    /// Принудительно скрываем клавиатуру.
+    /// </summary>
+    private void OnEntryCompleted(object? sender, EventArgs e)
+    {
+        KeyboardHelper.Hide();
     }
 
     // ==================== Жизненный цикл ====================

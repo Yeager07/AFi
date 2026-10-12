@@ -1,3 +1,4 @@
+using AFi.Helpers;
 using AFi.ViewModels;
 
 namespace AFi.Views;
@@ -155,6 +156,13 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         };
     }
 
+    // ==================== Клавиатура ====================
+
+    private void OnEntryCompleted(object? sender, EventArgs e)
+    {
+        KeyboardHelper.Hide();
+    }
+
     // ==================== Жизненный цикл ====================
 
     protected override async void OnAppearing()
@@ -162,8 +170,7 @@ public partial class RecurringEditPage : ContentPage, IQueryAttributable
         base.OnAppearing();
         await _viewModel.LoadCommand.ExecuteAsync(null);
 
-        // Picker'ы синхронизируем с текущим состоянием VM.
-        // Picker сам проверяет «уже установлено?» и не дёргает PropertyChanged зря.
+        CategoryPicker.ItemsSource = _viewModel.AvailableCategories;
 
         var typeIdx = _viewModel.SelectedTypeIndex;
         if (typeIdx >= 0 && typeIdx < _viewModel.TypeOptions.Count)
