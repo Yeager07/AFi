@@ -171,48 +171,34 @@
                                             Padding="8"
                                             BackgroundColor="{DynamicResource CardBackgroundColor}">
 
-                                        <Grid ColumnDefinitions="*,60,70,Auto,Auto"
+                                        <Grid ColumnDefinitions="*,90,30"
                                               ColumnSpacing="6"
-                                              RowDefinitions="Auto,Auto">
+                                              RowDefinitions="Auto,Auto"
+                                              RowSpacing="6">
 
+                                            <!-- Строка 0: название -->
                                             <Entry Grid.Row="0" Grid.Column="0"
                                                    Placeholder="Название"
                                                    Text="{Binding Name}"
                                                    TextColor="{DynamicResource TextPrimaryColor}"
                                                    PlaceholderColor="{DynamicResource TextSecondaryColor}"
                                                    FontSize="13"
+                                                   HorizontalOptions="Fill"
                                                    Completed="OnEntryCompleted" />
 
-                                            <Entry Grid.Row="0" Grid.Column="1"
-                                                   Placeholder="Кол-во"
-                                                   Text="{Binding QuantityText}"
-                                                   Keyboard="Numeric"
-                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                   PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                                   FontSize="13"
-                                                   TextChanged="OnItemEntryChanged"
-                                                   Completed="OnEntryCompleted" />
-
-                                            <Entry Grid.Row="0" Grid.Column="2"
-                                                   Placeholder="Цена"
-                                                   Text="{Binding UnitPriceText}"
-                                                   Keyboard="Numeric"
-                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                   PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                                   FontSize="13"
-                                                   TextChanged="OnItemEntryChanged"
-                                                   Completed="OnEntryCompleted" />
-
-                                            <Label Grid.Row="0" Grid.Column="3"
+                                            <!-- Итог — по центру высоты карточки -->
+                                            <Label Grid.Row="0" Grid.RowSpan="2"
+                                                   Grid.Column="1"
                                                    Text="{Binding TotalText}"
                                                    FontSize="13"
                                                    FontAttributes="Bold"
                                                    TextColor="{DynamicResource PrimaryColor}"
                                                    VerticalOptions="Center"
-                                                   WidthRequest="70"
                                                    HorizontalTextAlignment="End" />
 
-                                            <Button Grid.Row="0" Grid.Column="4"
+                                            <!-- Крестик — по центру высоты карточки -->
+                                            <Button Grid.Row="0" Grid.RowSpan="2"
+                                                    Grid.Column="2"
                                                     Text="✕"
                                                     Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.RemoveItemCommand}"
                                                     CommandParameter="{Binding .}"
@@ -222,7 +208,48 @@
                                                     HeightRequest="30"
                                                     Padding="0"
                                                     FontSize="14"
+                                                    HorizontalOptions="End"
+                                                    VerticalOptions="Center"
                                                     CornerRadius="15" />
+
+                                            <!-- Строка 1: кол-во и цена с подписями -->
+                                            <Grid Grid.Row="1" Grid.Column="0"
+                                                  ColumnDefinitions="Auto,*,Auto,*"
+                                                  ColumnSpacing="6">
+
+                                                <Label Grid.Column="0"
+                                                       Text="Кол-во:"
+                                                       FontSize="12"
+                                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                                       VerticalOptions="Center" />
+
+                                                <Entry Grid.Column="1"
+                                                       Text="{Binding QuantityText}"
+                                                       Keyboard="Numeric"
+                                                       TextColor="{DynamicResource TextPrimaryColor}"
+                                                       PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                                                       FontSize="13"
+                                                       HorizontalOptions="Fill"
+                                                       TextChanged="OnItemEntryChanged"
+                                                       Completed="OnEntryCompleted" />
+
+                                                <Label Grid.Column="2"
+                                                       Text="Цена:"
+                                                       FontSize="12"
+                                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                                       VerticalOptions="Center" />
+
+                                                <Entry Grid.Column="3"
+                                                       Text="{Binding UnitPriceText}"
+                                                       Keyboard="Numeric"
+                                                       TextColor="{DynamicResource TextPrimaryColor}"
+                                                       PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                                                       FontSize="13"
+                                                       HorizontalOptions="Fill"
+                                                       TextChanged="OnItemEntryChanged"
+                                                       Completed="OnEntryCompleted" />
+
+                                            </Grid>
 
                                         </Grid>
                                     </Border>
