@@ -259,6 +259,19 @@ public class DatabaseService
         return grouped;
     }
 
+    /// <summary>
+    /// Возвращает операцию по Id. Используется при восстановлении
+    /// формы из снапшота — если пользователь редактировал операцию
+    /// и снимал фото, а процесс был убит.
+    /// </summary>
+    public async Task<Transaction?> GetTransactionByIdAsync(int id)
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<Transaction>()
+            .Where(t => t.Id == id)
+            .FirstOrDefaultAsync();
+    }
+
     // ==================== Баланс ====================
 
     /// <summary>

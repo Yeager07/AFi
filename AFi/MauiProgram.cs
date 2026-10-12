@@ -35,6 +35,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IReminderService, ReminderService>();
         builder.Services.AddSingleton<IReceiptService, ReceiptService>();
         builder.Services.AddSingleton<ForecastService>();
+        builder.Services.AddSingleton<IFormSnapshotService, FormSnapshotService>();
 
         // ViewModels
         builder.Services.AddSingleton<MainViewModel>();

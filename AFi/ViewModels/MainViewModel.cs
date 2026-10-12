@@ -15,6 +15,7 @@ public partial class MainViewModel : ObservableObject
     private readonly DatabaseService _db;
     private readonly IDialogService _dialogs;
     private readonly IReceiptService _receipts;
+    private readonly IFormSnapshotService _snapshots;
 
     private int? _editingTransactionId;
     private Transaction? _editingTransaction;
@@ -91,11 +92,13 @@ public partial class MainViewModel : ObservableObject
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
-    public MainViewModel(DatabaseService db, IDialogService dialogs, IReceiptService receipts)
+    public MainViewModel(DatabaseService db, IDialogService dialogs,
+                         IReceiptService receipts, IFormSnapshotService snapshots)
     {
         _db = db;
         _dialogs = dialogs;
         _receipts = receipts;
+        _snapshots = snapshots;
 
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
@@ -134,6 +137,10 @@ public partial class MainViewModel : ObservableObject
 
             await _db.InitializeAsync();
             await ReloadCategoriesAsync();
+
+            // Восстанавливаем форму из снапшота, если VM пустая
+            // (процесс был убит при вызове камеры/галереи)
+            await RestoreSnapshotIfNeededAsync();
 
             _loadedCount = PageSize;
             await LoadTransactionsPageAsync();
@@ -243,6 +250,10 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
 
+        // Сохраняем снапшот перед уходом в галерею —
+        // система может убить процесс приложения
+        SaveSnapshot();
+
         var fileName = await _receipts.PickFromGalleryAsync();
         if (fileName is null) return;
 
@@ -253,6 +264,10 @@ public partial class MainViewModel : ObservableObject
     private async Task CaptureReceiptFromCameraAsync()
     {
         if (IsBusy) return;
+
+        // Сохраняем снапшот перед уходом в камеру —
+        // система может убить процесс приложения
+        SaveSnapshot();
 
         var fileName = await _receipts.CaptureFromCameraAsync();
         if (fileName is null) return;
@@ -298,6 +313,120 @@ public partial class MainViewModel : ObservableObject
         if (transaction?.ReceiptImageSource is null) return;
 
         await _dialogs.ShowReceiptAsync(transaction.ReceiptImageSource);
+    }
+
+    // ==================== Снапшот формы ====================
+
+    /// <summary>
+    /// Сохраняет снапшот текущего состояния формы.
+    /// Вызывается перед камерой/галереей.
+    /// </summary>
+    private void SaveSnapshot()
+    {
+        var snapshot = new FormSnapshot
+        {
+            AmountText = AmountText,
+            SelectedTypeIndex = SelectedTypeIndex,
+            CategoryId = SelectedCategory?.Id,
+            Date = Date,
+            Note = Note,
+            ReceiptFileName = _currentReceiptFileName,
+            EditingTransactionId = _editingTransactionId,
+            OriginalReceiptFileName = _originalReceiptFileName,
+            Items = CurrentItems.Select(i => new ItemSnapshot
+            {
+                Name = i.Name,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice,
+            }).ToList(),
+        };
+
+        _snapshots.Save(snapshot);
+    }
+
+    /// <summary>
+    /// Проверяет, пустая ли форма, и если да — восстанавливает её
+    /// из сохранённого снапшота. Вызывается при загрузке страницы.
+    /// </summary>
+    private async Task RestoreSnapshotIfNeededAsync()
+    {
+        // Если форма уже заполнена (пользователь сам что-то ввёл) — ничего не делаем
+        if (!IsFormEmpty()) return;
+
+        var snapshot = _snapshots.Load();
+        if (snapshot is null) return;
+
+        System.Diagnostics.Debug.WriteLine("[FormSnapshot] Restoring form");
+
+        // Восстанавливаем тип (без перезагрузки категорий, они уже загружены)
+        _suppressTypeChangeReload = true;
+        SelectedTypeIndex = snapshot.SelectedTypeIndex;
+        _suppressTypeChangeReload = false;
+
+        // Категории уже загружены для нужного типа — ищем по Id
+        if (snapshot.CategoryId.HasValue)
+        {
+            SelectedCategory = AvailableCategories
+                .FirstOrDefault(c => c.Id == snapshot.CategoryId.Value)
+                ?? AvailableCategories.FirstOrDefault();
+        }
+
+        AmountText = snapshot.AmountText;
+        Date = snapshot.Date;
+        Note = snapshot.Note;
+        _currentReceiptFileName = snapshot.ReceiptFileName;
+        _originalReceiptFileName = snapshot.OriginalReceiptFileName;
+
+        // Превью фото
+        if (!string.IsNullOrEmpty(snapshot.ReceiptFileName))
+        {
+            var path = _receipts.GetFullPath(snapshot.ReceiptFileName);
+            if (path is not null)
+            {
+                HasReceipt = true;
+                CurrentReceiptImageSource = ImageSource.FromFile(path);
+            }
+        }
+
+        // Позиции
+        CurrentItems.Clear();
+        foreach (var item in snapshot.Items)
+        {
+            CurrentItems.Add(new TransactionItem
+            {
+                Name = item.Name,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+            });
+        }
+        RefreshItemsTotal();
+
+        // Режим редактирования — подгружаем операцию из БД
+        if (snapshot.EditingTransactionId.HasValue)
+        {
+            var tx = await _db.GetTransactionByIdAsync(snapshot.EditingTransactionId.Value);
+            if (tx is not null)
+            {
+                _editingTransaction = tx;
+                _editingTransactionId = tx.Id;
+
+                OnPropertyChanged(nameof(IsEditing));
+                OnPropertyChanged(nameof(FormTitle));
+                OnPropertyChanged(nameof(SubmitButtonText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, пустая ли форма — то есть пользователь ничего не вводил.
+    /// </summary>
+    private bool IsFormEmpty()
+    {
+        return string.IsNullOrWhiteSpace(AmountText)
+            && SelectedCategory is null
+            && CurrentItems.Count == 0
+            && string.IsNullOrEmpty(_currentReceiptFileName)
+            && !_editingTransactionId.HasValue;
     }
 
     // ==================== Сохранение ====================
@@ -522,6 +651,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task CancelEditAsync()
     {
+        _snapshots.Clear();
+
         if (!string.IsNullOrEmpty(_currentReceiptFileName)
             && _currentReceiptFileName != _originalReceiptFileName)
         {
@@ -841,6 +972,8 @@ public partial class MainViewModel : ObservableObject
         CurrentReceiptImageSource = null;
         _currentReceiptFileName = null;
         _originalReceiptFileName = null;
+
+        _snapshots.Clear();
     }
 
     private static string Plural(int count, string one, string few, string many)
