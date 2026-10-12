@@ -48,18 +48,46 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- ==================== Форма добавления ==================== -->
-                <Border Stroke="{DynamicResource CardBorderColor}"
+                <!-- ==================== Свёрнутая форма ==================== -->
+                <Button IsVisible="{Binding ShowCollapsedForm}"
+                        Text="+ Добавить операцию"
+                        Command="{Binding ExpandFormCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="12"
+                        HeightRequest="56"
+                        FontSize="16"
+                        FontAttributes="Bold" />
+
+                <!-- ==================== Развёрнутая форма ==================== -->
+                <Border IsVisible="{Binding ShowExpandedForm}"
+                        Stroke="{DynamicResource CardBorderColor}"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 10"
                         Padding="15"
                         BackgroundColor="{DynamicResource CardBackgroundColor}">
                     <VerticalStackLayout Spacing="10">
 
-                        <Label Text="{Binding FormTitle}"
-                               FontSize="18"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource TextPrimaryColor}" />
+                        <!-- Заголовок + кнопка «Свернуть» -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0"
+                                   Text="{Binding FormTitle}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                   VerticalOptions="Center" />
+
+                            <Button Grid.Column="1"
+                                    Text="▾"
+                                    Command="{Binding CollapseFormCommand}"
+                                    IsVisible="{Binding CanCollapseForm}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="{DynamicResource TextSecondaryColor}"
+                                    FontSize="20"
+                                    WidthRequest="40"
+                                    HeightRequest="40"
+                                    Padding="0" />
+                        </Grid>
 
                         <Label Text="Сумма"
                                FontSize="14"

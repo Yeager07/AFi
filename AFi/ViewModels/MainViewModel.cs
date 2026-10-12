@@ -41,10 +41,21 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private decimal _currentBalance;
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
+    /// <summary>
+    /// Развёрнута ли форма добавления операции. По умолчанию — свёрнута.
+    /// В режиме редактирования всегда принудительно развёрнута.
+    /// </summary>
+    [ObservableProperty] private bool _isFormExpanded;
+
     public bool IsEditing => _editingTransactionId.HasValue;
     public string FormTitle => IsEditing ? "Редактирование" : "Новая операция";
     public string SubmitButtonText => IsEditing ? "Обновить" : "Сохранить";
     public bool IsBalanceNegative => CurrentBalance < 0;
+
+    // Видимость блоков формы
+    public bool ShowCollapsedForm => !IsFormExpanded && !IsEditing;
+    public bool ShowExpandedForm => IsFormExpanded || IsEditing;
+    public bool CanCollapseForm => !IsEditing;
 
     // ==================== Фото чека ====================
 
@@ -123,6 +134,26 @@ public partial class MainViewModel : ObservableObject
     partial void OnAmountTextChanged(string value) =>
         RefreshAmountMismatch();
 
+    partial void OnIsFormExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowCollapsedForm));
+        OnPropertyChanged(nameof(ShowExpandedForm));
+    }
+
+    /// <summary>
+    /// Уведомляет UI об изменении состояния режима редактирования.
+    /// Вызывается вместо ручных OnPropertyChanged в каждом месте.
+    /// </summary>
+    private void NotifyEditStateChanged()
+    {
+        OnPropertyChanged(nameof(IsEditing));
+        OnPropertyChanged(nameof(FormTitle));
+        OnPropertyChanged(nameof(SubmitButtonText));
+        OnPropertyChanged(nameof(ShowCollapsedForm));
+        OnPropertyChanged(nameof(ShowExpandedForm));
+        OnPropertyChanged(nameof(CanCollapseForm));
+    }
+
     // ==================== Загрузка и навигация ====================
 
     [RelayCommand]
@@ -170,6 +201,28 @@ public partial class MainViewModel : ObservableObject
     private async Task GoToHistoryAsync()
     {
         await Shell.Current.GoToAsync("history-push");
+    }
+
+    // ==================== Форма: развернуть/свернуть ====================
+
+    /// <summary>
+    /// Разворачивает форму добавления операции.
+    /// </summary>
+    [RelayCommand]
+    private void ExpandForm()
+    {
+        IsFormExpanded = true;
+    }
+
+    /// <summary>
+    /// Сворачивает форму добавления операции.
+    /// В режиме редактирования не работает.
+    /// </summary>
+    [RelayCommand]
+    private void CollapseForm()
+    {
+        if (IsEditing) return;
+        IsFormExpanded = false;
     }
 
     // ==================== Позиции чека ====================
@@ -250,8 +303,6 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
 
-        // Сохраняем снапшот перед уходом в галерею —
-        // система может убить процесс приложения
         SaveSnapshot();
 
         var fileName = await _receipts.PickFromGalleryAsync();
@@ -265,8 +316,6 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
 
-        // Сохраняем снапшот перед уходом в камеру —
-        // система может убить процесс приложения
         SaveSnapshot();
 
         var fileName = await _receipts.CaptureFromCameraAsync();
@@ -317,10 +366,6 @@ public partial class MainViewModel : ObservableObject
 
     // ==================== Снапшот формы ====================
 
-    /// <summary>
-    /// Сохраняет снапшот текущего состояния формы.
-    /// Вызывается перед камерой/галереей.
-    /// </summary>
     private void SaveSnapshot()
     {
         var snapshot = new FormSnapshot
@@ -344,13 +389,8 @@ public partial class MainViewModel : ObservableObject
         _snapshots.Save(snapshot);
     }
 
-    /// <summary>
-    /// Проверяет, пустая ли форма, и если да — восстанавливает её
-    /// из сохранённого снапшота. Вызывается при загрузке страницы.
-    /// </summary>
     private async Task RestoreSnapshotIfNeededAsync()
     {
-        // Если форма уже заполнена (пользователь сам что-то ввёл) — ничего не делаем
         if (!IsFormEmpty()) return;
 
         var snapshot = _snapshots.Load();
@@ -358,12 +398,13 @@ public partial class MainViewModel : ObservableObject
 
         System.Diagnostics.Debug.WriteLine("[FormSnapshot] Restoring form");
 
-        // Восстанавливаем тип (без перезагрузки категорий, они уже загружены)
+        // Разворачиваем форму, потому что восстанавливаем данные
+        IsFormExpanded = true;
+
         _suppressTypeChangeReload = true;
         SelectedTypeIndex = snapshot.SelectedTypeIndex;
         _suppressTypeChangeReload = false;
 
-        // Категории уже загружены для нужного типа — ищем по Id
         if (snapshot.CategoryId.HasValue)
         {
             SelectedCategory = AvailableCategories
@@ -377,7 +418,6 @@ public partial class MainViewModel : ObservableObject
         _currentReceiptFileName = snapshot.ReceiptFileName;
         _originalReceiptFileName = snapshot.OriginalReceiptFileName;
 
-        // Превью фото
         if (!string.IsNullOrEmpty(snapshot.ReceiptFileName))
         {
             var path = _receipts.GetFullPath(snapshot.ReceiptFileName);
@@ -388,7 +428,6 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        // Позиции
         CurrentItems.Clear();
         foreach (var item in snapshot.Items)
         {
@@ -401,7 +440,6 @@ public partial class MainViewModel : ObservableObject
         }
         RefreshItemsTotal();
 
-        // Режим редактирования — подгружаем операцию из БД
         if (snapshot.EditingTransactionId.HasValue)
         {
             var tx = await _db.GetTransactionByIdAsync(snapshot.EditingTransactionId.Value);
@@ -409,17 +447,11 @@ public partial class MainViewModel : ObservableObject
             {
                 _editingTransaction = tx;
                 _editingTransactionId = tx.Id;
-
-                OnPropertyChanged(nameof(IsEditing));
-                OnPropertyChanged(nameof(FormTitle));
-                OnPropertyChanged(nameof(SubmitButtonText));
+                NotifyEditStateChanged();
             }
         }
     }
 
-    /// <summary>
-    /// Проверяет, пустая ли форма — то есть пользователь ничего не вводил.
-    /// </summary>
     private bool IsFormEmpty()
     {
         return string.IsNullOrWhiteSpace(AmountText)
@@ -436,7 +468,9 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
 
-        if (!IsEditing && HasItems)
+        bool wasEditing = IsEditing;
+
+        if (!wasEditing && HasItems)
         {
             var itemsTotal = CurrentItems.Sum(i => i.Total);
             if (itemsTotal > 0)
@@ -537,9 +571,7 @@ public partial class MainViewModel : ObservableObject
                 _editingTransaction = null;
                 _originalReceiptFileName = null;
                 _currentReceiptFileName = null;
-                OnPropertyChanged(nameof(IsEditing));
-                OnPropertyChanged(nameof(FormTitle));
-                OnPropertyChanged(nameof(SubmitButtonText));
+                NotifyEditStateChanged();
 
                 StatusMessage = "Операция обновлена";
             }
@@ -571,6 +603,11 @@ public partial class MainViewModel : ObservableObject
 
             ResetForm();
 
+            // После редактирования — свернуть форму.
+            // После создания новой — оставить развёрнутой для следующего ввода.
+            if (wasEditing)
+                IsFormExpanded = false;
+
             _loadedCount = PageSize;
             await LoadTransactionsPageAsync();
             await ReloadBalanceAsync();
@@ -594,6 +631,9 @@ public partial class MainViewModel : ObservableObject
 
         _editingTransaction = transaction;
         _editingTransactionId = transaction.Id;
+
+        // Разворачиваем форму для редактирования
+        IsFormExpanded = true;
 
         _suppressTypeChangeReload = true;
         SelectedTypeIndex = transaction.Type == TransactionType.Income ? 1 : 0;
@@ -641,9 +681,7 @@ public partial class MainViewModel : ObservableObject
 
         RefreshItemsTotal();
 
-        OnPropertyChanged(nameof(IsEditing));
-        OnPropertyChanged(nameof(FormTitle));
-        OnPropertyChanged(nameof(SubmitButtonText));
+        NotifyEditStateChanged();
 
         StatusMessage = $"Редактирование операции от {transaction.Date:dd.MM.yyyy}";
     }
@@ -673,9 +711,10 @@ public partial class MainViewModel : ObservableObject
 
         CurrentItems.Clear();
 
-        OnPropertyChanged(nameof(IsEditing));
-        OnPropertyChanged(nameof(FormTitle));
-        OnPropertyChanged(nameof(SubmitButtonText));
+        // После отмены редактирования — свернуть форму
+        IsFormExpanded = false;
+
+        NotifyEditStateChanged();
     }
 
     // ==================== Удаление ====================
