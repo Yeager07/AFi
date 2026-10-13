@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ThemedPromptPage"
+             BackgroundColor="#80000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="20">
+        <Border Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 14"
+                Padding="20"
+                VerticalOptions="Center"
+                HorizontalOptions="Fill"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+            <VerticalStackLayout Spacing="15">
+
+                <!-- Заголовок -->
+                <Label x:Name="TitleLabel"
+                       Text="Введите значение"
+                       FontSize="17"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource TextPrimaryColor}"
+                       HorizontalTextAlignment="Center" />
+
+                <!-- Сообщение -->
+                <Label x:Name="MessageLabel"
+                       Text=""
+                       FontSize="13"
+                       TextColor="{DynamicResource TextSecondaryColor}"
+                       HorizontalTextAlignment="Center"
+                       LineBreakMode="WordWrap"
+                       IsVisible="False" />
+
+                <!-- Поле ввода -->
+                <Entry x:Name="InputEntry"
+                       TextColor="{DynamicResource TextPrimaryColor}"
+                       PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                       FontSize="15"
+                       Completed="OnEntryCompleted" />
+
+                <!-- Кнопки -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,5,0,0">
+
+                    <Button x:Name="CancelButton"
+                            Text="Отмена"
+                            Clicked="OnCancelClicked"
+                            BackgroundColor="Transparent"
+                            TextColor="{DynamicResource TextSecondaryColor}"
+                            BorderColor="{DynamicResource CardBorderColor}"
+                            BorderWidth="1"
+                            CornerRadius="8"
+                            HeightRequest="44"
+                            FontSize="14" />
+
+                    <Button x:Name="AcceptButton"
+                            Grid.Column="1"
+                            Text="Сохранить"
+                            Clicked="OnAcceptClicked"
+                            BackgroundColor="{DynamicResource PrimaryColor}"
+                            TextColor="{DynamicResource PrimaryTextColor}"
+                            CornerRadius="8"
+                            HeightRequest="44"
+                            FontSize="14" />
+
+                </Grid>
+
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>
