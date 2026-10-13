@@ -2,6 +2,7 @@ using AFi.Models;
 using Plugin.LocalNotification;
 using Plugin.LocalNotification.Core.Models;
 using Plugin.LocalNotification.Core.Models.AndroidOption;
+using Plugin.LocalNotification.EventArgs;
 
 #if ANDROID
 using Android.App;
@@ -14,6 +15,21 @@ namespace AFi.Services;
 
 public class ReminderService : IReminderService
 {
+    // ==================== Тестовый режим ====================
+    // true — напоминание срабатывает через 2 минуты от текущего момента
+    //        (для проверки работы уведомлений)
+    // false — используется реальное время payment.ReminderTime
+    // ПЕРЕД КОММИТОМ ПОСТАВЬ false!
+    private static bool UseTestMode = true;
+
+    private const int TestDelayMinutes = 2;
+
+    public ReminderService()
+    {
+        // Подписка на тап по уведомлению — открываем страницу «Напоминания»
+        LocalNotificationCenter.Current.NotificationActionTapped += OnNotificationActionTapped;
+    }
+
     // ==================== Разрешения ====================
 
     public async Task<bool> RequestPermissionAsync()
@@ -22,24 +38,17 @@ public class ReminderService : IReminderService
         {
             var granted = await LocalNotificationCenter.Current.RequestNotificationPermission();
 
-    #if ANDROID
-            Android.Util.Log.Info("AFi-Reminder",
-                $"RequestPermission: granted={granted}, " +
-                $"exactAlarmAllowed={CanScheduleExactAlarms()}");
-    #endif
-
+#if ANDROID
             if (!CanScheduleExactAlarms())
             {
                 RequestExactAlarmPermission();
             }
+#endif
 
             return granted;
         }
-        catch (Exception ex)
+        catch
         {
-    #if ANDROID
-            Android.Util.Log.Error("AFi-Reminder", $"RequestPermission FAILED: {ex}");
-    #endif
             return false;
         }
     }
@@ -56,21 +65,9 @@ public class ReminderService : IReminderService
 
         var notifyTime = CalculateNextNotificationTime(payment);
         if (notifyTime is null)
-        {
-    #if ANDROID
-            Android.Util.Log.Warn("AFi-Reminder", $"Schedule: notifyTime is null for '{payment.Name}'");
-    #endif
             return;
-        }
 
         var scheduleMode = GetBestScheduleMode();
-
-    #if ANDROID
-        Android.Util.Log.Info("AFi-Reminder",
-            $"Schedule: id={payment.Id}, name='{payment.Name}', " +
-            $"when={notifyTime.Value:yyyy-MM-dd HH:mm}, mode={scheduleMode}, " +
-            $"exactAlarmAllowed={CanScheduleExactAlarms()}");
-    #endif
 
         var request = new NotificationRequest
         {
@@ -91,15 +88,10 @@ public class ReminderService : IReminderService
         try
         {
             await LocalNotificationCenter.Current.Show(request);
-    #if ANDROID
-            Android.Util.Log.Info("AFi-Reminder", "Show completed OK");
-    #endif
         }
         catch (Exception ex)
         {
-    #if ANDROID
-            Android.Util.Log.Error("AFi-Reminder", $"Show FAILED: {ex}");
-    #endif
+            System.Diagnostics.Debug.WriteLine($"[ReminderService] Show failed: {ex.Message}");
         }
     }
 
@@ -117,15 +109,28 @@ public class ReminderService : IReminderService
     {
         var list = payments.ToList();
 
-        foreach (var p in list)
+        // Получаем список уже запланированных уведомлений,
+        // чтобы не пересоздавать их. Иначе Cancel + Show каждые несколько
+        // минут стирает только что показанное уведомление.
+        HashSet<int> alreadyScheduled;
+        try
         {
-            try { LocalNotificationCenter.Current.Cancel(p.Id); } catch { }
+            var pending = await LocalNotificationCenter.Current.GetPendingNotificationList();
+            alreadyScheduled = pending.Select(n => n.NotificationId).ToHashSet();
+        }
+        catch
+        {
+            alreadyScheduled = new HashSet<int>();
         }
 
+        // Планируем только те напоминания, у которых ещё нет уведомления.
+        // Существующие не трогаем — они уже в очереди AlarmManager.
         foreach (var p in list)
         {
-            if (p.IsEnabled)
+            if (p.IsEnabled && !alreadyScheduled.Contains(p.Id))
+            {
                 await ScheduleAsync(p);
+            }
         }
     }
 
@@ -133,6 +138,16 @@ public class ReminderService : IReminderService
 
     private static DateTimeOffset? CalculateNextNotificationTime(RecurringPayment payment)
     {
+        // ==================== ТЕСТОВЫЙ РЕЖИМ ====================
+        if (UseTestMode)
+        {
+            var testTime = DateTime.Now.AddMinutes(TestDelayMinutes);
+            System.Diagnostics.Debug.WriteLine(
+                $"[ReminderService] TEST MODE: notification scheduled for {testTime:HH:mm:ss}");
+            return new DateTimeOffset(testTime);
+        }
+        // ==================== КОНЕЦ ТЕСТОВОГО РЕЖИМА ====================
+
         var today = DateTime.Today;
         var timeOfDay = payment.ReminderTime;
 
@@ -171,19 +186,13 @@ public class ReminderService : IReminderService
         return $"{daysText}: {amountText} · {payment.DayOfMonth}-го числа";
     }
 
-    // ==================== Exact alarm (Android) ====================
+    // ==================== Точные будильники ====================
 
-    /// <summary>
-    /// Возвращает лучший доступный режим планирования.
-    /// Если разрешение на точные будильники есть — используем ExactAllowWhileIdle,
-    /// иначе падаем на Inexact (с задержкой до 15 минут).
-    /// </summary>
     private static AndroidScheduleMode GetBestScheduleMode()
     {
 #if ANDROID
         try
         {
-            // До Android 12 (API 31) — точные будильники разрешены всегда
             if (!OperatingSystem.IsAndroidVersionAtLeast(31))
                 return AndroidScheduleMode.ExactAllowWhileIdle;
 
@@ -201,14 +210,10 @@ public class ReminderService : IReminderService
     }
 
 #if ANDROID
-    /// <summary>
-    /// Проверяет, может ли приложение планировать точные будильники.
-    /// </summary>
     private static bool CanScheduleExactAlarms()
     {
         try
         {
-            // До API 31 разрешение не требуется — точные alarm-ы всегда доступны
             if (!OperatingSystem.IsAndroidVersionAtLeast(31))
                 return true;
 
@@ -220,13 +225,8 @@ public class ReminderService : IReminderService
         catch { return false; }
     }
 
-    /// <summary>
-    /// Открывает системные настройки «Будильники и напоминания»,
-    /// чтобы пользователь дал приложению разрешение на точные alarm-ы.
-    /// </summary>
     private static void RequestExactAlarmPermission()
     {
-        // Настройки точных будильников появились только в Android 12 (API 31)
         if (!OperatingSystem.IsAndroidVersionAtLeast(31))
             return;
 
@@ -240,8 +240,48 @@ public class ReminderService : IReminderService
         }
         catch
         {
-            // Если по какой-то причине не открылось — тихо игнорируем
+            // Тихо
         }
     }
 #endif
+
+    // ==================== Обработка тапа по уведомлению ====================
+
+    private void OnNotificationActionTapped(NotificationActionEventArgs e)
+    {
+        if (e.Request is null) return;
+
+        var notificationId = e.Request.NotificationId;
+        System.Diagnostics.Debug.WriteLine($"[Reminder] Notification tapped: id={notificationId}");
+
+        _ = NavigateToRecurringPageAsync();
+    }
+
+    /// <summary>
+    /// Переходит на страницу «Напоминания». Использует polling, чтобы
+    /// дождаться инициализации Shell — если процесс приложения был убит,
+    /// тап по уведомлению перезапускает AFi, и Shell может быть ещё не готов.
+    /// </summary>
+    private static async Task NavigateToRecurringPageAsync()
+    {
+        // Ждём до 4 секунд, пока Shell появится
+        for (int i = 0; i < 20; i++)
+        {
+            if (Shell.Current is not null) break;
+            await Task.Delay(200);
+        }
+
+        await MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            try
+            {
+                if (Shell.Current is not null)
+                    await Shell.Current.GoToAsync("//RecurringPage");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Reminder] Navigation failed: {ex.Message}");
+            }
+        });
+    }
 }
