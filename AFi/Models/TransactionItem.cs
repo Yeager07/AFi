@@ -33,6 +33,9 @@ public partial class TransactionItem : ObservableObject
     public int SortOrder { get; set; }
 
     // ==================== Строковые обёртки для Entry ====================
+    // Геттеры возвращают пустую строку, если пользователь ещё не вводил
+    // значение. Так поля пустые при создании новой позиции и не
+    // подставляют дефолтные "1" и "0".
 
     private string? _quantityText;
     private string? _unitPriceText;
@@ -40,7 +43,7 @@ public partial class TransactionItem : ObservableObject
     [Ignore]
     public string QuantityText
     {
-        get => _quantityText ??= FormatDecimal(Quantity);
+        get => _quantityText ?? string.Empty;
         set
         {
             if (SetProperty(ref _quantityText, value))
@@ -54,7 +57,7 @@ public partial class TransactionItem : ObservableObject
     [Ignore]
     public string UnitPriceText
     {
-        get => _unitPriceText ??= FormatDecimal(UnitPrice);
+        get => _unitPriceText ?? string.Empty;
         set
         {
             if (SetProperty(ref _unitPriceText, value))
@@ -63,6 +66,21 @@ public partial class TransactionItem : ObservableObject
                 NotifyTotals();
             }
         }
+    }
+
+    /// <summary>
+    /// Заполнить строковые поля из текущих значений Quantity и UnitPrice.
+    /// Вызывается после загрузки позиции из БД или снапшота,
+    /// чтобы пользователь видел текущие числа в полях.
+    /// Для новых позиций вызывать не нужно — поля останутся пустыми.
+    /// </summary>
+    public void InitializeTexts()
+    {
+        _quantityText = FormatDecimal(Quantity);
+        _unitPriceText = FormatDecimal(UnitPrice);
+
+        OnPropertyChanged(nameof(QuantityText));
+        OnPropertyChanged(nameof(UnitPriceText));
     }
 
     // ==================== Вычисляемые ====================

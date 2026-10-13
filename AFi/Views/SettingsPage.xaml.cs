@@ -1,3 +1,4 @@
+using AFi.Helpers;
 using AFi.ViewModels;
 
 namespace AFi.Views;
@@ -10,5 +11,15 @@ public partial class SettingsPage : ContentPage
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
+    }
+
+    /// <summary>
+    /// Пользователь нажал «ОК» на клавиатуре — сохраняем баланс
+    /// и скрываем клавиатуру.
+    /// </summary>
+    private void OnInitialBalanceCompleted(object? sender, EventArgs e)
+    {
+        KeyboardHelper.Hide();
+        _viewModel.SaveInitialBalanceCommand.Execute(null);
     }
 }

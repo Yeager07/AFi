@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -9,17 +10,39 @@ namespace AFi.ViewModels;
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly IThemeService _themeService;
+    private readonly ISettingsService _settings;
 
     public ObservableCollection<ThemePreviewItem> Themes { get; } = new();
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
-    public SettingsViewModel(IThemeService themeService)
+    /// <summary>
+    /// Начальный баланс в виде строки для ввода.
+    /// Пустая строка, если баланс = 0 — чтобы пользователь не видел
+    /// предзаполненный "0", к которому потом приписывается ввод.
+    /// </summary>
+    [ObservableProperty] private string _initialBalanceText = string.Empty;
+
+    /// <summary>
+    /// Статус сохранения начального баланса.
+    /// </summary>
+    [ObservableProperty] private string _initialBalanceStatus = string.Empty;
+
+    public SettingsViewModel(IThemeService themeService, ISettingsService settings)
     {
         _themeService = themeService;
+        _settings = settings;
+
         _themeService.ThemeChanged += OnThemeChanged;
         BuildThemes();
+
+        // Загружаем текущий начальный баланс.
+        // Если он 0 — оставляем поле пустым, иначе показываем значение.
+        var current = _settings.GetInitialBalance();
+        _initialBalanceText = current == 0m
+            ? string.Empty
+            : current.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -64,6 +87,36 @@ public partial class SettingsViewModel : ObservableObject
 
         _themeService.ApplyTheme(item.Key);
         StatusMessage = $"Тема «{item.Name}» применена";
+    }
+
+    /// <summary>
+    /// Сохранить начальный баланс.
+    /// Пустое поле трактуется как 0.
+    /// </summary>
+    [RelayCommand]
+    private void SaveInitialBalance()
+    {
+        var raw = InitialBalanceText?.Trim() ?? string.Empty;
+
+        // Пустое поле = сброс баланса в 0
+        if (string.IsNullOrEmpty(raw))
+        {
+            _settings.SetInitialBalance(0m);
+            InitialBalanceStatus = "Сохранено";
+            return;
+        }
+
+        var normalized = raw.Replace(',', '.');
+
+        if (!decimal.TryParse(normalized, NumberStyles.Number,
+                              CultureInfo.InvariantCulture, out var value))
+        {
+            InitialBalanceStatus = "Введите число";
+            return;
+        }
+
+        _settings.SetInitialBalance(value);
+        InitialBalanceStatus = "Сохранено";
     }
 
     /// <summary>

@@ -16,6 +16,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IReceiptService _receipts;
     private readonly IFormSnapshotService _snapshots;
+    private readonly ISettingsService _settings;
 
     private int? _editingTransactionId;
     private Transaction? _editingTransaction;
@@ -52,7 +53,6 @@ public partial class MainViewModel : ObservableObject
     public string SubmitButtonText => IsEditing ? "Обновить" : "Сохранить";
     public bool IsBalanceNegative => CurrentBalance < 0;
 
-    // Видимость блоков формы
     public bool ShowCollapsedForm => !IsFormExpanded && !IsEditing;
     public bool ShowExpandedForm => IsFormExpanded || IsEditing;
     public bool CanCollapseForm => !IsEditing;
@@ -104,12 +104,14 @@ public partial class MainViewModel : ObservableObject
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
     public MainViewModel(DatabaseService db, IDialogService dialogs,
-                         IReceiptService receipts, IFormSnapshotService snapshots)
+                         IReceiptService receipts, IFormSnapshotService snapshots,
+                         ISettingsService settings)
     {
         _db = db;
         _dialogs = dialogs;
         _receipts = receipts;
         _snapshots = snapshots;
+        _settings = settings;
 
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
@@ -140,10 +142,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowExpandedForm));
     }
 
-    /// <summary>
-    /// Уведомляет UI об изменении состояния режима редактирования.
-    /// Вызывается вместо ручных OnPropertyChanged в каждом месте.
-    /// </summary>
     private void NotifyEditStateChanged()
     {
         OnPropertyChanged(nameof(IsEditing));
@@ -169,8 +167,6 @@ public partial class MainViewModel : ObservableObject
             await _db.InitializeAsync();
             await ReloadCategoriesAsync();
 
-            // Восстанавливаем форму из снапшота, если VM пустая
-            // (процесс был убит при вызове камеры/галереи)
             await RestoreSnapshotIfNeededAsync();
 
             _loadedCount = PageSize;
@@ -205,19 +201,12 @@ public partial class MainViewModel : ObservableObject
 
     // ==================== Форма: развернуть/свернуть ====================
 
-    /// <summary>
-    /// Разворачивает форму добавления операции.
-    /// </summary>
     [RelayCommand]
     private void ExpandForm()
     {
         IsFormExpanded = true;
     }
 
-    /// <summary>
-    /// Сворачивает форму добавления операции.
-    /// В режиме редактирования не работает.
-    /// </summary>
     [RelayCommand]
     private void CollapseForm()
     {
@@ -230,6 +219,10 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddItem()
     {
+        // Поля QuantityText и UnitPriceText не заполняем —
+        // они останутся пустыми, пользователь введёт сам.
+        // Quantity и UnitPrice имеют дефолтные значения (1 и 0),
+        // но UI их не показывает.
         CurrentItems.Add(new TransactionItem
         {
             Name = string.Empty,
@@ -353,9 +346,6 @@ public partial class MainViewModel : ObservableObject
             : null;
     }
 
-    /// <summary>
-    /// Открыть фото чека на весь экран.
-    /// </summary>
     [RelayCommand]
     private async Task ViewReceiptAsync(Transaction? transaction)
     {
@@ -398,7 +388,6 @@ public partial class MainViewModel : ObservableObject
 
         System.Diagnostics.Debug.WriteLine("[FormSnapshot] Restoring form");
 
-        // Разворачиваем форму, потому что восстанавливаем данные
         IsFormExpanded = true;
 
         _suppressTypeChangeReload = true;
@@ -431,12 +420,16 @@ public partial class MainViewModel : ObservableObject
         CurrentItems.Clear();
         foreach (var item in snapshot.Items)
         {
-            CurrentItems.Add(new TransactionItem
+            var newItem = new TransactionItem
             {
                 Name = item.Name,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
-            });
+            };
+            // Заполняем строковые поля, чтобы пользователь видел
+            // восстановленные значения
+            newItem.InitializeTexts();
+            CurrentItems.Add(newItem);
         }
         RefreshItemsTotal();
 
@@ -603,8 +596,6 @@ public partial class MainViewModel : ObservableObject
 
             ResetForm();
 
-            // После редактирования — свернуть форму.
-            // После создания новой — оставить развёрнутой для следующего ввода.
             if (wasEditing)
                 IsFormExpanded = false;
 
@@ -632,7 +623,6 @@ public partial class MainViewModel : ObservableObject
         _editingTransaction = transaction;
         _editingTransactionId = transaction.Id;
 
-        // Разворачиваем форму для редактирования
         IsFormExpanded = true;
 
         _suppressTypeChangeReload = true;
@@ -674,10 +664,15 @@ public partial class MainViewModel : ObservableObject
             CurrentReceiptImageSource = null;
         }
 
+        // Загружаем позиции и заполняем их текстовые поля, чтобы
+        // пользователь видел текущие значения в Entry
         CurrentItems.Clear();
         var items = await _db.GetItemsForTransactionAsync(transaction.Id);
         foreach (var item in items)
+        {
+            item.InitializeTexts();
             CurrentItems.Add(item);
+        }
 
         RefreshItemsTotal();
 
@@ -711,7 +706,6 @@ public partial class MainViewModel : ObservableObject
 
         CurrentItems.Clear();
 
-        // После отмены редактирования — свернуть форму
         IsFormExpanded = false;
 
         NotifyEditStateChanged();
@@ -993,7 +987,9 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            CurrentBalance = await _db.GetCurrentBalanceAsync();
+            var operationsBalance = await _db.GetCurrentBalanceAsync();
+            var initialBalance = _settings.GetInitialBalance();
+            CurrentBalance = initialBalance + operationsBalance;
         }
         catch (Exception ex)
         {

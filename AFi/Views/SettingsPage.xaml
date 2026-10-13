@@ -3,20 +3,68 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:AFi.ViewModels"
              xmlns:models="clr-namespace:AFi.Models"
+             xmlns:converters="clr-namespace:AFi.Converters"
              x:Class="AFi.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              x:Name="PageRoot"
              Title="Настройки"
              BackgroundColor="{DynamicResource PageBackgroundColor}">
 
+    <ContentPage.Resources>
+        <converters:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
+    </ContentPage.Resources>
+
     <ScrollView>
         <VerticalStackLayout Padding="15" Spacing="12">
 
-            <Label Text="Тема оформления"
+            <!-- ==================== Начальный баланс ==================== -->
+            <Label Text="Начальный баланс"
                    FontSize="18"
                    FontAttributes="Bold"
                    TextColor="{DynamicResource TextPrimaryColor}"
                    Margin="0,4,0,0" />
+
+            <Label Text="Сколько денег на счёте сейчас или было до начала учёта. Учитывается в текущем балансе."
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="12"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <VerticalStackLayout Spacing="8">
+
+                    <Entry Placeholder="Например, 15000"
+                           Keyboard="Numeric"
+                           Text="{Binding InitialBalanceText}"
+                           TextColor="{DynamicResource TextPrimaryColor}"
+                           PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                           Completed="OnInitialBalanceCompleted" />
+
+                    <Button Text="Сохранить"
+                            Command="{Binding SaveInitialBalanceCommand}"
+                            BackgroundColor="{DynamicResource PrimaryColor}"
+                            TextColor="{DynamicResource PrimaryTextColor}"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            FontSize="14" />
+
+                    <Label Text="{Binding InitialBalanceStatus}"
+                           FontSize="12"
+                           TextColor="{DynamicResource SuccessColor}"
+                           HorizontalOptions="Center"
+                           IsVisible="{Binding InitialBalanceStatus, Converter={StaticResource IsNotEmptyConverter}}" />
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ==================== Тема оформления ==================== -->
+            <Label Text="Тема оформления"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   Margin="0,12,0,0" />
 
             <Label Text="Выберите понравившееся оформление. Тема применяется ко всему приложению и сохраняется при закрытии."
                    FontSize="12"
@@ -46,7 +94,7 @@
 
                             <VerticalStackLayout Spacing="10">
 
-                                <!-- ==================== Миниатюра экрана ==================== -->
+                                <!-- Миниатюра экрана -->
                                 <Border StrokeThickness="0"
                                         StrokeShape="RoundRectangle 8"
                                         HeightRequest="90"
@@ -54,7 +102,6 @@
                                         BackgroundColor="{Binding PreviewBackground}">
                                     <Grid RowDefinitions="Auto,*">
 
-                                        <!-- «Заголовок» экрана — полоска-акцент -->
                                         <BoxView Grid.Row="0"
                                                  HeightRequest="6"
                                                  WidthRequest="40"
@@ -62,7 +109,6 @@
                                                  CornerRadius="3"
                                                  Color="{Binding PreviewPrimary}" />
 
-                                        <!-- «Карточка» с текстом -->
                                         <Border Grid.Row="1"
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 6"
@@ -71,13 +117,11 @@
                                                 BackgroundColor="{Binding PreviewCard}">
                                             <VerticalStackLayout Spacing="4"
                                                                  VerticalOptions="Center">
-                                                <!-- «Основной текст» -->
                                                 <BoxView HeightRequest="5"
                                                          WidthRequest="52"
                                                          HorizontalOptions="Start"
                                                          CornerRadius="2"
                                                          Color="{Binding PreviewText}" />
-                                                <!-- «Вторичный текст» -->
                                                 <BoxView HeightRequest="4"
                                                          WidthRequest="36"
                                                          HorizontalOptions="Start"
@@ -89,7 +133,7 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- ==================== Название темы + галочка ==================== -->
+                                <!-- Название темы + галочка -->
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
 
                                     <Label Grid.Column="0"

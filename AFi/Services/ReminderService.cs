@@ -20,7 +20,7 @@ public class ReminderService : IReminderService
     //        (для проверки работы уведомлений)
     // false — используется реальное время payment.ReminderTime
     // ПЕРЕД КОММИТОМ ПОСТАВЬ false!
-    private static bool UseTestMode = true;
+    private static bool UseTestMode = false;
 
     private const int TestDelayMinutes = 2;
 
