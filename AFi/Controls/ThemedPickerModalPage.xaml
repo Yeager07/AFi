@@ -5,12 +5,20 @@
              BackgroundColor="#80000000"
              Shell.NavBarIsVisible="False">
 
-    <Grid Padding="20">
-        <Border Stroke="{DynamicResource CardBorderColor}"
+    <Grid>
+        <BoxView BackgroundColor="Transparent">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOutsideTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <Border x:Name="CardBorder"
+                Stroke="{DynamicResource CardBorderColor}"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 14"
                 Padding="0"
-                VerticalOptions="Center"
+                Margin="15"
+                VerticalOptions="End"
                 HorizontalOptions="Fill"
                 MaximumHeightRequest="500"
                 BackgroundColor="{DynamicResource CardBackgroundColor}">

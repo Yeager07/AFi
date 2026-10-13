@@ -28,17 +28,21 @@ public partial class ThemedPromptPage : ContentPage
             InputEntry.MaxLength = maxLength;
     }
 
-    /// <summary>
-    /// Возвращает Task, который завершится введённым текстом
-    /// или null, если пользователь отменил.
-    /// </summary>
     public Task<string?> WaitForResultAsync() => _tcs.Task;
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
 
-        // Автофокус и открытие клавиатуры
+        // Анимация выезда
+        CardBorder.TranslationY = 400;
+        CardBorder.Opacity = 0;
+
+        await Task.WhenAll(
+            CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
+            CardBorder.FadeToAsync(1, 200));
+
+        // Автофокус
         InputEntry.Focus();
     }
 
@@ -69,9 +73,21 @@ public partial class ThemedPromptPage : ContentPage
         catch { }
     }
 
+    private async void OnOutsideTapped(object? sender, TappedEventArgs e)
+    {
+        KeyboardHelper.Hide();
+
+        _tcs.TrySetResult(null);
+
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch { }
+    }
+
     private void OnEntryCompleted(object? sender, EventArgs e)
     {
-        // Пользователь нажал «ОК» на клавиатуре — считаем, что подтвердил
         OnAcceptClicked(sender, e);
     }
 

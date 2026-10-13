@@ -21,6 +21,18 @@ public partial class ThemedPickerModalPage : ContentPage
 
     public Task<object?> WaitForResultAsync() => _tcs.Task;
 
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        CardBorder.TranslationY = 500;
+        CardBorder.Opacity = 0;
+
+        await Task.WhenAll(
+            CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
+            CardBorder.FadeToAsync(1, 200));
+    }
+
     private void BuildItems()
     {
         foreach (var item in _items)
@@ -83,6 +95,12 @@ public partial class ThemedPickerModalPage : ContentPage
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopModalAsync();
+        _tcs.TrySetResult(null);
+    }
+
+    private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
         await Navigation.PopModalAsync();
         _tcs.TrySetResult(null);

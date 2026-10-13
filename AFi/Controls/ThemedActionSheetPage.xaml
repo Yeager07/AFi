@@ -5,18 +5,27 @@
              BackgroundColor="#80000000"
              Shell.NavBarIsVisible="False">
 
-    <Grid Padding="15">
-        <Border Stroke="{DynamicResource CardBorderColor}"
+    <Grid>
+        <!-- Прозрачный слой для тапа вне карточки -->
+        <BoxView BackgroundColor="Transparent">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOutsideTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- Карточка -->
+        <Border x:Name="CardBorder"
+                Stroke="{DynamicResource CardBorderColor}"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 14"
                 Padding="0"
+                Margin="15"
                 VerticalOptions="End"
                 HorizontalOptions="Fill"
                 BackgroundColor="{DynamicResource CardBackgroundColor}">
 
             <VerticalStackLayout Spacing="0">
 
-                <!-- ==================== Заголовок ==================== -->
                 <Label x:Name="TitleLabel"
                        FontSize="14"
                        FontAttributes="Bold"
@@ -25,21 +34,17 @@
                        HorizontalTextAlignment="Center"
                        LineBreakMode="TailTruncation" />
 
-                <!-- ==================== Разделитель ==================== -->
                 <BoxView x:Name="TitleDivider"
                          HeightRequest="1"
                          Color="{DynamicResource DividerColor}" />
 
-                <!-- ==================== Кнопки действий ==================== -->
                 <VerticalStackLayout x:Name="ActionsContainer"
                                      Spacing="8"
                                      Padding="15,14,15,14" />
 
-                <!-- ==================== Разделитель ==================== -->
                 <BoxView HeightRequest="1"
                          Color="{DynamicResource DividerColor}" />
 
-                <!-- ==================== Кнопка «Отмена» ==================== -->
                 <Border x:Name="CancelButton"
                         Stroke="{DynamicResource CardBorderColor}"
                         StrokeThickness="1"

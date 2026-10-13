@@ -17,21 +17,27 @@ public partial class ThemedConfirmPage : ContentPage
 
     public Task<bool> WaitForResultAsync() => _tcs.Task;
 
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        CardBorder.TranslationY = 400;
+        CardBorder.Opacity = 0;
+
+        await Task.WhenAll(
+            CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
+            CardBorder.FadeToAsync(1, 200));
+    }
+
     private async void OnAcceptClicked(object? sender, EventArgs e)
     {
-        // Сначала отдаём результат — вызывающий код сразу продолжит работу.
-        // Модалка закроется следом, уже без блокировки.
         _tcs.TrySetResult(true);
 
         try
         {
             await Navigation.PopModalAsync();
         }
-        catch
-        {
-            // Тихо — если PopModal по какой-то причине не сработал,
-            // не валим UI. Результат уже отдан.
-        }
+        catch { }
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
@@ -42,9 +48,18 @@ public partial class ThemedConfirmPage : ContentPage
         {
             await Navigation.PopModalAsync();
         }
-        catch
+        catch { }
+    }
+
+    private async void OnOutsideTapped(object? sender, TappedEventArgs e)
+    {
+        _tcs.TrySetResult(false);
+
+        try
         {
+            await Navigation.PopModalAsync();
         }
+        catch { }
     }
 
     protected override bool OnBackButtonPressed()

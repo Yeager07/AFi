@@ -5,18 +5,25 @@
              BackgroundColor="#80000000"
              Shell.NavBarIsVisible="False">
 
-    <Grid Padding="20">
-        <Border Stroke="{DynamicResource CardBorderColor}"
+    <Grid>
+        <BoxView BackgroundColor="Transparent">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOutsideTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <Border x:Name="CardBorder"
+                Stroke="{DynamicResource CardBorderColor}"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 14"
                 Padding="20"
+                Margin="20"
                 VerticalOptions="Center"
                 HorizontalOptions="Fill"
                 BackgroundColor="{DynamicResource CardBackgroundColor}">
 
             <VerticalStackLayout Spacing="15">
 
-                <!-- Заголовок -->
                 <Label x:Name="TitleLabel"
                        Text="Введите значение"
                        FontSize="17"
@@ -24,7 +31,6 @@
                        TextColor="{DynamicResource TextPrimaryColor}"
                        HorizontalTextAlignment="Center" />
 
-                <!-- Сообщение -->
                 <Label x:Name="MessageLabel"
                        Text=""
                        FontSize="13"
@@ -33,14 +39,12 @@
                        LineBreakMode="WordWrap"
                        IsVisible="False" />
 
-                <!-- Поле ввода -->
                 <Entry x:Name="InputEntry"
                        TextColor="{DynamicResource TextPrimaryColor}"
                        PlaceholderColor="{DynamicResource TextSecondaryColor}"
                        FontSize="15"
                        Completed="OnEntryCompleted" />
 
-                <!-- Кнопки -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,5,0,0">
 
                     <Button x:Name="CancelButton"

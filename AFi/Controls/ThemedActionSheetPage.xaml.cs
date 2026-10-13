@@ -28,6 +28,18 @@ public partial class ThemedActionSheetPage : ContentPage
 
     public Task<string?> WaitForResultAsync() => _tcs.Task;
 
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        CardBorder.TranslationY = 400;
+        CardBorder.Opacity = 0;
+
+        await Task.WhenAll(
+            CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
+            CardBorder.FadeToAsync(1, 200));
+    }
+
     private void BuildActions(string[] actions)
     {
         foreach (var action in actions)
@@ -77,9 +89,6 @@ public partial class ThemedActionSheetPage : ContentPage
             var tap = new TapGestureRecognizer();
             tap.Tapped += async (_, _) =>
             {
-                // ВАЖНО: сначала закрываем модалку, и только потом
-                // сообщаем результат. Иначе вызывающий код начнёт навигацию
-                // раньше, чем модалка закроется, и Shell её проигнорирует.
                 await Navigation.PopModalAsync();
                 _tcs.TrySetResult(captured);
             };
@@ -89,7 +98,13 @@ public partial class ThemedActionSheetPage : ContentPage
         }
     }
 
-    private async void OnCancelTapped(object? sender, EventArgs e)
+    private async void OnCancelTapped(object? sender, TappedEventArgs e)
+    {
+        await Navigation.PopModalAsync();
+        _tcs.TrySetResult(null);
+    }
+
+    private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
         await Navigation.PopModalAsync();
         _tcs.TrySetResult(null);
@@ -97,8 +112,6 @@ public partial class ThemedActionSheetPage : ContentPage
 
     protected override bool OnBackButtonPressed()
     {
-        // Возвращаем false — система закроет модалку сама,
-        // после чего TCS завершится null
         _tcs.TrySetResult(null);
         return base.OnBackButtonPressed();
     }
