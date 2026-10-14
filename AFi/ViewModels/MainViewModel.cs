@@ -42,10 +42,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private decimal _currentBalance;
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
-    /// <summary>
-    /// Развёрнута ли форма добавления операции. По умолчанию — свёрнута.
-    /// В режиме редактирования всегда принудительно развёрнута.
-    /// </summary>
     [ObservableProperty] private bool _isFormExpanded;
 
     public bool IsEditing => _editingTransactionId.HasValue;
@@ -219,10 +215,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddItem()
     {
-        // Поля QuantityText и UnitPriceText не заполняем —
-        // они останутся пустыми, пользователь введёт сам.
-        // Quantity и UnitPrice имеют дефолтные значения (1 и 0),
-        // но UI их не показывает.
         CurrentItems.Add(new TransactionItem
         {
             Name = string.Empty,
@@ -426,8 +418,6 @@ public partial class MainViewModel : ObservableObject
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
             };
-            // Заполняем строковые поля, чтобы пользователь видел
-            // восстановленные значения
             newItem.InitializeTexts();
             CurrentItems.Add(newItem);
         }
@@ -664,8 +654,6 @@ public partial class MainViewModel : ObservableObject
             CurrentReceiptImageSource = null;
         }
 
-        // Загружаем позиции и заполняем их текстовые поля, чтобы
-        // пользователь видел текущие значения в Entry
         CurrentItems.Clear();
         var items = await _db.GetItemsForTransactionAsync(transaction.Id);
         foreach (var item in items)
@@ -931,12 +919,12 @@ public partial class MainViewModel : ObservableObject
             var to = DateTime.Today;
             var from = to.AddDays(-(PeriodDays - 1));
 
-            var all = await _db.GetTransactionsAsync(from, to, null,
-                limit: 10000, offset: 0);
+            // Грузим ровно столько, сколько нужно показать
+            var toShow = await _db.GetTransactionsAsync(from, to, null,
+                limit: _loadedCount, offset: 0);
 
-            _totalInPeriod = all.Count;
-
-            var toShow = all.Take(_loadedCount).ToList();
+            // Общее количество в периоде — отдельным COUNT-запросом
+            _totalInPeriod = await _db.GetTransactionsCountAsync(from, to);
 
             var ids = toShow.Select(t => t.Id).ToList();
             var itemsByTransaction = await _db.GetItemsForTransactionsAsync(ids);

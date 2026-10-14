@@ -1,13 +1,9 @@
+using System.Runtime.InteropServices;
 using AFi.Models;
 using SQLite;
 
 namespace AFi.Services;
 
-/// <summary>
-/// Сервис для работы с локальной базой данных SQLite.
-/// Регистрируется как Singleton в MauiProgram — на всё приложение
-/// создаётся одно подключение к БД.
-/// </summary>
 public class DatabaseService
 {
     private SQLiteAsyncConnection? _connection;
@@ -16,19 +12,11 @@ public class DatabaseService
 
     private const string DatabaseFileName = "afi.db3";
 
-    /// <summary>
-    /// Путь к файлу БД. AppDataDirectory — это папка приложения на устройстве,
-    /// куда мы имеем право писать без разрешений. На Android это что-то вроде
-    /// /data/data/com.companyname.afi/files/.
-    /// </summary>
     private static string DatabasePath =>
         Path.Combine(FileSystem.AppDataDirectory, DatabaseFileName);
 
-    /// <summary>
-    /// Ленивая инициализация: создаёт подключение, таблицы и засеивает
-    /// категории при первом вызове. Безопасна при параллельных вызовах
-    /// благодаря SemaphoreSlim.
-    /// </summary>
+    // ==================== Инициализация ====================
+
     public async Task InitializeAsync()
     {
         if (_initialized) return;
@@ -44,8 +32,8 @@ public class DatabaseService
 
             await _connection.CreateTableAsync<Category>();
             await _connection.CreateTableAsync<Transaction>();
-            await _connection.CreateTableAsync<RecurringPayment>();
             await _connection.CreateTableAsync<TransactionItem>();
+            await _connection.CreateTableAsync<RecurringPayment>();
 
             await SeedDefaultCategoriesAsync();
             await MigrateIconsAsync();
@@ -58,9 +46,6 @@ public class DatabaseService
         }
     }
 
-    /// <summary>
-    /// Создаёт подключение, если его ещё нет. Вызывается из всех публичных методов.
-    /// </summary>
     private async Task<SQLiteAsyncConnection> GetConnectionAsync()
     {
         if (!_initialized)
@@ -71,28 +56,18 @@ public class DatabaseService
 
     // ==================== Транзакции ====================
 
-    /// <summary>
-    /// Добавляет операцию в БД. Возвращает количество вставленных строк (обычно 1).
-    /// </summary>
     public async Task<int> AddTransactionAsync(Transaction transaction)
     {
         var db = await GetConnectionAsync();
         return await db.InsertAsync(transaction);
     }
 
-    /// <summary>
-    /// Обновляет существующую операцию в БД.
-    /// Возвращает количество изменённых строк (обычно 1).
-    /// </summary>
     public async Task<int> UpdateTransactionAsync(Transaction transaction)
     {
         var db = await GetConnectionAsync();
         return await db.UpdateAsync(transaction);
     }
 
-    /// <summary>
-    /// Удаляет операцию по Id. Возвращает количество удалённых строк.
-    /// </summary>
     public async Task<int> DeleteTransactionAsync(int id)
     {
         var db = await GetConnectionAsync();
@@ -106,35 +81,43 @@ public class DatabaseService
         return await db.DeleteAsync<Transaction>(id);
     }
 
-    /// <summary>
-    /// Возвращает постранично отфильтрованные операции.
-    /// categoryId = null означает «без фильтра по категории».
-    /// </summary>
-    public async Task<List<Transaction>> GetTransactionsAsync(
-    DateTime? fromInclusive = null,
-    DateTime? toInclusive = null,
-    int? categoryId = null,
-    int limit = 100,
-    int offset = 0,
-    string? categoryName = null)
+    public async Task<Transaction?> GetTransactionByIdAsync(int id)
     {
         var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
-
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName);
-
-        return filtered
-            .OrderByDescending(t => t.Date)
-            .ThenByDescending(t => t.CreatedAt)
-            .Skip(offset)
-            .Take(limit)
-            .ToList();
+        return await db.Table<Transaction>()
+            .Where(t => t.Id == id)
+            .FirstOrDefaultAsync();
     }
 
     /// <summary>
-    /// Возвращает общее число операций за период. Нужно для определения,
-    /// показывать ли кнопку «Показать ещё».
+    /// Возвращает постранично отфильтрованные операции.
+    /// Фильтрация и пагинация — в SQL, чтобы не тянуть всю таблицу в память.
     /// </summary>
+    public async Task<List<Transaction>> GetTransactionsAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? categoryId = null,
+        int limit = 100,
+        int offset = 0,
+        string? categoryName = null)
+    {
+        var db = await GetConnectionAsync();
+
+        var (whereClause, parameters) = BuildWhereClause(
+            fromInclusive, toInclusive, categoryId, categoryName);
+
+        var sql = $@"
+            SELECT * FROM transactions
+            {whereClause}
+            ORDER BY Date DESC, CreatedAt DESC
+            LIMIT ? OFFSET ?";
+
+        parameters.Add(limit);
+        parameters.Add(offset);
+
+        return await db.QueryAsync<Transaction>(sql, parameters.ToArray());
+    }
+
     public async Task<int> GetTransactionsCountAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null,
@@ -142,90 +125,29 @@ public class DatabaseService
         string? categoryName = null)
     {
         var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
-        return ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName).Count();
-    }
-    
-    /// <summary>
-    /// Общий метод фильтрации по датам — используется и в GetTransactionsAsync,
-    /// и в GetTransactionsCountAsync, чтобы логика была в одном месте.
-    /// </summary>
-    private static IEnumerable<Transaction> ApplyFilters(
-    IEnumerable<Transaction> source,
-    DateTime? fromInclusive,
-    DateTime? toInclusive,
-    int? categoryId,
-    string? categoryName = null)
-    {
-        var result = source;
 
-        if (fromInclusive.HasValue)
-            result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
-        if (toInclusive.HasValue)
-            result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
+        var (whereClause, parameters) = BuildWhereClause(
+            fromInclusive, toInclusive, categoryId, categoryName);
 
-        // Приоритет у Id — если задан, фильтруем по нему.
-        // Если Id нет, но есть имя — по имени (для удалённых категорий).
-        if (categoryId.HasValue)
-            result = result.Where(t => t.CategoryId == categoryId.Value);
-        else if (!string.IsNullOrEmpty(categoryName))
-            result = result.Where(t => t.CategoryName == categoryName);
+        var sql = $"SELECT COUNT(*) FROM transactions {whereClause}";
 
-        return result;
+        return await db.ExecuteScalarAsync<int>(sql, parameters.ToArray());
     }
 
     /// <summary>
-    /// Возвращает общее количество операций. Пригодится для отладки
-    /// и для Этапа 2 (пагинация).
-    /// </summary>
-    public async Task<int> GetTransactionCountAsync()
-    {
-        var db = await GetConnectionAsync();
-        return await db.Table<Transaction>().CountAsync();
-    }
-
-    /// <summary>
-    /// Возвращает суммарные показатели (доход, расход) за период
-    /// с учётом фильтра по категории.
+    /// Возвращает суммарные показатели (доход, расход) за период.
+    /// Считается в SQL, данные не тянутся в память.
     /// </summary>
     public async Task<(decimal Income, decimal Expense)> GetSummaryAsync(
-    DateTime? fromInclusive = null,
-    DateTime? toInclusive = null,
-    int? categoryId = null,
-    string? categoryName = null)
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? categoryId = null,
+        string? categoryName = null)
     {
         var db = await GetConnectionAsync();
 
-        // Собираем WHERE-условие динамически
-        var whereClauses = new List<string>();
-        var parameters = new List<object>();
-
-        if (fromInclusive.HasValue)
-        {
-            whereClauses.Add("Date >= ?");
-            // DateTime в sqlite-net сохраняется как ticks (long)
-            parameters.Add(fromInclusive.Value.Date.Ticks);
-        }
-        if (toInclusive.HasValue)
-        {
-            whereClauses.Add("Date <= ?");
-            // Конец дня: 23:59:59.9999999
-            parameters.Add(toInclusive.Value.Date.AddDays(1).AddTicks(-1).Ticks);
-        }
-        if (categoryId.HasValue)
-        {
-            whereClauses.Add("CategoryId = ?");
-            parameters.Add(categoryId.Value);
-        }
-        else if (!string.IsNullOrEmpty(categoryName))
-        {
-            whereClauses.Add("CategoryName = ?");
-            parameters.Add(categoryName);
-        }
-
-        var whereClause = whereClauses.Count > 0
-            ? "WHERE " + string.Join(" AND ", whereClauses)
-            : string.Empty;
+        var (whereClause, parameters) = BuildWhereClause(
+            fromInclusive, toInclusive, categoryId, categoryName);
 
         var sql = $@"
             SELECT 
@@ -234,8 +156,6 @@ public class DatabaseService
             FROM transactions
             {whereClause}";
 
-        // Собираем параметры в правильном порядке: сначала Type (дважды),
-        // потом параметры WHERE
         var allParams = new List<object>
         {
             (int)TransactionType.Income,
@@ -252,84 +172,13 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Возвращает сумму расходов в разбивке по категориям за период.
-    /// Отсортировано по убыванию суммы — для диаграммы и легенды.
-    /// Возвращает имя, иконку и сумму по каждой категории.
+    /// Возвращает текущий баланс по всем операциям (без начального).
+    /// Считается в SQL.
     /// </summary>
-    public async Task<List<(string CategoryName, string Icon, decimal Sum)>> GetExpensesByCategoryAsync(
-        DateTime? fromInclusive = null,
-        DateTime? toInclusive = null)
-    {
-        var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
-
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null)
-            .Where(t => t.Type == TransactionType.Expense);
-
-        return filtered
-            .GroupBy(t => t.CategoryName)
-            .Select(g => (
-                CategoryName: g.Key,
-                Icon: g.First().CategoryIcon ?? string.Empty,
-                Sum: g.Sum(t => t.Amount)))
-            .OrderByDescending(x => x.Sum)
-            .ToList();
-    }
-
-    /// <summary>
-    /// Возвращает доходы и расходы по месяцам за период.
-    /// Ключ — год и месяц, значение — суммы. Используется для столбчатой диаграммы.
-    /// </summary>
-    public async Task<List<(DateTime Month, decimal Income, decimal Expense)>> GetMonthlyTotalsAsync(
-        DateTime fromInclusive,
-        DateTime toInclusive)
-    {
-        var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
-
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null);
-
-        var grouped = filtered
-            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
-            .Select(g => (
-                Month: g.Key,
-                Income: g.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
-                Expense: g.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)))
-            .OrderBy(x => x.Month)
-            .ToList();
-
-        return grouped;
-    }
-
-    /// <summary>
-    /// Возвращает операцию по Id. Используется при восстановлении
-    /// формы из снапшота — если пользователь редактировал операцию
-    /// и снимал фото, а процесс был убит.
-    /// </summary>
-    public async Task<Transaction?> GetTransactionByIdAsync(int id)
-    {
-        var db = await GetConnectionAsync();
-        return await db.Table<Transaction>()
-            .Where(t => t.Id == id)
-            .FirstOrDefaultAsync();
-    }
-
-    // ==================== Баланс ====================
-
-    /// <summary>
-    /// Возвращает текущий баланс: сумма доходов минус сумма расходов.
-    /// Начальный баланс пока считается нулевым — редактирование добавим позже.
-    /// </summary>
-    /// <remarks>
-    /// Считаем в C#, а не SQL-запросом с SUM, чтобы избежать потери точности:
-    /// sqlite-net сохраняет decimal как REAL (double), и суммирование в SQL
-    /// может дать погрешность на копейки. Для финансов это недопустимо.
-    /// </remarks>
     public async Task<decimal> GetCurrentBalanceAsync()
     {
         var db = await GetConnectionAsync();
 
-        // Считаем в SQL, а не в C# — быстрее на больших объёмах
         const string sql = @"
             SELECT 
                 COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Income,
@@ -347,9 +196,6 @@ public class DatabaseService
 
     // ==================== Категории ====================
 
-    /// <summary>
-    /// Возвращает все категории заданного типа (доходы или расходы).
-    /// </summary>
     public async Task<List<Category>> GetCategoriesAsync(TransactionType type)
     {
         var db = await GetConnectionAsync();
@@ -359,9 +205,6 @@ public class DatabaseService
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Возвращает все категории без фильтра. Пригодится на Этапе 2.
-    /// </summary>
     public async Task<List<Category>> GetAllCategoriesAsync()
     {
         var db = await GetConnectionAsync();
@@ -371,19 +214,12 @@ public class DatabaseService
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Добавляет новую категорию. Возвращает количество вставленных строк.
-    /// </summary>
     public async Task<int> AddCategoryAsync(Category category)
     {
         var db = await GetConnectionAsync();
         return await db.InsertAsync(category);
     }
 
-    /// <summary>
-    /// Возвращает количество операций, привязанных к указанной категории.
-    /// Используется при удалении категории — показать пользователю предупреждение.
-    /// </summary>
     public async Task<int> CountTransactionsByCategoryAsync(int categoryId)
     {
         var db = await GetConnectionAsync();
@@ -395,16 +231,12 @@ public class DatabaseService
     /// <summary>
     /// Удаляет категорию. Перед удалением отвязывает все операции,
     /// у которых CategoryId == удаляемой категории (ставит NULL).
-    ///
-    /// Денормализованное CategoryName в операциях сохраняется —
-    /// историческая запись остаётся понятной для пользователя.
+    /// Денормализованное CategoryName в операциях сохраняется.
     /// </summary>
     public async Task DeleteCategoryAsync(int categoryId)
     {
         var db = await GetConnectionAsync();
 
-        // Отвязываем операции одной командой — быстрее и атомарнее,
-        // чем вытягивать список и обновлять по одной.
         await db.ExecuteAsync(
             "UPDATE transactions SET CategoryId = NULL WHERE CategoryId = ?",
             categoryId);
@@ -414,10 +246,6 @@ public class DatabaseService
 
     // ==================== Засев категорий ====================
 
-    /// <summary>
-    /// Засеивает предустановленные категории. Вызывается только один раз —
-    /// если в таблице уже есть хоть одна категория, ничего не делает.
-    /// </summary>
     private async Task SeedDefaultCategoriesAsync()
     {
         var db = _connection!;
@@ -426,7 +254,6 @@ public class DatabaseService
 
         var defaults = new List<Category>
         {
-            // ============ Расходы ============
             new() { Name = "Аренда",              Type = TransactionType.Expense, IsDefault = true, Icon = "🏠" },
             new() { Name = "Закупки (сырьё)",     Type = TransactionType.Expense, IsDefault = true, Icon = "📦" },
             new() { Name = "Налоги",              Type = TransactionType.Expense, IsDefault = true, Icon = "📄" },
@@ -440,7 +267,6 @@ public class DatabaseService
             new() { Name = "Цветы",               Type = TransactionType.Expense, IsDefault = true, Icon = "💐" },
             new() { Name = "Прочее",              Type = TransactionType.Expense, IsDefault = true, Icon = "❓" },
 
-            // ============ Доходы ============
             new() { Name = "Выручка",             Type = TransactionType.Income,  IsDefault = true, Icon = "💰" },
             new() { Name = "Зарплата",            Type = TransactionType.Income,  IsDefault = true, Icon = "💵" },
             new() { Name = "Прочие поступления",  Type = TransactionType.Income,  IsDefault = true, Icon = "💸" },
@@ -450,16 +276,12 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Миграция иконок. Для существующих БД, где колонка Icon ещё NULL/пустая,
-    /// заполняет её значениями по имени категории. Для транзакций — копирует
-    /// иконку из категории по имени, если CategoryIcon пуст.
-    /// Метод идемпотентен: если иконка уже заполнена, ничего не меняет.
+    /// Миграция иконок для существующих БД, где колонка Icon ещё NULL/пустая.
     /// </summary>
     private async Task MigrateIconsAsync()
     {
         var db = _connection!;
 
-        // Словарь имя → иконка для дефолтных категорий
         var defaultIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Аренда"] = "🏠",
@@ -489,7 +311,7 @@ public class DatabaseService
 
             c.Icon = defaultIcons.TryGetValue(c.Name, out var icon)
                 ? icon
-                : "👤";  // пользовательская категория по умолчанию
+                : "👤";
 
             categoriesToUpdate.Add(c);
         }
@@ -501,7 +323,6 @@ public class DatabaseService
         var transactions = await db.Table<Transaction>().ToListAsync();
         var transactionsToUpdate = new List<Transaction>();
 
-        // Карта имя категории → иконка (для всех категорий из БД, включая пользовательские)
         var iconByName = categories.ToDictionary(c => c.Name, c => c.Icon, StringComparer.OrdinalIgnoreCase);
 
         foreach (var t in transactions)
@@ -521,65 +342,8 @@ public class DatabaseService
             await db.UpdateAllAsync(transactionsToUpdate);
     }
 
-    // ==================== Регулярные платежи ====================
-
-    /// <summary>
-    /// Возвращает все регулярные платежи, отсортированные по дню месяца.
-    /// </summary>
-    public async Task<List<RecurringPayment>> GetRecurringPaymentsAsync()
-    {
-        var db = await GetConnectionAsync();
-        return await db.Table<RecurringPayment>()
-            .OrderBy(p => p.DayOfMonth)
-            .ThenBy(p => p.Name)
-            .ToListAsync();
-    }
-
-    /// <summary>
-    /// Возвращает только включённые платежи — те, для которых нужно
-    /// планировать уведомления.
-    /// </summary>
-    public async Task<List<RecurringPayment>> GetEnabledRecurringPaymentsAsync()
-    {
-        var db = await GetConnectionAsync();
-        return await db.Table<RecurringPayment>()
-            .Where(p => p.IsEnabled)
-            .ToListAsync();
-    }
-
-    /// <summary>
-    /// Добавляет новый регулярный платёж. Возвращает количество вставленных строк.
-    /// </summary>
-    public async Task<int> AddRecurringPaymentAsync(RecurringPayment payment)
-    {
-        var db = await GetConnectionAsync();
-        return await db.InsertAsync(payment);
-    }
-
-    /// <summary>
-    /// Обновляет существующий платёж.
-    /// </summary>
-    public async Task<int> UpdateRecurringPaymentAsync(RecurringPayment payment)
-    {
-        var db = await GetConnectionAsync();
-        return await db.UpdateAsync(payment);
-    }
-
-    /// <summary>
-    /// Удаляет платёж по Id.
-    /// </summary>
-    public async Task<int> DeleteRecurringPaymentAsync(int id)
-    {
-        var db = await GetConnectionAsync();
-        return await db.DeleteAsync<RecurringPayment>(id);
-    }
-
     // ==================== Позиции чека ====================
 
-    /// <summary>
-    /// Возвращает все позиции для указанной операции,
-    /// отсортированные по порядку отображения.
-    /// </summary>
     public async Task<List<TransactionItem>> GetItemsForTransactionAsync(int transactionId)
     {
         var db = await GetConnectionAsync();
@@ -590,59 +354,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Сохраняет позиции для операции. Удаляет все старые записи
-    /// и вставляет новые — это проще и быстрее, чем синхронизировать
-    /// по одной при каждом сохранении.
-    /// </summary>
-    public async Task ReplaceItemsForTransactionAsync(int transactionId, List<TransactionItem> items)
-    {
-        var db = await GetConnectionAsync();
-
-        // Удаляем все старые позиции
-        await db.ExecuteAsync(
-            "DELETE FROM transaction_items WHERE TransactionId = ?",
-            transactionId);
-
-        if (items.Count == 0)
-            return;
-
-        // Проставляем TransactionId и SortOrder
-        for (int i = 0; i < items.Count; i++)
-        {
-            items[i].Id = 0;
-            items[i].TransactionId = transactionId;
-            items[i].SortOrder = i;
-        }
-
-        await db.InsertAllAsync(items);
-    }
-
-    /// <summary>
-    /// Удаляет все позиции для операции. Вызывается при удалении операции.
-    /// </summary>
-    public async Task DeleteItemsForTransactionAsync(int transactionId)
-    {
-        var db = await GetConnectionAsync();
-        await db.ExecuteAsync(
-            "DELETE FROM transaction_items WHERE TransactionId = ?",
-            transactionId);
-    }
-
-    /// <summary>
-    /// Возвращает количество позиций для указанной операции.
-    /// Используется для отображения счётчика в карточке.
-    /// </summary>
-    public async Task<int> GetItemsCountForTransactionAsync(int transactionId)
-    {
-        var db = await GetConnectionAsync();
-        return await db.Table<TransactionItem>()
-            .Where(i => i.TransactionId == transactionId)
-            .CountAsync();
-    }
-
-    /// <summary>
     /// Возвращает позиции сразу для нескольких операций за один запрос.
-    /// Используется при загрузке списка, чтобы не делать N+1 запросов.
     /// </summary>
     public async Task<Dictionary<int, List<TransactionItem>>> GetItemsForTransactionsAsync(
         List<int> transactionIds)
@@ -654,11 +366,9 @@ public class DatabaseService
 
         var db = await GetConnectionAsync();
 
-        // SQLite-net не умеет IN с параметрами напрямую, поэтому строим строку
-        // с плейсхолдерами
         var placeholders = string.Join(",", transactionIds.Select(_ => "?"));
         var sql = $"SELECT * FROM transaction_items WHERE TransactionId IN ({placeholders}) " +
-                $"ORDER BY TransactionId, SortOrder";
+                  $"ORDER BY TransactionId, SortOrder";
 
         var items = await db.QueryAsync<TransactionItem>(sql, transactionIds.Cast<object>().ToArray());
 
@@ -675,9 +385,202 @@ public class DatabaseService
         return result;
     }
 
+    public async Task ReplaceItemsForTransactionAsync(int transactionId, List<TransactionItem> items)
+    {
+        var db = await GetConnectionAsync();
+
+        await db.ExecuteAsync(
+            "DELETE FROM transaction_items WHERE TransactionId = ?",
+            transactionId);
+
+        if (items.Count == 0)
+            return;
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            items[i].Id = 0;
+            items[i].TransactionId = transactionId;
+            items[i].SortOrder = i;
+        }
+
+        await db.InsertAllAsync(items);
+    }
+
+    public async Task DeleteItemsForTransactionAsync(int transactionId)
+    {
+        var db = await GetConnectionAsync();
+        await db.ExecuteAsync(
+            "DELETE FROM transaction_items WHERE TransactionId = ?",
+            transactionId);
+    }
+
+    public async Task<int> GetItemsCountForTransactionAsync(int transactionId)
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<TransactionItem>()
+            .Where(i => i.TransactionId == transactionId)
+            .CountAsync();
+    }
+
+    // ==================== Регулярные платежи ====================
+
+    public async Task<List<RecurringPayment>> GetRecurringPaymentsAsync()
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<RecurringPayment>()
+            .OrderBy(p => p.DayOfMonth)
+            .ThenBy(p => p.Name)
+            .ToListAsync();
+    }
+
+    public async Task<List<RecurringPayment>> GetEnabledRecurringPaymentsAsync()
+    {
+        var db = await GetConnectionAsync();
+        return await db.Table<RecurringPayment>()
+            .Where(p => p.IsEnabled)
+            .ToListAsync();
+    }
+
+    public async Task<int> AddRecurringPaymentAsync(RecurringPayment payment)
+    {
+        var db = await GetConnectionAsync();
+        return await db.InsertAsync(payment);
+    }
+
+    public async Task<int> UpdateRecurringPaymentAsync(RecurringPayment payment)
+    {
+        var db = await GetConnectionAsync();
+        return await db.UpdateAsync(payment);
+    }
+
+    public async Task<int> DeleteRecurringPaymentAsync(int id)
+    {
+        var db = await GetConnectionAsync();
+        return await db.DeleteAsync<RecurringPayment>(id);
+    }
+
+    // ==================== Статистика (пока по старинке, оптимизируем далее) ====================
+
     /// <summary>
-    /// Вспомогательная модель для чтения результата SUM из SQL.
-    /// SQLite возвращает числа как REAL (double), потом приводим к decimal.
+    /// Возвращает сумму расходов в разбивке по категориям за период.
+    /// </summary>
+    public async Task<List<(string CategoryName, string Icon, decimal Sum)>> GetExpensesByCategoryAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null)
+            .Where(t => t.Type == TransactionType.Expense);
+
+        return filtered
+            .GroupBy(t => t.CategoryName)
+            .Select(g => (
+                CategoryName: g.Key,
+                Icon: g.First().CategoryIcon ?? string.Empty,
+                Sum: g.Sum(t => t.Amount)))
+            .OrderByDescending(x => x.Sum)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Возвращает доходы и расходы по месяцам за период.
+    /// </summary>
+    public async Task<List<(DateTime Month, decimal Income, decimal Expense)>> GetMonthlyTotalsAsync(
+        DateTime fromInclusive,
+        DateTime toInclusive)
+    {
+        var db = await GetConnectionAsync();
+        var all = await db.Table<Transaction>().ToListAsync();
+
+        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null);
+
+        var grouped = filtered
+            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
+            .Select(g => (
+                Month: g.Key,
+                Income: g.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
+                Expense: g.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)))
+            .OrderBy(x => x.Month)
+            .ToList();
+
+        return grouped;
+    }
+
+    // ==================== Вспомогательные ====================
+
+    /// <summary>
+    /// Собирает WHERE-условие и параметры для SQL-запросов по транзакциям.
+    /// Если фильтров нет — clause пустой.
+    /// </summary>
+    private static (string WhereClause, List<object> Parameters) BuildWhereClause(
+        DateTime? fromInclusive,
+        DateTime? toInclusive,
+        int? categoryId,
+        string? categoryName)
+    {
+        var clauses = new List<string>();
+        var parameters = new List<object>();
+
+        if (fromInclusive.HasValue)
+        {
+            clauses.Add("Date >= ?");
+            parameters.Add(fromInclusive.Value.Date.Ticks);
+        }
+
+        if (toInclusive.HasValue)
+        {
+            clauses.Add("Date <= ?");
+            parameters.Add(toInclusive.Value.Date.AddDays(1).AddTicks(-1).Ticks);
+        }
+
+        if (categoryId.HasValue)
+        {
+            clauses.Add("CategoryId = ?");
+            parameters.Add(categoryId.Value);
+        }
+        else if (!string.IsNullOrEmpty(categoryName))
+        {
+            clauses.Add("CategoryName = ?");
+            parameters.Add(categoryName);
+        }
+
+        var clause = clauses.Count > 0
+            ? "WHERE " + string.Join(" AND ", clauses)
+            : string.Empty;
+
+        return (clause, parameters);
+    }
+
+    /// <summary>
+    /// Фильтрация в C# — оставлена для методов статистики,
+    /// которые будут переписаны на SQL в следующем шаге.
+    /// </summary>
+    private static IEnumerable<Transaction> ApplyFilters(
+        IEnumerable<Transaction> source,
+        DateTime? fromInclusive,
+        DateTime? toInclusive,
+        int? categoryId,
+        string? categoryName = null)
+    {
+        var result = source;
+
+        if (fromInclusive.HasValue)
+            result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
+        if (toInclusive.HasValue)
+            result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
+
+        if (categoryId.HasValue)
+            result = result.Where(t => t.CategoryId == categoryId.Value);
+        else if (!string.IsNullOrEmpty(categoryName))
+            result = result.Where(t => t.CategoryName == categoryName);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Вспомогательная модель для чтения SUM из SQL-запроса.
     /// </summary>
     private class SummaryResult
     {
