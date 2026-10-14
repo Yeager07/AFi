@@ -195,18 +195,60 @@ public class DatabaseService
     string? categoryName = null)
     {
         var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, categoryId, categoryName);
+        // Собираем WHERE-условие динамически
+        var whereClauses = new List<string>();
+        var parameters = new List<object>();
 
-        decimal income = 0, expense = 0;
-        foreach (var t in filtered)
+        if (fromInclusive.HasValue)
         {
-            if (t.Type == TransactionType.Income) income += t.Amount;
-            else expense += t.Amount;
+            whereClauses.Add("Date >= ?");
+            // DateTime в sqlite-net сохраняется как ticks (long)
+            parameters.Add(fromInclusive.Value.Date.Ticks);
+        }
+        if (toInclusive.HasValue)
+        {
+            whereClauses.Add("Date <= ?");
+            // Конец дня: 23:59:59.9999999
+            parameters.Add(toInclusive.Value.Date.AddDays(1).AddTicks(-1).Ticks);
+        }
+        if (categoryId.HasValue)
+        {
+            whereClauses.Add("CategoryId = ?");
+            parameters.Add(categoryId.Value);
+        }
+        else if (!string.IsNullOrEmpty(categoryName))
+        {
+            whereClauses.Add("CategoryName = ?");
+            parameters.Add(categoryName);
         }
 
-        return (income, expense);
+        var whereClause = whereClauses.Count > 0
+            ? "WHERE " + string.Join(" AND ", whereClauses)
+            : string.Empty;
+
+        var sql = $@"
+            SELECT 
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Income,
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Expense
+            FROM transactions
+            {whereClause}";
+
+        // Собираем параметры в правильном порядке: сначала Type (дважды),
+        // потом параметры WHERE
+        var allParams = new List<object>
+        {
+            (int)TransactionType.Income,
+            (int)TransactionType.Expense
+        };
+        allParams.AddRange(parameters);
+
+        var result = await db.QueryAsync<SummaryResult>(sql, allParams.ToArray());
+
+        if (result.Count == 0)
+            return (0m, 0m);
+
+        return ((decimal)result[0].Income, (decimal)result[0].Expense);
     }
 
     /// <summary>
@@ -287,20 +329,20 @@ public class DatabaseService
     {
         var db = await GetConnectionAsync();
 
-        var all = await db.Table<Transaction>().ToListAsync();
+        // Считаем в SQL, а не в C# — быстрее на больших объёмах
+        const string sql = @"
+            SELECT 
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Income,
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Expense
+            FROM transactions";
 
-        decimal income = 0;
-        decimal expense = 0;
+        var result = await db.QueryAsync<SummaryResult>(
+            sql, (int)TransactionType.Income, (int)TransactionType.Expense);
 
-        foreach (var t in all)
-        {
-            if (t.Type == TransactionType.Income)
-                income += t.Amount;
-            else
-                expense += t.Amount;
-        }
+        if (result.Count == 0)
+            return 0m;
 
-        return income - expense;
+        return (decimal)result[0].Income - (decimal)result[0].Expense;
     }
 
     // ==================== Категории ====================
@@ -631,5 +673,15 @@ public class DatabaseService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Вспомогательная модель для чтения результата SUM из SQL.
+    /// SQLite возвращает числа как REAL (double), потом приводим к decimal.
+    /// </summary>
+    private class SummaryResult
+    {
+        public double Income { get; set; }
+        public double Expense { get; set; }
     }
 }

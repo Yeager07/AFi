@@ -445,22 +445,46 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
     // ==================== Вспомогательные ====================
 
+    // ==================== Защита от гонки загрузок ====================
+
+    // Семафор на 1 — гарантирует, что одновременно выполняется только
+    // одна загрузка. Остальные запросы отмечаются как "pending" и
+    // запускаются после завершения текущей.
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private bool _reloadPending;
+
     private async Task ReloadAsync()
     {
-        if (IsBusy) return;
-        IsBusy = true;
+        // Если лок занят — помечаем, что после завершения нужно
+        // перезагрузиться ещё раз (для самого свежего запроса)
+        if (!await _reloadLock.WaitAsync(0))
+        {
+            _reloadPending = true;
+            return;
+        }
 
+        IsBusy = true;
         try
         {
-            await LoadCoreAsync();
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            do
+            {
+                _reloadPending = false;
+
+                try
+                {
+                    await LoadCoreAsync();
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Ошибка загрузки: {ex.Message}";
+                }
+            }
+            while (_reloadPending);
         }
         finally
         {
             IsBusy = false;
+            _reloadLock.Release();
         }
     }
 
