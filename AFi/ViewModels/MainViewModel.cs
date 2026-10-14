@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using AFi.Collections;
 using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -75,9 +76,9 @@ public partial class MainViewModel : ObservableObject
         "Доход"
     };
 
-    public ObservableCollection<Category> AvailableCategories { get; } = new();
+    public ObservableRangeCollection<Category> AvailableCategories { get; } = new();
 
-    public ObservableCollection<TransactionGroup> TransactionGroups { get; } = new();
+    public ObservableRangeCollection<TransactionGroup> TransactionGroups { get; } = new();
 
     // ==================== Пагинация ====================
 
@@ -898,9 +899,7 @@ public partial class MainViewModel : ObservableObject
 
             var categories = await _db.GetCategoriesAsync(CurrentType);
 
-            AvailableCategories.Clear();
-            foreach (var c in categories)
-                AvailableCategories.Add(c);
+            AvailableCategories.ReplaceRange(categories);
 
             SelectedCategory =
                 AvailableCategories.FirstOrDefault(c => c.Name == previousName)
@@ -919,11 +918,9 @@ public partial class MainViewModel : ObservableObject
             var to = DateTime.Today;
             var from = to.AddDays(-(PeriodDays - 1));
 
-            // Грузим ровно столько, сколько нужно показать
             var toShow = await _db.GetTransactionsAsync(from, to, null,
                 limit: _loadedCount, offset: 0);
 
-            // Общее количество в периоде — отдельным COUNT-запросом
             _totalInPeriod = await _db.GetTransactionsCountAsync(from, to);
 
             var ids = toShow.Select(t => t.Id).ToList();
@@ -947,13 +944,14 @@ public partial class MainViewModel : ObservableObject
                 }
             }
 
-            TransactionGroups.Clear();
-            foreach (var g in toShow
-                         .GroupBy(t => t.Date.Date)
-                         .OrderByDescending(g => g.Key))
-            {
-                TransactionGroups.Add(new TransactionGroup(g.Key, g.ToList()));
-            }
+            // Группируем и заменяем одним событием
+            var groups = toShow
+                .GroupBy(t => t.Date.Date)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new TransactionGroup(g.Key, g.ToList()))
+                .ToList();
+
+            TransactionGroups.ReplaceRange(groups);
 
             HasMoreInPeriod = _loadedCount < _totalInPeriod;
             ShowMoreButtonText = HasMoreInPeriod ? "Показать ещё" : "Вся история";

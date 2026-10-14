@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AFi.Collections;
 using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,7 +15,7 @@ public partial class RecurringViewModel : ObservableObject
 
     private readonly HashSet<int> _selectedIds = new();
 
-    public ObservableCollection<RecurringPayment> Payments { get; } = new();
+    public ObservableRangeCollection<RecurringPayment> Payments { get; } = new();
 
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
@@ -73,9 +74,6 @@ public partial class RecurringViewModel : ObservableObject
         await Shell.Current.GoToAsync("recurring-edit");
     }
 
-    /// <summary>
-    /// Тап по карточке: в режиме выбора — toggle, в обычном — ActionSheet.
-    /// </summary>
     [RelayCommand]
     private async Task HandleCardTapAsync(RecurringPayment? payment)
     {
@@ -106,9 +104,6 @@ public partial class RecurringViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Удаление одного напоминания (команда для внутренних вызовов).
-    /// </summary>
     [RelayCommand]
     private async Task DeletePaymentAsync(RecurringPayment? payment)
     {
@@ -269,11 +264,8 @@ public partial class RecurringViewModel : ObservableObject
     {
         var list = await _db.GetRecurringPaymentsAsync();
 
-        Payments.Clear();
-        foreach (var p in list)
-            Payments.Add(p);
+        Payments.ReplaceRange(list);
 
-        // Сбрасываем режим выбора при каждой загрузке
         _selectedIds.Clear();
         SelectedCount = 0;
         IsSelectionMode = false;

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AFi.Collections;
 using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,13 +44,13 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
     public bool IsCustomRangeSelected => SelectedFilterIndex == 9;
 
-    public ObservableCollection<CategoryFilterItem> CategoryFilterItems { get; } = new();
+    public ObservableRangeCollection<CategoryFilterItem> CategoryFilterItems { get; } = new();
 
     [ObservableProperty] private int _selectedCategoryIndex = 0;
 
     // ==================== Данные ====================
 
-    public ObservableCollection<Transaction> Transactions { get; } = new();
+    public ObservableRangeCollection<Transaction> Transactions { get; } = new();
 
     [ObservableProperty] private decimal _summaryIncome;
     [ObservableProperty] private decimal _summaryExpense;
@@ -74,6 +75,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     public bool CanEnterSelectionMode => !IsSelectionMode && HasTransactions;
 
     private string? _pendingCategoryName;
+
+    // ==================== Защита от гонки загрузок ====================
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private bool _reloadPending;
 
     public HistoryViewModel(DatabaseService db, IDialogService dialogs, IReceiptService receipts)
     {
@@ -185,9 +190,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     {
         MaxDate = DateTime.Today;
 
-        // Фильтры пересобираем только при первом заходе.
-        // При повторных OnAppearing (возврат с модалки Picker-а,
-        // переключение страниц) сохраняем уже выбранные значения.
         if (!_filtersLoaded)
         {
             await ReloadFiltersAsync();
@@ -243,8 +245,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 }
             }
 
-            foreach (var t in next)
-                Transactions.Add(t);
+            // Дополняем коллекцию одним событием
+            Transactions.AddRange(next);
 
             _loadedCount += next.Count;
 
@@ -299,9 +301,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         transaction.IsExpanded = !transaction.IsExpanded;
     }
 
-    /// <summary>
-    /// Открыть фото чека на весь экран.
-    /// </summary>
     [RelayCommand]
     private async Task ViewReceiptAsync(Transaction? transaction)
     {
@@ -443,20 +442,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    // ==================== Вспомогательные ====================
-
-    // ==================== Защита от гонки загрузок ====================
-
-    // Семафор на 1 — гарантирует, что одновременно выполняется только
-    // одна загрузка. Остальные запросы отмечаются как "pending" и
-    // запускаются после завершения текущей.
-    private readonly SemaphoreSlim _reloadLock = new(1, 1);
-    private bool _reloadPending;
+    // ==================== Загрузка данных ====================
 
     private async Task ReloadAsync()
     {
-        // Если лок занят — помечаем, что после завершения нужно
-        // перезагрузиться ещё раз (для самого свежего запроса)
         if (!await _reloadLock.WaitAsync(0))
         {
             _reloadPending = true;
@@ -520,9 +509,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             }
         }
 
-        Transactions.Clear();
-        foreach (var t in list)
-            Transactions.Add(t);
+        // Заменяем коллекцию одним событием
+        Transactions.ReplaceRange(list);
 
         _loadedCount = list.Count;
 
@@ -562,25 +550,29 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
             var previousFilterName = GetSelectedCategoryName();
 
-            CategoryFilterItems.Clear();
-            CategoryFilterItems.Add(new CategoryFilterItem
+            var items = new List<CategoryFilterItem>
             {
-                Id = null,
-                Name = "Все категории",
-                FilterName = "",
-            });
+                new()
+                {
+                    Id = null,
+                    Name = "Все категории",
+                    FilterName = "",
+                }
+            };
 
             foreach (var c in categories)
             {
                 var icon = string.IsNullOrEmpty(c.Icon) ? "👤" : c.Icon;
                 var typeRu = c.Type == TransactionType.Income ? "доход" : "расход";
-                CategoryFilterItems.Add(new CategoryFilterItem
+                items.Add(new CategoryFilterItem
                 {
                     Id = c.Id,
                     Name = $"{icon} {c.Name} ({typeRu})",
                     FilterName = c.Name,
                 });
             }
+
+            CategoryFilterItems.ReplaceRange(items);
 
             if (!string.IsNullOrEmpty(previousFilterName))
             {
@@ -661,11 +653,6 @@ public class CategoryFilterItem
 
     public override string ToString() => Name;
 
-    /// <summary>
-    /// Сравнение по FilterName — чтобы IndexOf находил категорию
-    /// даже после пересоздания коллекции в ReloadFiltersAsync
-    /// (при возврате на страницу или с модалки Picker-а).
-    /// </summary>
     public override bool Equals(object? obj)
     {
         if (obj is not CategoryFilterItem other) return false;
