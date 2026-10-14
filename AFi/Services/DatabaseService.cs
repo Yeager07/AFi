@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using AFi.Models;
 using SQLite;
 
@@ -72,12 +71,10 @@ public class DatabaseService
     {
         var db = await GetConnectionAsync();
 
-        // Сначала удаляем позиции чека
         await db.ExecuteAsync(
             "DELETE FROM transaction_items WHERE TransactionId = ?",
             id);
 
-        // Потом саму операцию
         return await db.DeleteAsync<Transaction>(id);
     }
 
@@ -91,7 +88,7 @@ public class DatabaseService
 
     /// <summary>
     /// Возвращает постранично отфильтрованные операции.
-    /// Фильтрация и пагинация — в SQL, чтобы не тянуть всю таблицу в память.
+    /// Фильтрация и пагинация — в SQL.
     /// </summary>
     public async Task<List<Transaction>> GetTransactionsAsync(
         DateTime? fromInclusive = null,
@@ -136,7 +133,6 @@ public class DatabaseService
 
     /// <summary>
     /// Возвращает суммарные показатели (доход, расход) за период.
-    /// Считается в SQL, данные не тянутся в память.
     /// </summary>
     public async Task<(decimal Income, decimal Expense)> GetSummaryAsync(
         DateTime? fromInclusive = null,
@@ -173,7 +169,6 @@ public class DatabaseService
 
     /// <summary>
     /// Возвращает текущий баланс по всем операциям (без начального).
-    /// Считается в SQL.
     /// </summary>
     public async Task<decimal> GetCurrentBalanceAsync()
     {
@@ -228,11 +223,6 @@ public class DatabaseService
             .CountAsync();
     }
 
-    /// <summary>
-    /// Удаляет категорию. Перед удалением отвязывает все операции,
-    /// у которых CategoryId == удаляемой категории (ставит NULL).
-    /// Денормализованное CategoryName в операциях сохраняется.
-    /// </summary>
     public async Task DeleteCategoryAsync(int categoryId)
     {
         var db = await GetConnectionAsync();
@@ -353,9 +343,6 @@ public class DatabaseService
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Возвращает позиции сразу для нескольких операций за один запрос.
-    /// </summary>
     public async Task<Dictionary<int, List<TransactionItem>>> GetItemsForTransactionsAsync(
         List<int> transactionIds)
     {
@@ -459,53 +446,88 @@ public class DatabaseService
         return await db.DeleteAsync<RecurringPayment>(id);
     }
 
-    // ==================== Статистика (пока по старинке, оптимизируем далее) ====================
+    // ==================== Статистика ====================
 
     /// <summary>
     /// Возвращает сумму расходов в разбивке по категориям за период.
+    /// Группировка — в SQL.
     /// </summary>
     public async Task<List<(string CategoryName, string Icon, decimal Sum)>> GetExpensesByCategoryAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null)
     {
         var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null)
-            .Where(t => t.Type == TransactionType.Expense);
+        var (whereClause, parameters) = BuildWhereClause(
+            fromInclusive, toInclusive, null, null);
 
-        return filtered
-            .GroupBy(t => t.CategoryName)
-            .Select(g => (
-                CategoryName: g.Key,
-                Icon: g.First().CategoryIcon ?? string.Empty,
-                Sum: g.Sum(t => t.Amount)))
-            .OrderByDescending(x => x.Sum)
+        var extraClause = string.IsNullOrEmpty(whereClause)
+            ? "WHERE Type = ?"
+            : whereClause + " AND Type = ?";
+
+        var sql = $@"
+            SELECT 
+                CategoryName,
+                MAX(CategoryIcon) AS Icon,
+                SUM(Amount) AS Sum
+            FROM transactions
+            {extraClause}
+            GROUP BY CategoryName
+            ORDER BY SUM(Amount) DESC";
+
+        parameters.Add((int)TransactionType.Expense);
+
+        var rows = await db.QueryAsync<ExpenseCategoryRow>(sql, parameters.ToArray());
+
+        return rows
+            .Select(r => (r.CategoryName, r.Icon ?? string.Empty, (decimal)r.Sum))
             .ToList();
     }
 
     /// <summary>
     /// Возвращает доходы и расходы по месяцам за период.
+    /// Группировка — в SQL через strftime.
     /// </summary>
     public async Task<List<(DateTime Month, decimal Income, decimal Expense)>> GetMonthlyTotalsAsync(
         DateTime fromInclusive,
         DateTime toInclusive)
     {
         var db = await GetConnectionAsync();
-        var all = await db.Table<Transaction>().ToListAsync();
 
-        var filtered = ApplyFilters(all, fromInclusive, toInclusive, null);
+        var (whereClause, parameters) = BuildWhereClause(
+            fromInclusive, toInclusive, null, null);
 
-        var grouped = filtered
-            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
-            .Select(g => (
-                Month: g.Key,
-                Income: g.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
-                Expense: g.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)))
-            .OrderBy(x => x.Month)
+        // SQLite хранит DateTime как ticks. Чтобы получить год и месяц,
+        // переводим ticks в unix-секунды, затем используем strftime.
+        // Константа 621355968000000000 = ticks для 1970-01-01 00:00:00 UTC.
+        const string ticksToUnix = "(Date - 621355968000000000) / 10000000";
+
+        var sql = $@"
+            SELECT 
+                CAST(strftime('%Y', datetime({ticksToUnix}, 'unixepoch')) AS INTEGER) AS Year,
+                CAST(strftime('%m', datetime({ticksToUnix}, 'unixepoch')) AS INTEGER) AS Month,
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Income,
+                COALESCE(SUM(CASE WHEN Type = ? THEN Amount ELSE 0 END), 0) AS Expense
+            FROM transactions
+            {whereClause}
+            GROUP BY Year, Month
+            ORDER BY Year, Month";
+
+        var allParams = new List<object>
+        {
+            (int)TransactionType.Income,
+            (int)TransactionType.Expense
+        };
+        allParams.AddRange(parameters);
+
+        var rows = await db.QueryAsync<MonthlyTotalsRow>(sql, allParams.ToArray());
+
+        return rows
+            .Select(r => (
+                new DateTime(r.Year, r.Month, 1),
+                (decimal)r.Income,
+                (decimal)r.Expense))
             .ToList();
-
-        return grouped;
     }
 
     // ==================== Вспомогательные ====================
@@ -553,37 +575,34 @@ public class DatabaseService
         return (clause, parameters);
     }
 
-    /// <summary>
-    /// Фильтрация в C# — оставлена для методов статистики,
-    /// которые будут переписаны на SQL в следующем шаге.
-    /// </summary>
-    private static IEnumerable<Transaction> ApplyFilters(
-        IEnumerable<Transaction> source,
-        DateTime? fromInclusive,
-        DateTime? toInclusive,
-        int? categoryId,
-        string? categoryName = null)
-    {
-        var result = source;
-
-        if (fromInclusive.HasValue)
-            result = result.Where(t => t.Date.Date >= fromInclusive.Value.Date);
-        if (toInclusive.HasValue)
-            result = result.Where(t => t.Date.Date <= toInclusive.Value.Date);
-
-        if (categoryId.HasValue)
-            result = result.Where(t => t.CategoryId == categoryId.Value);
-        else if (!string.IsNullOrEmpty(categoryName))
-            result = result.Where(t => t.CategoryName == categoryName);
-
-        return result;
-    }
+    // ==================== DTO для SQL-запросов ====================
 
     /// <summary>
-    /// Вспомогательная модель для чтения SUM из SQL-запроса.
+    /// Вспомогательная модель для чтения SUM доход/расход из SQL.
     /// </summary>
     private class SummaryResult
     {
+        public double Income { get; set; }
+        public double Expense { get; set; }
+    }
+
+    /// <summary>
+    /// Результат SQL-запроса «расходы по категориям».
+    /// </summary>
+    private class ExpenseCategoryRow
+    {
+        public string CategoryName { get; set; } = string.Empty;
+        public string? Icon { get; set; }
+        public double Sum { get; set; }
+    }
+
+    /// <summary>
+    /// Результат SQL-запроса «доходы и расходы по месяцам».
+    /// </summary>
+    private class MonthlyTotalsRow
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
         public double Income { get; set; }
         public double Expense { get; set; }
     }
