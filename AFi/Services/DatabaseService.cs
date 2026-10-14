@@ -9,6 +9,13 @@ public class DatabaseService
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
+    // ==================== Кэш категорий ====================
+    // Категории меняются редко (несколько раз за всё время использования),
+    // но читаются при каждой загрузке Главной, Истории, Настроек, Статистики.
+    // Держим их в памяти, инвалидируем при добавлении/удалении.
+    private List<Category>? _categoriesCache;
+    private readonly SemaphoreSlim _categoriesLock = new(1, 1);
+
     private const string DatabaseFileName = "afi.db3";
 
     private static string DatabasePath =>
@@ -86,10 +93,6 @@ public class DatabaseService
             .FirstOrDefaultAsync();
     }
 
-    /// <summary>
-    /// Возвращает постранично отфильтрованные операции.
-    /// Фильтрация и пагинация — в SQL.
-    /// </summary>
     public async Task<List<Transaction>> GetTransactionsAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null,
@@ -131,9 +134,6 @@ public class DatabaseService
         return await db.ExecuteScalarAsync<int>(sql, parameters.ToArray());
     }
 
-    /// <summary>
-    /// Возвращает суммарные показатели (доход, расход) за период.
-    /// </summary>
     public async Task<(decimal Income, decimal Expense)> GetSummaryAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null,
@@ -167,9 +167,6 @@ public class DatabaseService
         return ((decimal)result[0].Income, (decimal)result[0].Expense);
     }
 
-    /// <summary>
-    /// Возвращает текущий баланс по всем операциям (без начального).
-    /// </summary>
     public async Task<decimal> GetCurrentBalanceAsync()
     {
         var db = await GetConnectionAsync();
@@ -189,30 +186,36 @@ public class DatabaseService
         return (decimal)result[0].Income - (decimal)result[0].Expense;
     }
 
-    // ==================== Категории ====================
+    // ==================== Категории (с кэшем) ====================
 
+    /// <summary>
+    /// Возвращает категории заданного типа из кэша.
+    /// Первый вызов загружает категории из БД, далее — из памяти.
+    /// </summary>
     public async Task<List<Category>> GetCategoriesAsync(TransactionType type)
     {
-        var db = await GetConnectionAsync();
-        return await db.Table<Category>()
-            .Where(c => c.Type == type)
-            .OrderBy(c => c.Name)
-            .ToListAsync();
+        var all = await EnsureCategoriesCacheAsync();
+        return all.Where(c => c.Type == type).ToList();
     }
 
+    /// <summary>
+    /// Возвращает все категории из кэша.
+    /// </summary>
     public async Task<List<Category>> GetAllCategoriesAsync()
     {
-        var db = await GetConnectionAsync();
-        return await db.Table<Category>()
-            .OrderBy(c => c.Type)
-            .ThenBy(c => c.Name)
-            .ToListAsync();
+        var all = await EnsureCategoriesCacheAsync();
+        return new List<Category>(all);
     }
 
     public async Task<int> AddCategoryAsync(Category category)
     {
         var db = await GetConnectionAsync();
-        return await db.InsertAsync(category);
+        var result = await db.InsertAsync(category);
+
+        // Обновляем кэш — добавляем новую категорию
+        _categoriesCache?.Add(category);
+
+        return result;
     }
 
     public async Task<int> CountTransactionsByCategoryAsync(int categoryId)
@@ -232,9 +235,40 @@ public class DatabaseService
             categoryId);
 
         await db.DeleteAsync<Category>(categoryId);
+
+        // Обновляем кэш — убираем категорию
+        _categoriesCache?.RemoveAll(c => c.Id == categoryId);
     }
 
-    // ==================== Засев категорий ====================
+    /// <summary>
+    /// Ленивая инициализация кэша категорий с защитой от гонки.
+    /// </summary>
+    private async Task<List<Category>> EnsureCategoriesCacheAsync()
+    {
+        if (_categoriesCache is not null)
+            return _categoriesCache;
+
+        await _categoriesLock.WaitAsync();
+        try
+        {
+            if (_categoriesCache is not null)
+                return _categoriesCache;
+
+            var db = await GetConnectionAsync();
+            _categoriesCache = await db.Table<Category>()
+                .OrderBy(c => c.Type)
+                .ThenBy(c => c.Name)
+                .ToListAsync();
+
+            return _categoriesCache;
+        }
+        finally
+        {
+            _categoriesLock.Release();
+        }
+    }
+
+    // ==================== Засев и миграции ====================
 
     private async Task SeedDefaultCategoriesAsync()
     {
@@ -265,9 +299,6 @@ public class DatabaseService
         await db.InsertAllAsync(defaults);
     }
 
-    /// <summary>
-    /// Миграция иконок для существующих БД, где колонка Icon ещё NULL/пустая.
-    /// </summary>
     private async Task MigrateIconsAsync()
     {
         var db = _connection!;
@@ -291,7 +322,6 @@ public class DatabaseService
             ["Прочие поступления"] = "💸",
         };
 
-        // 1. Категории — заполняем пустые иконки
         var categories = await db.Table<Category>().ToListAsync();
         var categoriesToUpdate = new List<Category>();
 
@@ -309,7 +339,6 @@ public class DatabaseService
         if (categoriesToUpdate.Count > 0)
             await db.UpdateAllAsync(categoriesToUpdate);
 
-        // 2. Транзакции — копируем иконку по имени категории
         var transactions = await db.Table<Transaction>().ToListAsync();
         var transactionsToUpdate = new List<Transaction>();
 
@@ -448,10 +477,6 @@ public class DatabaseService
 
     // ==================== Статистика ====================
 
-    /// <summary>
-    /// Возвращает сумму расходов в разбивке по категориям за период.
-    /// Группировка — в SQL.
-    /// </summary>
     public async Task<List<(string CategoryName, string Icon, decimal Sum)>> GetExpensesByCategoryAsync(
         DateTime? fromInclusive = null,
         DateTime? toInclusive = null)
@@ -484,10 +509,6 @@ public class DatabaseService
             .ToList();
     }
 
-    /// <summary>
-    /// Возвращает доходы и расходы по месяцам за период.
-    /// Группировка — в SQL через strftime.
-    /// </summary>
     public async Task<List<(DateTime Month, decimal Income, decimal Expense)>> GetMonthlyTotalsAsync(
         DateTime fromInclusive,
         DateTime toInclusive)
@@ -497,9 +518,6 @@ public class DatabaseService
         var (whereClause, parameters) = BuildWhereClause(
             fromInclusive, toInclusive, null, null);
 
-        // SQLite хранит DateTime как ticks. Чтобы получить год и месяц,
-        // переводим ticks в unix-секунды, затем используем strftime.
-        // Константа 621355968000000000 = ticks для 1970-01-01 00:00:00 UTC.
         const string ticksToUnix = "(Date - 621355968000000000) / 10000000";
 
         var sql = $@"
@@ -532,15 +550,11 @@ public class DatabaseService
 
     // ==================== Вспомогательные ====================
 
-    /// <summary>
-    /// Собирает WHERE-условие и параметры для SQL-запросов по транзакциям.
-    /// Если фильтров нет — clause пустой.
-    /// </summary>
     private static (string WhereClause, List<object> Parameters) BuildWhereClause(
-        DateTime? fromInclusive,
-        DateTime? toInclusive,
-        int? categoryId,
-        string? categoryName)
+    DateTime? fromInclusive,
+    DateTime? toInclusive,
+    int? categoryId,
+    string? categoryName)
     {
         var clauses = new List<string>();
         var parameters = new List<object>();
@@ -577,18 +591,12 @@ public class DatabaseService
 
     // ==================== DTO для SQL-запросов ====================
 
-    /// <summary>
-    /// Вспомогательная модель для чтения SUM доход/расход из SQL.
-    /// </summary>
     private class SummaryResult
     {
         public double Income { get; set; }
         public double Expense { get; set; }
     }
 
-    /// <summary>
-    /// Результат SQL-запроса «расходы по категориям».
-    /// </summary>
     private class ExpenseCategoryRow
     {
         public string CategoryName { get; set; } = string.Empty;
@@ -596,9 +604,6 @@ public class DatabaseService
         public double Sum { get; set; }
     }
 
-    /// <summary>
-    /// Результат SQL-запроса «доходы и расходы по месяцам».
-    /// </summary>
     private class MonthlyTotalsRow
     {
         public int Year { get; set; }
