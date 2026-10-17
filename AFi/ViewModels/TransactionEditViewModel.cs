@@ -13,7 +13,8 @@ namespace AFi.ViewModels;
 /// Используется со страницы Истории. Сумма и тип операции immutable;
 /// если у операции есть позиции — сумма пересчитывается из позиций.
 /// </summary>
-public partial class TransactionEditViewModel : ObservableObject
+
+public partial class TransactionEditViewModel : ObservableObject, ITransactionFormViewModel
 {
     private readonly DatabaseService _db;
     private readonly IReceiptService _receipts;
@@ -30,6 +31,11 @@ public partial class TransactionEditViewModel : ObservableObject
     /// true — сохранено, false — отменено.
     /// </summary>
     public event EventHandler<bool>? EditCompleted;
+
+    /// <summary>
+    /// В модалке редактирования всегда true — сумма и тип заблокированы.
+    /// </summary>
+    public bool IsEditing => true;
 
     // ==================== Состояние формы ====================
 

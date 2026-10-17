@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AFi.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
 {
     private const int PageSize = 10;
     private const int PeriodDays = 30;
