@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Views.SplashPage"
+             BackgroundColor="#512BD4"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Картинка с прозрачным фоном -->
+        <Image Grid.Row="0"
+               Source="splash_logo.png"
+               Aspect="AspectFit"
+               Margin="20,40,20,10" />
+
+        <!-- Надпись GGG внизу по центру -->
+        <Label Grid.Row="1"
+               Text="GGG"
+               FontSize="28"
+               FontAttributes="Bold"
+               CharacterSpacing="10"
+               TextColor="#FFFFFF"
+               HorizontalOptions="Center"
+               Margin="0,0,0,60" />
+
+    </Grid>
+
+</ContentPage>

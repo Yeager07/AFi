@@ -53,6 +53,7 @@ public static class MauiProgram
 
         // Страницы — Singleton
         builder.Services.AddSingleton<AppShell>();
+        builder.Services.AddSingleton<SplashPage>();
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddSingleton<HistoryPage>();
         builder.Services.AddSingleton<StatsPage>();

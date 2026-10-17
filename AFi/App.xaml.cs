@@ -1,4 +1,5 @@
 ﻿using AFi.Services;
+using AFi.Views;
 
 namespace AFi;
 
@@ -21,14 +22,17 @@ public partial class App : Application
         _reminderService = reminderService;
         _db = db;
 
+        // Тема — до первого кадра, чтобы splash уже был в нужных цветах
         _themeService.ApplySavedTheme();
 
+        // Инициализация напоминаний — фоново, не блокирует splash
         _ = InitializeRemindersAsync();
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(_services.GetRequiredService<AppShell>());
+        // При запуске сначала показываем SplashPage
+        return new Window(_services.GetRequiredService<SplashPage>());
     }
 
     private async Task InitializeRemindersAsync()
