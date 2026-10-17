@@ -100,7 +100,7 @@ public partial class RecurringViewModel : ObservableObject
         }
         else if (choice == "Удалить")
         {
-            await DeletePaymentCoreAsync(payment, skipConfirmation: true);
+            await DeletePaymentCoreAsync(payment, skipConfirmation: false);
         }
     }
 

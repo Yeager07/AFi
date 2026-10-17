@@ -295,7 +295,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         }
         else if (choice == "Удалить")
         {
-            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
         }
     }
 

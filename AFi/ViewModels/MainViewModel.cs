@@ -780,7 +780,7 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         }
         else if (choice == "Удалить")
         {
-            await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
         }
     }
 
