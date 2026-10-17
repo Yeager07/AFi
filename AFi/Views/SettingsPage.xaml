@@ -12,17 +12,65 @@
 
     <ContentPage.Resources>
         <converters:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
     </ContentPage.Resources>
 
     <ScrollView>
         <VerticalStackLayout Padding="15" Spacing="12">
+
+            <!-- ==================== Резервная копия ==================== -->
+            <Label Text="Резервная копия"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   Margin="0,4,0,0" />
+
+            <Label Text="Сохраните все операции и настройки на случай потери устройства или переустановки приложения."
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="12"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <VerticalStackLayout Spacing="8">
+
+                    <Button Text="📤 Экспортировать данные"
+                            Command="{Binding ExportDataCommand}"
+                            IsEnabled="{Binding IsBackupBusy, Converter={StaticResource InverseBoolConverter}}"
+                            BackgroundColor="{DynamicResource PrimaryColor}"
+                            TextColor="{DynamicResource PrimaryTextColor}"
+                            CornerRadius="8"
+                            HeightRequest="44"
+                            FontSize="14" />
+
+                    <Button Text="📥 Импортировать данные"
+                            Command="{Binding ImportDataCommand}"
+                            IsEnabled="{Binding IsBackupBusy, Converter={StaticResource InverseBoolConverter}}"
+                            BackgroundColor="Transparent"
+                            TextColor="{DynamicResource PrimaryColor}"
+                            BorderColor="{DynamicResource PrimaryColor}"
+                            BorderWidth="1"
+                            CornerRadius="8"
+                            HeightRequest="44"
+                            FontSize="14" />
+
+                    <Label Text="{Binding BackupStatus}"
+                           FontSize="12"
+                           TextColor="{DynamicResource SuccessColor}"
+                           HorizontalOptions="Center"
+                           IsVisible="{Binding BackupStatus, Converter={StaticResource IsNotEmptyConverter}}" />
+
+                </VerticalStackLayout>
+            </Border>
 
             <!-- ==================== Начальный баланс ==================== -->
             <Label Text="Начальный баланс"
                    FontSize="18"
                    FontAttributes="Bold"
                    TextColor="{DynamicResource TextPrimaryColor}"
-                   Margin="0,4,0,0" />
+                   Margin="0,12,0,0" />
 
             <Label Text="Сколько денег на счёте сейчас или было до начала учёта. Учитывается в текущем балансе."
                    FontSize="12"
@@ -94,7 +142,6 @@
 
                             <VerticalStackLayout Spacing="10">
 
-                                <!-- Миниатюра экрана -->
                                 <Border StrokeThickness="0"
                                         StrokeShape="RoundRectangle 8"
                                         HeightRequest="90"
@@ -133,7 +180,6 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Название темы + галочка -->
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
 
                                     <Label Grid.Column="0"

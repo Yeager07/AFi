@@ -10,9 +10,6 @@ public class DatabaseService
     private bool _initialized;
 
     // ==================== Кэш категорий ====================
-    // Категории меняются редко (несколько раз за всё время использования),
-    // но читаются при каждой загрузке Главной, Истории, Настроек, Статистики.
-    // Держим их в памяти, инвалидируем при добавлении/удалении.
     private List<Category>? _categoriesCache;
     private readonly SemaphoreSlim _categoriesLock = new(1, 1);
 
@@ -46,6 +43,31 @@ public class DatabaseService
             await MigrateIconsAsync();
 
             _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Закрыть подключение и сбросить кэши. Используется при импорте БД,
+    /// чтобы можно было заменить файл, не держа его заблокированным.
+    /// </summary>
+    public async Task CloseAsync()
+    {
+        await _initLock.WaitAsync();
+        try
+        {
+            if (_connection is not null)
+            {
+                try { await _connection.CloseAsync(); }
+                catch { }
+                _connection = null;
+            }
+
+            _initialized = false;
+            _categoriesCache = null;
         }
         finally
         {
@@ -288,11 +310,6 @@ public class DatabaseService
         await db.InsertAllAsync(defaults);
     }
 
-    /// <summary>
-    /// Обновляет иконки у категорий и операций, где поле Icon пустое.
-    /// Выполняется один раз — после успешной миграции ставится флаг
-    /// в Preferences, чтобы не читать всю таблицу при каждом старте.
-    /// </summary>
     private async Task MigrateIconsAsync()
     {
         if (Preferences.Get(IconsMigrationKey, false))
@@ -319,7 +336,6 @@ public class DatabaseService
             ["Прочие поступления"] = "💸",
         };
 
-        // Только те категории, у которых иконка пустая
         var categoriesWithoutIcon = await db.QueryAsync<Category>(
             "SELECT * FROM categories WHERE Icon IS NULL OR Icon = ''");
 
@@ -332,7 +348,6 @@ public class DatabaseService
             await db.UpdateAllAsync(categoriesWithoutIcon);
         }
 
-        // Только те операции, у которых иконка пустая
         var transactionsWithoutIcon = await db.QueryAsync<Transaction>(
             "SELECT * FROM transactions WHERE CategoryIcon IS NULL OR CategoryIcon = ''");
 

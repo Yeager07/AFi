@@ -11,43 +11,38 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly IThemeService _themeService;
     private readonly ISettingsService _settings;
+    private readonly IDataBackupService _backup;
 
     public ObservableCollection<ThemePreviewItem> Themes { get; } = new();
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
-    /// <summary>
-    /// Начальный баланс в виде строки для ввода.
-    /// Пустая строка, если баланс = 0 — чтобы пользователь не видел
-    /// предзаполненный "0", к которому потом приписывается ввод.
-    /// </summary>
     [ObservableProperty] private string _initialBalanceText = string.Empty;
-
-    /// <summary>
-    /// Статус сохранения начального баланса.
-    /// </summary>
     [ObservableProperty] private string _initialBalanceStatus = string.Empty;
 
-    public SettingsViewModel(IThemeService themeService, ISettingsService settings)
+    // ==================== Резервное копирование ====================
+
+    [ObservableProperty] private string _backupStatus = string.Empty;
+    [ObservableProperty] private bool _isBackupBusy;
+
+    public SettingsViewModel(IThemeService themeService,
+                             ISettingsService settings,
+                             IDataBackupService backup)
     {
         _themeService = themeService;
         _settings = settings;
+        _backup = backup;
 
         _themeService.ThemeChanged += OnThemeChanged;
         BuildThemes();
 
-        // Загружаем текущий начальный баланс.
-        // Если он 0 — оставляем поле пустым, иначе показываем значение.
         var current = _settings.GetInitialBalance();
         _initialBalanceText = current == 0m
             ? string.Empty
             : current.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// Строит список превью по всем темам из ThemeService.
-    /// </summary>
     private void BuildThemes()
     {
         Themes.Clear();
@@ -77,9 +72,6 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Применить выбранную тему.
-    /// </summary>
     [RelayCommand]
     private void SelectTheme(ThemePreviewItem? item)
     {
@@ -89,16 +81,11 @@ public partial class SettingsViewModel : ObservableObject
         StatusMessage = $"Тема «{item.Name}» применена";
     }
 
-    /// <summary>
-    /// Сохранить начальный баланс.
-    /// Пустое поле трактуется как 0.
-    /// </summary>
     [RelayCommand]
     private void SaveInitialBalance()
     {
         var raw = InitialBalanceText?.Trim() ?? string.Empty;
 
-        // Пустое поле = сброс баланса в 0
         if (string.IsNullOrEmpty(raw))
         {
             _settings.SetInitialBalance(0m);
@@ -119,9 +106,58 @@ public partial class SettingsViewModel : ObservableObject
         InitialBalanceStatus = "Сохранено";
     }
 
-    /// <summary>
-    /// Обновляет галочку при смене темы (в том числе с других страниц).
-    /// </summary>
+    // ==================== Резервное копирование ====================
+
+    [RelayCommand]
+    private async Task ExportDataAsync()
+    {
+        if (IsBackupBusy) return;
+
+        IsBackupBusy = true;
+        BackupStatus = string.Empty;
+
+        try
+        {
+            var ok = await _backup.ExportAsync();
+            BackupStatus = ok
+                ? "Резервная копия создана"
+                : "Не удалось создать копию";
+        }
+        catch (Exception ex)
+        {
+            BackupStatus = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportDataAsync()
+    {
+        if (IsBackupBusy) return;
+
+        IsBackupBusy = true;
+        BackupStatus = string.Empty;
+
+        try
+        {
+            var ok = await _backup.ImportAsync();
+            BackupStatus = ok
+                ? "Данные восстановлены. Перейдите на Главную."
+                : string.Empty;
+        }
+        catch (Exception ex)
+        {
+            BackupStatus = $"Ошибка: {ex.Message}";
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
     private void OnThemeChanged(object? sender, EventArgs e)
     {
         foreach (var t in Themes)

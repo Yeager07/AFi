@@ -64,4 +64,10 @@ public class SettingsService : ISettingsService
             System.Diagnostics.Debug.WriteLine($"[SettingsService] Save balance failed: {ex.Message}");
         }
     }
+
+    public void ClearLastBalance()
+    {
+        try { Preferences.Remove(LastBalanceKey); }
+        catch { }
+    }
 }

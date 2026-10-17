@@ -37,9 +37,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFormSnapshotService, FormSnapshotService>();
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ForecastService>();
+        builder.Services.AddSingleton<IDataBackupService, DataBackupService>();
 
-        // ViewModels — все Singleton: подписаны на DataChangedMessage
-        // и хранят dirty-флаг между визитами.
+        // ViewModels — Singleton
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddSingleton<HistoryViewModel>();
         builder.Services.AddSingleton<StatsViewModel>();
@@ -48,10 +48,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<RecurringViewModel>();
 
-        // Форма редактирования напоминания — Transient (открывается через пуш)
+        // Форма редактирования напоминания — Transient
         builder.Services.AddTransient<RecurringEditViewModel>();
 
-        // Страницы — Singleton, чтобы Shell переиспользовал визуальное дерево
+        // Страницы — Singleton
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddSingleton<HistoryPage>();
@@ -61,7 +61,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<RecurringPage>();
         builder.Services.AddSingleton<ForecastPage>();
 
-        // Форма редактирования напоминания — Transient (пуш-навигация)
+        // Форма редактирования напоминания — Transient
         builder.Services.AddTransient<RecurringEditPage>();
 
         return builder.Build();
