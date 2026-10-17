@@ -11,8 +11,6 @@ public partial class MainPage : ContentPage
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
 
-        // При входе в режим редактирования — прокрутить страницу наверх,
-        // чтобы пользователь увидел форму, а не остался на карточке в списке.
         _viewModel.PropertyChanged += async (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsEditing)
@@ -23,11 +21,12 @@ public partial class MainPage : ContentPage
         };
     }
 
-    // ==================== Жизненный цикл ====================
-
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        // Дать Shell стартовать анимацию перехода, потом уже грузить данные
+        await Task.Yield();
         await _viewModel.LoadCommand.ExecuteAsync(null);
     }
 

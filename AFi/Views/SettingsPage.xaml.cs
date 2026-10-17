@@ -13,10 +13,6 @@ public partial class SettingsPage : ContentPage
         BindingContext = _viewModel = viewModel;
     }
 
-    /// <summary>
-    /// Пользователь нажал «ОК» на клавиатуре — сохраняем баланс
-    /// и скрываем клавиатуру.
-    /// </summary>
     private void OnInitialBalanceCompleted(object? sender, EventArgs e)
     {
         KeyboardHelper.Hide();

@@ -62,31 +62,31 @@
     </Shell.ItemTemplate>
 
     <FlyoutItem Title="Главная" Route="MainPage">
-        <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />
+        <ShellContent x:Name="MainShellContent" Route="MainPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="История" Route="HistoryPage">
-        <ShellContent ContentTemplate="{DataTemplate views:HistoryPage}" />
+        <ShellContent x:Name="HistoryShellContent" Route="HistoryPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="Статистика" Route="StatsPage">
-        <ShellContent ContentTemplate="{DataTemplate views:StatsPage}" />
+        <ShellContent x:Name="StatsShellContent" Route="StatsPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="Напоминания" Route="RecurringPage">
-        <ShellContent ContentTemplate="{DataTemplate views:RecurringPage}" />
+        <ShellContent x:Name="RecurringShellContent" Route="RecurringPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="Прогноз" Route="ForecastPage">
-        <ShellContent ContentTemplate="{DataTemplate views:ForecastPage}" />
+        <ShellContent x:Name="ForecastShellContent" Route="ForecastPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="Категории" Route="CategoriesPage">
-        <ShellContent ContentTemplate="{DataTemplate views:CategoriesPage}" />
+        <ShellContent x:Name="CategoriesShellContent" Route="CategoriesPage" />
     </FlyoutItem>
 
     <FlyoutItem Title="Настройки" Route="SettingsPage">
-        <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
+        <ShellContent x:Name="SettingsShellContent" Route="SettingsPage" />
     </FlyoutItem>
 
 </Shell>

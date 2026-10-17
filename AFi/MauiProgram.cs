@@ -38,29 +38,31 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ForecastService>();
 
-        // ViewModels
-        // MainViewModel, HistoryViewModel, StatsViewModel, ForecastViewModel —
-        // Singleton, потому что они подписаны на DataChangedMessage и хранят
-        // dirty-флаг: при возврате с модалки проверяют, нужно ли перезагружать.
+        // ViewModels — все Singleton: подписаны на DataChangedMessage
+        // и хранят dirty-флаг между визитами.
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddSingleton<HistoryViewModel>();
         builder.Services.AddSingleton<StatsViewModel>();
         builder.Services.AddSingleton<ForecastViewModel>();
+        builder.Services.AddSingleton<CategoriesViewModel>();
+        builder.Services.AddSingleton<SettingsViewModel>();
+        builder.Services.AddSingleton<RecurringViewModel>();
 
-        builder.Services.AddTransient<CategoriesViewModel>();
-        builder.Services.AddTransient<SettingsViewModel>();
-        builder.Services.AddTransient<RecurringViewModel>();
+        // Форма редактирования напоминания — Transient (открывается через пуш)
         builder.Services.AddTransient<RecurringEditViewModel>();
 
-        // Страницы
+        // Страницы — Singleton, чтобы Shell переиспользовал визуальное дерево
+        builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<MainPage>();
-        builder.Services.AddTransient<CategoriesPage>();
-        builder.Services.AddTransient<HistoryPage>();
-        builder.Services.AddTransient<StatsPage>();
-        builder.Services.AddTransient<SettingsPage>();
-        builder.Services.AddTransient<RecurringPage>();
+        builder.Services.AddSingleton<HistoryPage>();
+        builder.Services.AddSingleton<StatsPage>();
+        builder.Services.AddSingleton<CategoriesPage>();
+        builder.Services.AddSingleton<SettingsPage>();
+        builder.Services.AddSingleton<RecurringPage>();
+        builder.Services.AddSingleton<ForecastPage>();
+
+        // Форма редактирования напоминания — Transient (пуш-навигация)
         builder.Services.AddTransient<RecurringEditPage>();
-        builder.Services.AddTransient<ForecastPage>();
 
         return builder.Build();
     }

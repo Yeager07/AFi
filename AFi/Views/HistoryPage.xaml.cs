@@ -15,8 +15,6 @@ public partial class HistoryPage : ContentPage
         SetupCategoryPicker();
     }
 
-    // ==================== Picker «Период» ====================
-
     private void SetupPeriodPicker()
     {
         PeriodPicker.ItemsSource = _viewModel.FilterOptions;
@@ -25,7 +23,6 @@ public partial class HistoryPage : ContentPage
         if (initialIdx >= 0 && initialIdx < _viewModel.FilterOptions.Count)
             PeriodPicker.SelectedItem = _viewModel.FilterOptions[initialIdx];
 
-        // Picker → VM
         PeriodPicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -37,7 +34,6 @@ public partial class HistoryPage : ContentPage
             }
         };
 
-        // VM → Picker
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(HistoryViewModel.SelectedFilterIndex))
@@ -53,8 +49,6 @@ public partial class HistoryPage : ContentPage
         };
     }
 
-    // ==================== Picker «Категория» ====================
-
     private void SetupCategoryPicker()
     {
         CategoryPicker.ItemsSource = _viewModel.CategoryFilterItems;
@@ -64,7 +58,6 @@ public partial class HistoryPage : ContentPage
             ? _viewModel.CategoryFilterItems[_viewModel.SelectedCategoryIndex]
             : null;
 
-        // Picker → VM
         CategoryPicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -76,7 +69,6 @@ public partial class HistoryPage : ContentPage
             }
         };
 
-        // VM → Picker
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(HistoryViewModel.SelectedCategoryIndex))
@@ -92,11 +84,11 @@ public partial class HistoryPage : ContentPage
         };
     }
 
-    // ==================== Жизненный цикл ====================
-
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        await Task.Yield();
         await _viewModel.LoadCommand.ExecuteAsync(null);
 
         CategoryPicker.ItemsSource = _viewModel.CategoryFilterItems;

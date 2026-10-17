@@ -31,14 +31,10 @@ public partial class CategoriesViewModel : ObservableObject
         _dialogs = dialogs;
     }
 
-    // ==================== Реакции ====================
-
     partial void OnSelectedTabIndexChanged(int value)
     {
         _ = ReloadAsync();
     }
-
-    // ==================== Команды ====================
 
     [RelayCommand]
     private async Task LoadAsync()
@@ -172,8 +168,6 @@ public partial class CategoriesViewModel : ObservableObject
         }
     }
 
-    // ==================== Вспомогательные ====================
-
     private async Task ReloadAsync()
     {
         if (IsBusy) return;
@@ -196,9 +190,7 @@ public partial class CategoriesViewModel : ObservableObject
     private async Task LoadCategoriesCoreAsync()
     {
         await _db.InitializeAsync();
-
         var list = await _db.GetCategoriesAsync(CurrentType);
-
         Categories.ReplaceRange(list);
     }
 

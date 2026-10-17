@@ -15,6 +15,7 @@ public partial class RecurringPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        await Task.Yield();
         await _viewModel.LoadCommand.ExecuteAsync(null);
     }
 }

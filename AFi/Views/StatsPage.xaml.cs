@@ -14,8 +14,6 @@ public partial class StatsPage : ContentPage
         SetupPeriodPicker();
     }
 
-    // ==================== Picker «Период» ====================
-
     private void SetupPeriodPicker()
     {
         PeriodPicker.ItemsSource = _viewModel.FilterOptions;
@@ -24,7 +22,6 @@ public partial class StatsPage : ContentPage
         if (initialIdx >= 0 && initialIdx < _viewModel.FilterOptions.Count)
             PeriodPicker.SelectedItem = _viewModel.FilterOptions[initialIdx];
 
-        // Picker → VM
         PeriodPicker.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Controls.ThemedPicker.SelectedItem)
@@ -36,7 +33,6 @@ public partial class StatsPage : ContentPage
             }
         };
 
-        // VM → Picker
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(StatsViewModel.SelectedFilterIndex))
@@ -55,6 +51,8 @@ public partial class StatsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        await Task.Yield();
         await _viewModel.LoadCommand.ExecuteAsync(null);
 
         var idx = _viewModel.SelectedFilterIndex;
