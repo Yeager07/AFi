@@ -284,9 +284,16 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         var choice = await _dialogs.ShowActionSheetAsync(
             title,
             "Отмена",
+            "Редактировать",
             "Удалить");
 
-        if (choice == "Удалить")
+        if (choice == "Редактировать")
+        {
+            var saved = await _dialogs.ShowTransactionEditAsync(transaction.Id);
+            if (saved)
+                await LoadCoreAsync();
+        }
+        else if (choice == "Удалить")
         {
             await DeleteTransactionCoreAsync(transaction, skipConfirmation: true);
         }

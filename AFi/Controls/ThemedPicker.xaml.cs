@@ -102,6 +102,7 @@ public partial class ThemedPicker : ContentView
 
     private async void OnTapped(object? sender, EventArgs e)
     {
+        if (!IsEnabled) return;
         if (ItemsSource is null || ItemsSource.Count == 0) return;
 
         // Защита от двойного тапа — пока открыта модалка, повторный тап игнорируем

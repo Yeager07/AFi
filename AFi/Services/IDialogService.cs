@@ -13,8 +13,7 @@ public interface IDialogService
 
     Task<string?> ShowActionSheetAsync(string title, string cancel, params string[] actions);
 
-    /// <summary>
-    /// Открыть модальное окно с изображением на весь экран.
-    /// </summary>
     Task ShowReceiptAsync(ImageSource source);
+
+    Task<bool> ShowTransactionEditAsync(int transactionId);
 }
