@@ -5,6 +5,7 @@ namespace AFi.Controls;
 public partial class ThemedPromptPage : ContentPage
 {
     private readonly TaskCompletionSource<string?> _tcs = new();
+    private bool _isClosing;
 
     public ThemedPromptPage(string title, string message,
                             string placeholder = "",
@@ -34,66 +35,49 @@ public partial class ThemedPromptPage : ContentPage
     {
         base.OnAppearing();
 
-        // Анимация выезда
-        CardBorder.TranslationY = 400;
-        CardBorder.Opacity = 0;
-
         await Task.WhenAll(
             CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
             CardBorder.FadeToAsync(1, 200));
 
-        // Автофокус
         InputEntry.Focus();
+    }
+
+    private async Task CloseAsync(string? result)
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+
+        KeyboardHelper.Hide();
+
+        try { await Navigation.PopModalAsync(); }
+        catch { }
+
+        _tcs.TrySetResult(result);
     }
 
     private async void OnAcceptClicked(object? sender, EventArgs e)
     {
-        KeyboardHelper.Hide();
-
-        var result = InputEntry.Text;
-        _tcs.TrySetResult(result);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(InputEntry.Text);
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        KeyboardHelper.Hide();
-
-        _tcs.TrySetResult(null);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(null);
     }
 
     private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
-        KeyboardHelper.Hide();
-
-        _tcs.TrySetResult(null);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(null);
     }
 
     private void OnEntryCompleted(object? sender, EventArgs e)
     {
-        OnAcceptClicked(sender, e);
+        _ = CloseAsync(InputEntry.Text);
     }
 
     protected override bool OnBackButtonPressed()
     {
-        _tcs.TrySetResult(null);
-        return base.OnBackButtonPressed();
+        _ = CloseAsync(null);
+        return true;
     }
 }

@@ -5,10 +5,11 @@ using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace AFi.ViewModels;
 
-public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
+public partial class MainViewModel : ObservableObject, ITransactionFormViewModel, IRecipient<DataChangedMessage>
 {
     private const int PageSize = 10;
     private const int PeriodDays = 30;
@@ -31,6 +32,15 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
     private string? _currentReceiptFileName;
     private string? _originalReceiptFileName;
 
+    // ==================== Управление свежестью данных ====================
+    // _initialLoaded = первая загрузка прошла
+    // _isDirty = данные изменились (кем-то или нами), нужно перезагружать
+    // При возврате с модалки, если _isDirty = false — LoadAsync пропускает
+    // тяжёлые запросы, и pop модалки проходит мгновенно.
+
+    private bool _initialLoaded;
+    private bool _isDirty = true;
+
     // ==================== Состояние формы ====================
 
     [ObservableProperty] private string _amountText = string.Empty;
@@ -44,6 +54,7 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
     [ObservableProperty] private bool _isFormExpanded;
+    [ObservableProperty] private bool _isInitialLoading = true;
 
     public bool IsEditing => _editingTransactionId.HasValue;
     public string FormTitle => IsEditing ? "Редактирование" : "Новая операция";
@@ -111,6 +122,19 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         _settings = settings;
 
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
+
+        try { CurrentBalance = _settings.GetLastBalance(); }
+        catch { /* тихо */ }
+
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // ==================== Реакция на внешние изменения ====================
+
+    public void Receive(DataChangedMessage message)
+    {
+        if (ReferenceEquals(message.Sender, this)) return;
+        _isDirty = true;
     }
 
     // ==================== Реакции ====================
@@ -161,15 +185,26 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         {
             MaxDate = DateTime.Today;
 
+            // Fast path: если данные не менялись — только восстановить снапшот
+            // (после возврата с камеры/галереи форма может нуждаться в рест��ре)
+            if (_initialLoaded && !_isDirty)
+            {
+                await RestoreSnapshotIfNeededAsync();
+                return;
+            }
+
             await _db.InitializeAsync();
-            await ReloadCategoriesAsync();
+
+            _loadedCount = PageSize;
+            await Task.WhenAll(
+                ReloadCategoriesAsync(),
+                LoadTransactionsPageAsync(),
+                ReloadBalanceAsync());
 
             await RestoreSnapshotIfNeededAsync();
 
-            _loadedCount = PageSize;
-            await LoadTransactionsPageAsync();
-
-            await ReloadBalanceAsync();
+            _isDirty = false;
+            _initialLoaded = true;
         }
         catch (Exception ex)
         {
@@ -178,6 +213,7 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
         }
     }
 
@@ -593,6 +629,9 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
             _loadedCount = PageSize;
             await LoadTransactionsPageAsync();
             await ReloadBalanceAsync();
+
+            // Оповестить остальные VM
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
         }
         catch (Exception ex)
         {
@@ -741,6 +780,8 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
             await ReloadBalanceAsync();
 
             StatusMessage = "Операция удалена";
+
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
         }
         catch (Exception ex)
         {
@@ -878,6 +919,8 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
             await ReloadBalanceAsync();
 
             StatusMessage = $"Удалено {count} {word}";
+
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
         }
         catch (Exception ex)
         {
@@ -944,7 +987,6 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
                 }
             }
 
-            // Группируем и заменяем одним событием
             var groups = toShow
                 .GroupBy(t => t.Date.Date)
                 .OrderByDescending(g => g.Key)
@@ -976,6 +1018,8 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
             var operationsBalance = await _db.GetCurrentBalanceAsync();
             var initialBalance = _settings.GetInitialBalance();
             CurrentBalance = initialBalance + operationsBalance;
+
+            _settings.SetLastBalance(CurrentBalance);
         }
         catch (Exception ex)
         {

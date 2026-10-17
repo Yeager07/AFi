@@ -3,6 +3,7 @@ namespace AFi.Controls;
 public partial class ThemedConfirmPage : ContentPage
 {
     private readonly TaskCompletionSource<bool> _tcs = new();
+    private bool _isClosing;
 
     public ThemedConfirmPage(string title, string message,
                              string acceptText, string cancelText)
@@ -21,50 +22,40 @@ public partial class ThemedConfirmPage : ContentPage
     {
         base.OnAppearing();
 
-        CardBorder.TranslationY = 400;
-        CardBorder.Opacity = 0;
-
         await Task.WhenAll(
             CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
             CardBorder.FadeToAsync(1, 200));
     }
 
+    private async Task CloseAsync(bool result)
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+
+        try { await Navigation.PopModalAsync(); }
+        catch { }
+
+        _tcs.TrySetResult(result);
+    }
+
     private async void OnAcceptClicked(object? sender, EventArgs e)
     {
-        _tcs.TrySetResult(true);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(true);
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        _tcs.TrySetResult(false);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(false);
     }
 
     private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
-        _tcs.TrySetResult(false);
-
-        try
-        {
-            await Navigation.PopModalAsync();
-        }
-        catch { }
+        await CloseAsync(false);
     }
 
     protected override bool OnBackButtonPressed()
     {
-        _tcs.TrySetResult(false);
-        return base.OnBackButtonPressed();
+        _ = CloseAsync(false);
+        return true;
     }
 }

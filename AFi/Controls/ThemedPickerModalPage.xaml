@@ -6,7 +6,7 @@
              Shell.NavBarIsVisible="False">
 
     <Grid>
-        <BoxView BackgroundColor="Transparent">
+        <BoxView x:Name="Backdrop" BackgroundColor="Transparent">
             <BoxView.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnOutsideTapped" />
             </BoxView.GestureRecognizers>
@@ -21,7 +21,9 @@
                 VerticalOptions="End"
                 HorizontalOptions="Fill"
                 MaximumHeightRequest="500"
-                BackgroundColor="{DynamicResource CardBackgroundColor}">
+                BackgroundColor="{DynamicResource CardBackgroundColor}"
+                TranslationY="500"
+                Opacity="0">
 
             <Grid RowDefinitions="Auto,*,Auto">
 

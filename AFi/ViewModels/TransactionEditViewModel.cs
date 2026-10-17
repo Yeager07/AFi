@@ -5,14 +5,9 @@ using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace AFi.ViewModels;
-
-/// <summary>
-/// ViewModel модальной формы редактирования существующей операции.
-/// Используется со страницы Истории. Сумма и тип операции immutable;
-/// если у операции есть позиции — сумма пересчитывается из позиций.
-/// </summary>
 
 public partial class TransactionEditViewModel : ObservableObject, ITransactionFormViewModel
 {
@@ -27,17 +22,7 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     private string? _currentReceiptFileName;
     private string? _originalReceiptFileName;
 
-    /// <summary>
-    /// true — сохранено, false — отменено.
-    /// </summary>
     public event EventHandler<bool>? EditCompleted;
-
-    /// <summary>
-    /// В модалке редактирования всегда true — сумма и тип заблокированы.
-    /// </summary>
-    public bool IsEditing => true;
-
-    // ==================== Состояние формы ====================
 
     [ObservableProperty] private string _amountText = string.Empty;
     [ObservableProperty] private int _selectedTypeIndex;
@@ -48,12 +33,10 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
-    // ==================== Фото ====================
+    public bool IsEditing => true;
 
     [ObservableProperty] private bool _hasReceipt;
     [ObservableProperty] private ImageSource? _currentReceiptImageSource;
-
-    // ==================== Позиции ====================
 
     public ObservableCollection<TransactionItem> CurrentItems { get; } = new();
 
@@ -62,15 +45,11 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     [ObservableProperty] private bool _hasAmountMismatch;
     [ObservableProperty] private string _amountMismatchText = string.Empty;
 
-    // ==================== Списки ====================
-
     public ObservableCollection<string> TypeOptions { get; } = new() { "Расход", "Доход" };
     public ObservableRangeCollection<Category> AvailableCategories { get; } = new();
 
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
-
-    // ==================== Конструктор ====================
 
     public TransactionEditViewModel(DatabaseService db, IReceiptService receipts)
     {
@@ -83,8 +62,6 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     {
         _transactionId = transactionId;
     }
-
-    // ==================== Реакции ====================
 
     partial void OnSelectedTypeIndexChanged(int value)
     {
@@ -365,6 +342,9 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
             await _db.UpdateTransactionAsync(_transaction);
             await _db.ReplaceItemsForTransactionAsync(_transaction.Id, CurrentItems.ToList());
 
+            // Оповестить остальные VM, что данные изменились
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
+
             EditCompleted?.Invoke(this, true);
         }
         catch (Exception ex)
@@ -382,7 +362,6 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     {
         if (IsBusy) return;
 
-        // Убираем временное фото, если не сохранили
         if (!string.IsNullOrEmpty(_currentReceiptFileName)
             && _currentReceiptFileName != _originalReceiptFileName)
         {

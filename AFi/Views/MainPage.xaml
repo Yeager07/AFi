@@ -495,6 +495,25 @@
                         Padding="16,0" />
             </Grid>
         </Border>
+
+        <!-- ==================== Overlay загрузки ==================== -->
+        <Grid IsVisible="{Binding IsInitialLoading}"
+              BackgroundColor="{DynamicResource PageBackgroundColor}"
+              InputTransparent="False">
+            <VerticalStackLayout HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="15">
+                <ActivityIndicator IsRunning="True"
+                                   Color="{DynamicResource PrimaryColor}"
+                                   WidthRequest="50"
+                                   HeightRequest="50" />
+                <Label Text="Загрузка..."
+                       FontSize="15"
+                       TextColor="{DynamicResource TextSecondaryColor}"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+
     </Grid>
 
 </ContentPage>

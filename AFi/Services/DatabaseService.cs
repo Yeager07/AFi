@@ -17,6 +17,7 @@ public class DatabaseService
     private readonly SemaphoreSlim _categoriesLock = new(1, 1);
 
     private const string DatabaseFileName = "afi.db3";
+    private const string IconsMigrationKey = "migration_icons_v1_done";
 
     private static string DatabasePath =>
         Path.Combine(FileSystem.AppDataDirectory, DatabaseFileName);
@@ -188,19 +189,12 @@ public class DatabaseService
 
     // ==================== Категории (с кэшем) ====================
 
-    /// <summary>
-    /// Возвращает категории заданного типа из кэша.
-    /// Первый вызов загружает категории из БД, далее — из памяти.
-    /// </summary>
     public async Task<List<Category>> GetCategoriesAsync(TransactionType type)
     {
         var all = await EnsureCategoriesCacheAsync();
         return all.Where(c => c.Type == type).ToList();
     }
 
-    /// <summary>
-    /// Возвращает все категории из кэша.
-    /// </summary>
     public async Task<List<Category>> GetAllCategoriesAsync()
     {
         var all = await EnsureCategoriesCacheAsync();
@@ -212,7 +206,6 @@ public class DatabaseService
         var db = await GetConnectionAsync();
         var result = await db.InsertAsync(category);
 
-        // Обновляем кэш — добавляем новую категорию
         _categoriesCache?.Add(category);
 
         return result;
@@ -236,13 +229,9 @@ public class DatabaseService
 
         await db.DeleteAsync<Category>(categoryId);
 
-        // Обновляем кэш — убираем категорию
         _categoriesCache?.RemoveAll(c => c.Id == categoryId);
     }
 
-    /// <summary>
-    /// Ленивая инициализация кэша категорий с защитой от гонки.
-    /// </summary>
     private async Task<List<Category>> EnsureCategoriesCacheAsync()
     {
         if (_categoriesCache is not null)
@@ -299,8 +288,16 @@ public class DatabaseService
         await db.InsertAllAsync(defaults);
     }
 
+    /// <summary>
+    /// Обновляет иконки у категорий и операций, где поле Icon пустое.
+    /// Выполняется один раз — после успешной миграции ставится флаг
+    /// в Preferences, чтобы не читать всю таблицу при каждом старте.
+    /// </summary>
     private async Task MigrateIconsAsync()
     {
+        if (Preferences.Get(IconsMigrationKey, false))
+            return;
+
         var db = _connection!;
 
         var defaultIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -322,43 +319,41 @@ public class DatabaseService
             ["Прочие поступления"] = "💸",
         };
 
-        var categories = await db.Table<Category>().ToListAsync();
-        var categoriesToUpdate = new List<Category>();
+        // Только те категории, у которых иконка пустая
+        var categoriesWithoutIcon = await db.QueryAsync<Category>(
+            "SELECT * FROM categories WHERE Icon IS NULL OR Icon = ''");
 
-        foreach (var c in categories)
+        if (categoriesWithoutIcon.Count > 0)
         {
-            if (!string.IsNullOrEmpty(c.Icon)) continue;
-
-            c.Icon = defaultIcons.TryGetValue(c.Name, out var icon)
-                ? icon
-                : "👤";
-
-            categoriesToUpdate.Add(c);
+            foreach (var c in categoriesWithoutIcon)
+            {
+                c.Icon = defaultIcons.TryGetValue(c.Name, out var icon) ? icon : "👤";
+            }
+            await db.UpdateAllAsync(categoriesWithoutIcon);
         }
 
-        if (categoriesToUpdate.Count > 0)
-            await db.UpdateAllAsync(categoriesToUpdate);
+        // Только те операции, у которых иконка пустая
+        var transactionsWithoutIcon = await db.QueryAsync<Transaction>(
+            "SELECT * FROM transactions WHERE CategoryIcon IS NULL OR CategoryIcon = ''");
 
-        var transactions = await db.Table<Transaction>().ToListAsync();
-        var transactionsToUpdate = new List<Transaction>();
-
-        var iconByName = categories.ToDictionary(c => c.Name, c => c.Icon, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var t in transactions)
+        if (transactionsWithoutIcon.Count > 0)
         {
-            if (!string.IsNullOrEmpty(t.CategoryIcon)) continue;
+            var allCategories = await db.Table<Category>().ToListAsync();
+            var iconByName = allCategories.ToDictionary(
+                c => c.Name, c => c.Icon, StringComparer.OrdinalIgnoreCase);
 
-            t.CategoryIcon = iconByName.TryGetValue(t.CategoryName, out var icon)
-                ? icon
-                : defaultIcons.TryGetValue(t.CategoryName, out var defIcon)
-                    ? defIcon
-                    : "❓";
-
-            transactionsToUpdate.Add(t);
+            foreach (var t in transactionsWithoutIcon)
+            {
+                t.CategoryIcon = iconByName.TryGetValue(t.CategoryName, out var icon)
+                    ? icon
+                    : defaultIcons.TryGetValue(t.CategoryName, out var defIcon)
+                        ? defIcon
+                        : "❓";
+            }
+            await db.UpdateAllAsync(transactionsWithoutIcon);
         }
 
-        if (transactionsToUpdate.Count > 0)
-            await db.UpdateAllAsync(transactionsToUpdate);
+        Preferences.Set(IconsMigrationKey, true);
     }
 
     // ==================== Позиции чека ====================

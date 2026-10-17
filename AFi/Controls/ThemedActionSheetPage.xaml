@@ -6,14 +6,12 @@
              Shell.NavBarIsVisible="False">
 
     <Grid>
-        <!-- Прозрачный слой для тапа вне карточки -->
-        <BoxView BackgroundColor="Transparent">
+        <BoxView x:Name="Backdrop" BackgroundColor="Transparent">
             <BoxView.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnOutsideTapped" />
             </BoxView.GestureRecognizers>
         </BoxView>
 
-        <!-- Карточка -->
         <Border x:Name="CardBorder"
                 Stroke="{DynamicResource CardBorderColor}"
                 StrokeThickness="1"
@@ -22,7 +20,9 @@
                 Margin="15"
                 VerticalOptions="End"
                 HorizontalOptions="Fill"
-                BackgroundColor="{DynamicResource CardBackgroundColor}">
+                BackgroundColor="{DynamicResource CardBackgroundColor}"
+                TranslationY="400"
+                Opacity="0">
 
             <VerticalStackLayout Spacing="0">
 

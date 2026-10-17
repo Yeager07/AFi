@@ -4,10 +4,11 @@ using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace AFi.ViewModels;
 
-public partial class HistoryViewModel : ObservableObject, IQueryAttributable
+public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IRecipient<DataChangedMessage>
 {
     private const int PageSize = 100;
 
@@ -19,6 +20,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
     private readonly HashSet<int> _selectedIds = new();
     private bool _suppressFilterReload;
     private bool _filtersLoaded;
+
+    // ==================== Управление свежестью данных ====================
+    private bool _initialLoaded;
+    private bool _isDirty = true;
 
     // ==================== Фильтры ====================
 
@@ -76,7 +81,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
     private string? _pendingCategoryName;
 
-    // ==================== Защита от гонки загрузок ====================
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private bool _reloadPending;
 
@@ -85,6 +89,16 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         _db = db;
         _dialogs = dialogs;
         _receipts = receipts;
+
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // ==================== Реакция на внешние изменения ====================
+
+    public void Receive(DataChangedMessage message)
+    {
+        if (ReferenceEquals(message.Sender, this)) return;
+        _isDirty = true;
     }
 
     // ==================== Применение query-параметров ====================
@@ -197,6 +211,9 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             _filtersLoaded = true;
         }
 
+        // Fast path: данные не менялись — не перезагружаем
+        if (_initialLoaded && !_isDirty) return;
+
         await ReloadAsync();
     }
 
@@ -206,6 +223,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         if (CustomFromDate > CustomToDate)
             (CustomFromDate, CustomToDate) = (CustomToDate, CustomFromDate);
 
+        _isDirty = true;
         await ReloadAsync();
     }
 
@@ -245,7 +263,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
                 }
             }
 
-            // Дополняем коллекцию одним событием
             Transactions.AddRange(next);
 
             _loadedCount += next.Count;
@@ -289,9 +306,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
 
         if (choice == "Редактировать")
         {
-            var saved = await _dialogs.ShowTransactionEditAsync(transaction.Id);
-            if (saved)
-                await LoadCoreAsync();
+            // Модалка при сохранении отправит DataChangedMessage,
+            // OnAppearing сработает после закрытия, LoadAsync увидит dirty
+            // и перезагрузит. Здесь ничего явно не делаем.
+            await _dialogs.ShowTransactionEditAsync(transaction.Id);
         }
         else if (choice == "Удалить")
         {
@@ -350,6 +368,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             await _db.DeleteTransactionAsync(transaction.Id);
             await LoadCoreAsync();
             StatusMessage = "Операция удалена";
+
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
         }
         catch (Exception ex)
         {
@@ -438,6 +458,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             await LoadCoreAsync();
 
             StatusMessage = $"Удалено {count} {word}";
+
+            WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
         }
         catch (Exception ex)
         {
@@ -516,7 +538,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
             }
         }
 
-        // Заменяем коллекцию одним событием
         Transactions.ReplaceRange(list);
 
         _loadedCount = list.Count;
@@ -538,6 +559,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable
         _selectedIds.Clear();
         SelectedCount = 0;
         IsSelectionMode = false;
+
+        // Данные свежие — сбрасываем флаг
+        _isDirty = false;
+        _initialLoaded = true;
     }
 
     private void UpdateCountInStatus(int total)

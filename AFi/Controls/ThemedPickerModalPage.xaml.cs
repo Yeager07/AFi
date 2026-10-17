@@ -5,6 +5,7 @@ public partial class ThemedPickerModalPage : ContentPage
     private readonly System.Collections.IList _items;
     private readonly object? _selected;
     private readonly TaskCompletionSource<object?> _tcs = new();
+    private bool _isClosing;
 
     public ThemedPickerModalPage(System.Collections.IList items, object? selected, string title)
     {
@@ -25,12 +26,20 @@ public partial class ThemedPickerModalPage : ContentPage
     {
         base.OnAppearing();
 
-        CardBorder.TranslationY = 500;
-        CardBorder.Opacity = 0;
-
         await Task.WhenAll(
             CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
             CardBorder.FadeToAsync(1, 200));
+    }
+
+    private async Task CloseAsync(object? result)
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+
+        try { await Navigation.PopModalAsync(); }
+        catch { }
+
+        _tcs.TrySetResult(result);
     }
 
     private void BuildItems()
@@ -83,11 +92,7 @@ public partial class ThemedPickerModalPage : ContentPage
 
             var captured = item;
             var tap = new TapGestureRecognizer();
-            tap.Tapped += async (_, _) =>
-            {
-                await Navigation.PopModalAsync();
-                _tcs.TrySetResult(captured);
-            };
+            tap.Tapped += async (_, _) => await CloseAsync(captured);
             row.GestureRecognizers.Add(tap);
 
             ItemsContainer.Children.Add(row);
@@ -96,19 +101,17 @@ public partial class ThemedPickerModalPage : ContentPage
 
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
-        await Navigation.PopModalAsync();
-        _tcs.TrySetResult(null);
+        await CloseAsync(null);
     }
 
     private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
-        await Navigation.PopModalAsync();
-        _tcs.TrySetResult(null);
+        await CloseAsync(null);
     }
 
     protected override bool OnBackButtonPressed()
     {
-        _tcs.TrySetResult(null);
-        return base.OnBackButtonPressed();
+        _ = CloseAsync(null);
+        return true;
     }
 }

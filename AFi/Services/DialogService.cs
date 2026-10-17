@@ -22,7 +22,7 @@ public class DialogService : IDialogService
 
         var modal = new Controls.ThemedConfirmPage(title, message, accept, cancel);
 
-        await page.Navigation.PushModalAsync(modal);
+        await page.Navigation.PushModalAsync(modal, animated: false);
 
         return await modal.WaitForResultAsync();
     }
@@ -43,7 +43,7 @@ public class DialogService : IDialogService
         var modal = new Controls.ThemedPromptPage(
             title, message, placeholder, maxLength, initialValue);
 
-        await page.Navigation.PushModalAsync(modal);
+        await page.Navigation.PushModalAsync(modal, animated: false);
 
         return await modal.WaitForResultAsync();
     }
@@ -61,7 +61,7 @@ public class DialogService : IDialogService
 
         var modal = new Controls.ThemedActionSheetPage(title, cancel, actions);
 
-        await page.Navigation.PushModalAsync(modal);
+        await page.Navigation.PushModalAsync(modal, animated: false);
 
         return await modal.WaitForResultAsync();
     }
@@ -91,7 +91,7 @@ public class DialogService : IDialogService
 
         var modal = new Views.TransactionEditPage(vm);
 
-        await page.Navigation.PushModalAsync(modal);
+        await page.Navigation.PushModalAsync(modal, animated: false);
         return await modal.WaitForResultAsync();
     }
 }

@@ -8,8 +8,6 @@ public partial class ThemedPicker : ContentView
         UpdateDisplay();
     }
 
-    // ==================== ItemsSource ====================
-
     public static readonly BindableProperty ItemsSourceProperty =
         BindableProperty.Create(
             nameof(ItemsSource),
@@ -23,8 +21,6 @@ public partial class ThemedPicker : ContentView
         get => (System.Collections.IList?)GetValue(ItemsSourceProperty);
         set => SetValue(ItemsSourceProperty, value);
     }
-
-    // ==================== SelectedItem ====================
 
     public static readonly BindableProperty SelectedItemProperty =
         BindableProperty.Create(
@@ -41,8 +37,6 @@ public partial class ThemedPicker : ContentView
         set => SetValue(SelectedItemProperty, value);
     }
 
-    // ==================== Placeholder ====================
-
     public static readonly BindableProperty PlaceholderProperty =
         BindableProperty.Create(
             nameof(Placeholder),
@@ -57,8 +51,6 @@ public partial class ThemedPicker : ContentView
         set => SetValue(PlaceholderProperty, value);
     }
 
-    // ==================== Title (заголовок модалки) ====================
-
     public static readonly BindableProperty TitleProperty =
         BindableProperty.Create(
             nameof(Title),
@@ -72,8 +64,6 @@ public partial class ThemedPicker : ContentView
         set => SetValue(TitleProperty, value);
     }
 
-    // ==================== Отображение ====================
-
     private static void OnAnyChanged(BindableObject bindable, object oldValue, object newValue)
     {
         if (bindable is ThemedPicker picker)
@@ -85,8 +75,6 @@ public partial class ThemedPicker : ContentView
         if (SelectedItem is null)
         {
             DisplayLabel.Text = string.IsNullOrEmpty(Placeholder) ? "—" : Placeholder;
-            // SetDynamicResource вместо прямого присваивания — тогда Label
-            // остаётся подписан на ключ темы и перекрашивается при смене темы.
             DisplayLabel.SetDynamicResource(Label.TextColorProperty, "TextSecondaryColor");
         }
         else
@@ -96,8 +84,6 @@ public partial class ThemedPicker : ContentView
         }
     }
 
-    // ==================== Открытие модальной страницы ====================
-
     private bool _isOpeningModal;
 
     private async void OnTapped(object? sender, EventArgs e)
@@ -105,7 +91,6 @@ public partial class ThemedPicker : ContentView
         if (!IsEnabled) return;
         if (ItemsSource is null || ItemsSource.Count == 0) return;
 
-        // Защита от двойного тапа — пока открыта модалка, повторный тап игнорируем
         if (_isOpeningModal) return;
         _isOpeningModal = true;
 
@@ -116,7 +101,7 @@ public partial class ThemedPicker : ContentView
 
             var modalPage = new ThemedPickerModalPage(ItemsSource, SelectedItem, Title);
 
-            await page.Navigation.PushModalAsync(modalPage);
+            await page.Navigation.PushModalAsync(modalPage, animated: false);
 
             var result = await modalPage.WaitForResultAsync();
 

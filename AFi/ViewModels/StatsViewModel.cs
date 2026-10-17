@@ -4,20 +4,22 @@ using AFi.Models;
 using AFi.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microcharts;
 using SkiaSharp;
 
 namespace AFi.ViewModels;
 
-public partial class StatsViewModel : ObservableObject
+public partial class StatsViewModel : ObservableObject, IRecipient<DataChangedMessage>
 {
-    /// <summary>
-    /// Сколько топ-позиций показывать в развёрнутой карточке категории.
-    /// </summary>
     private const int TopItemsCount = 5;
 
     private readonly DatabaseService _db;
     private readonly IThemeService _themeService;
+
+    // ==================== Управление свежестью данных ====================
+    private bool _initialLoaded;
+    private bool _isDirty = true;
 
     // ==================== Фильтр периода ====================
 
@@ -86,6 +88,16 @@ public partial class StatsViewModel : ObservableObject
         _themeService = themeService;
 
         _themeService.ThemeChanged += OnThemeChanged;
+
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    // ==================== Реакция на внешние изменения ====================
+
+    public void Receive(DataChangedMessage message)
+    {
+        if (ReferenceEquals(message.Sender, this)) return;
+        _isDirty = true;
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
@@ -103,6 +115,7 @@ public partial class StatsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsCustomRangeSelected));
         if (value == 9) return;
+        _isDirty = true;
         _ = ReloadAsync();
     }
 
@@ -124,6 +137,9 @@ public partial class StatsViewModel : ObservableObject
     private async Task LoadAsync()
     {
         MaxDate = DateTime.Today;
+
+        if (_initialLoaded && !_isDirty) return;
+
         await ReloadAsync();
     }
 
@@ -133,6 +149,7 @@ public partial class StatsViewModel : ObservableObject
         if (CustomFromDate > CustomToDate)
             (CustomFromDate, CustomToDate) = (CustomToDate, CustomFromDate);
 
+        _isDirty = true;
         await ReloadAsync();
     }
 
@@ -152,9 +169,6 @@ public partial class StatsViewModel : ObservableObject
         await ReloadSummaryForCurrentModeAsync();
     }
 
-    /// <summary>
-    /// Переход в Историю с фильтром по категории и периоду.
-    /// </summary>
     [RelayCommand]
     private async Task GoToHistoryAsync(LegendItem? item)
     {
@@ -173,9 +187,6 @@ public partial class StatsViewModel : ObservableObject
         await Shell.Current.GoToAsync(url);
     }
 
-    /// <summary>
-    /// Развернуть/свернуть карточку категории для показа топа позиций.
-    /// </summary>
     [RelayCommand]
     private void ToggleLegendExpand(LegendItem? item)
     {
@@ -204,6 +215,9 @@ public partial class StatsViewModel : ObservableObject
             await ReloadBarsAsync();
 
             OnPropertyChanged(nameof(IsBalanceNegative));
+
+            _isDirty = false;
+            _initialLoaded = true;
         }
         catch (Exception ex)
         {
@@ -279,8 +293,6 @@ public partial class StatsViewModel : ObservableObject
 
         ExpenseChart = BuildDonutChart(breakdown);
 
-        // Загружаем все расходы за период и их позиции одним запросом,
-        // чтобы потом для каждой категории собрать топ позиций.
         var allTransactions = await _db.GetTransactionsAsync(from, to);
         var expenses = allTransactions
             .Where(t => t.Type == TransactionType.Expense)
@@ -310,7 +322,6 @@ public partial class StatsViewModel : ObservableObject
                 Color = Color.FromArgb(hex),
             };
 
-            // Собираем позиции операций этой категории
             var categoryTransactionIds = expenses
                 .Where(t => t.CategoryName == item.CategoryName)
                 .Select(t => t.Id)

@@ -39,14 +39,18 @@ public static class MauiProgram
         builder.Services.AddSingleton<ForecastService>();
 
         // ViewModels
+        // MainViewModel, HistoryViewModel, StatsViewModel, ForecastViewModel —
+        // Singleton, потому что они подписаны на DataChangedMessage и хранят
+        // dirty-флаг: при возврате с модалки проверяют, нужно ли перезагружать.
         builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddSingleton<HistoryViewModel>();
+        builder.Services.AddSingleton<StatsViewModel>();
+        builder.Services.AddSingleton<ForecastViewModel>();
+
         builder.Services.AddTransient<CategoriesViewModel>();
-        builder.Services.AddTransient<HistoryViewModel>();
-        builder.Services.AddTransient<StatsViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
         builder.Services.AddTransient<RecurringViewModel>();
         builder.Services.AddTransient<RecurringEditViewModel>();
-        builder.Services.AddTransient<ForecastViewModel>();
 
         // Страницы
         builder.Services.AddSingleton<MainPage>();

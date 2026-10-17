@@ -3,6 +3,7 @@ namespace AFi.Controls;
 public partial class ThemedActionSheetPage : ContentPage
 {
     private readonly TaskCompletionSource<string?> _tcs = new();
+    private bool _isClosing;
 
     public ThemedActionSheetPage(string title, string cancelText, string[] actions)
     {
@@ -32,12 +33,20 @@ public partial class ThemedActionSheetPage : ContentPage
     {
         base.OnAppearing();
 
-        CardBorder.TranslationY = 400;
-        CardBorder.Opacity = 0;
-
         await Task.WhenAll(
             CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
             CardBorder.FadeToAsync(1, 200));
+    }
+
+    private async Task CloseAsync(string? result)
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+
+        try { await Navigation.PopModalAsync(); }
+        catch { }
+
+        _tcs.TrySetResult(result);
     }
 
     private void BuildActions(string[] actions)
@@ -87,11 +96,7 @@ public partial class ThemedActionSheetPage : ContentPage
 
             var captured = action;
             var tap = new TapGestureRecognizer();
-            tap.Tapped += async (_, _) =>
-            {
-                await Navigation.PopModalAsync();
-                _tcs.TrySetResult(captured);
-            };
+            tap.Tapped += async (_, _) => await CloseAsync(captured);
             border.GestureRecognizers.Add(tap);
 
             ActionsContainer.Children.Add(border);
@@ -100,19 +105,17 @@ public partial class ThemedActionSheetPage : ContentPage
 
     private async void OnCancelTapped(object? sender, TappedEventArgs e)
     {
-        await Navigation.PopModalAsync();
-        _tcs.TrySetResult(null);
+        await CloseAsync(null);
     }
 
     private async void OnOutsideTapped(object? sender, TappedEventArgs e)
     {
-        await Navigation.PopModalAsync();
-        _tcs.TrySetResult(null);
+        await CloseAsync(null);
     }
 
     protected override bool OnBackButtonPressed()
     {
-        _tcs.TrySetResult(null);
-        return base.OnBackButtonPressed();
+        _ = CloseAsync(null);
+        return true;
     }
 }
