@@ -15,7 +15,9 @@
     <VerticalStackLayout Spacing="10">
 
         <!-- ==================== Сумма ==================== -->
-        <Label Text="Сумма" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" />
+        <Label Text="Сумма"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}" />
         <Entry Placeholder="Например, 500"
                Keyboard="Numeric"
                Text="{Binding AmountText}"
@@ -24,7 +26,9 @@
                IsReadOnly="{Binding IsEditing}"
                Completed="OnEntryCompleted">
             <Entry.Triggers>
-                <DataTrigger TargetType="Entry" Binding="{Binding IsEditing}" Value="True">
+                <DataTrigger TargetType="Entry"
+                             Binding="{Binding IsEditing}"
+                             Value="True">
                     <Setter Property="BackgroundColor" Value="{DynamicResource DividerColor}" />
                     <Setter Property="TextColor" Value="{DynamicResource TextSecondaryColor}" />
                 </DataTrigger>
@@ -32,21 +36,33 @@
         </Entry>
 
         <!-- ==================== Тип ==================== -->
-        <Label Text="Тип" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" />
-        <controls:ThemedPicker x:Name="TypePicker" Title="Тип операции"
+        <Label Text="Тип"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}" />
+        <controls:ThemedPicker x:Name="TypePicker"
+                               Title="Тип операции"
                                IsEnabled="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}" />
 
         <!-- ==================== Категория ==================== -->
-        <Label Text="Категория" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" />
-        <controls:ThemedPicker x:Name="CategoryPicker" Title="Категория" />
+        <Label Text="Категория"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}" />
+        <controls:ThemedPicker x:Name="CategoryPicker"
+                               Title="Категория" />
 
         <!-- ==================== Дата ==================== -->
-        <Label Text="Дата" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" />
-        <DatePicker Date="{Binding Date}" MaximumDate="{Binding MaxDate}"
-                    Format="dd.MM.yyyy" TextColor="{DynamicResource TextPrimaryColor}" />
+        <Label Text="Дата"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}" />
+        <DatePicker Date="{Binding Date}"
+                    MaximumDate="{Binding MaxDate}"
+                    Format="dd.MM.yyyy"
+                    TextColor="{DynamicResource TextPrimaryColor}" />
 
         <!-- ==================== Комментарий ==================== -->
-        <Label Text="Комментарий (необязательно)" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" />
+        <Label Text="Комментарий (необязательно)"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}" />
         <Entry Placeholder="Например, закупка зерна"
                Text="{Binding Note}"
                TextColor="{DynamicResource TextPrimaryColor}"
@@ -55,86 +71,210 @@
 
         <!-- ==================== Позиции чека ==================== -->
         <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
-            <Label Grid.Column="0" Text="Позиции чека (необязательно)" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" VerticalOptions="Center" />
-            <Button Grid.Column="1" Text="+ Позиция" Command="{Binding AddItemCommand}"
-                    BackgroundColor="Transparent" TextColor="{DynamicResource PrimaryColor}"
-                    BorderColor="{DynamicResource PrimaryColor}" BorderWidth="1" CornerRadius="8"
-                    HeightRequest="32" FontSize="12" Padding="10,0" />
+            <Label Grid.Column="0"
+                   Text="Позиции чека (необязательно)"
+                   FontSize="14"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   VerticalOptions="Center" />
+            <Button Grid.Column="1"
+                    Text="+ Позиция"
+                    Command="{Binding AddItemCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource PrimaryColor}"
+                    BorderColor="{DynamicResource PrimaryColor}"
+                    BorderWidth="1"
+                    CornerRadius="8"
+                    HeightRequest="32"
+                    FontSize="12"
+                    Padding="10,0" />
         </Grid>
 
-        <VerticalStackLayout BindableLayout.ItemsSource="{Binding CurrentItems}" Spacing="6" IsVisible="{Binding HasItems}">
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding CurrentItems}"
+                             Spacing="6"
+                             IsVisible="{Binding HasItems}">
             <BindableLayout.ItemTemplate>
                 <DataTemplate x:DataType="models:TransactionItem">
-                    <Border Stroke="{DynamicResource CardBorderColor}" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="8" BackgroundColor="{DynamicResource CardBackgroundColor}">
-                        <Grid ColumnDefinitions="*,90,30" ColumnSpacing="6" RowDefinitions="Auto,Auto" RowSpacing="6">
-                            <Entry Grid.Row="0" Grid.Column="0" Placeholder="Название" Text="{Binding Name}"
-                                   TextColor="{DynamicResource TextPrimaryColor}" PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                   FontSize="13" HorizontalOptions="Fill" Completed="OnEntryCompleted" />
-                            <Label Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Text="{Binding TotalText}"
-                                   FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource PrimaryColor}"
-                                   VerticalOptions="Center" HorizontalTextAlignment="End" />
-                            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Text="✕"
+                    <Border Stroke="{DynamicResource CardBorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="8"
+                            BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+                        <Grid ColumnDefinitions="*,90,30"
+                              ColumnSpacing="6"
+                              RowDefinitions="Auto,Auto"
+                              RowSpacing="6">
+
+                            <Entry Grid.Row="0" Grid.Column="0"
+                                   Placeholder="Название"
+                                   Text="{Binding Name}"
+                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                   PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                                   FontSize="13"
+                                   HorizontalOptions="Fill"
+                                   Completed="OnEntryCompleted" />
+
+                            <Label Grid.Row="0" Grid.RowSpan="2"
+                                   Grid.Column="1"
+                                   Text="{Binding TotalText}"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource PrimaryColor}"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="End" />
+
+                            <Button Grid.Row="0" Grid.RowSpan="2"
+                                    Grid.Column="2"
+                                    Text="✕"
                                     Command="{Binding Source={x:Reference Root}, Path=BindingContext.RemoveItemCommand}"
-                                    CommandParameter="{Binding .}" BackgroundColor="Transparent"
-                                    TextColor="{DynamicResource DangerColor}" WidthRequest="30" HeightRequest="30"
-                                    Padding="0" FontSize="14" HorizontalOptions="End" VerticalOptions="Center" CornerRadius="15" />
-                            <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="6">
-                                <Label Grid.Column="0" Text="Кол-во:" FontSize="12" TextColor="{DynamicResource TextSecondaryColor}" VerticalOptions="Center" />
-                                <Entry Grid.Column="1" Text="{Binding QuantityText}" Keyboard="Numeric"
-                                       TextColor="{DynamicResource TextPrimaryColor}" PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                       FontSize="13" HorizontalOptions="Fill" TextChanged="OnItemEntryChanged" Completed="OnEntryCompleted" />
-                                <Label Grid.Column="2" Text="Цена:" FontSize="12" TextColor="{DynamicResource TextSecondaryColor}" VerticalOptions="Center" />
-                                <Entry Grid.Column="3" Text="{Binding UnitPriceText}" Keyboard="Numeric"
-                                       TextColor="{DynamicResource TextPrimaryColor}" PlaceholderColor="{DynamicResource TextSecondaryColor}"
-                                       FontSize="13" HorizontalOptions="Fill" TextChanged="OnItemEntryChanged" Completed="OnEntryCompleted" />
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="Transparent"
+                                    TextColor="{DynamicResource DangerColor}"
+                                    WidthRequest="30"
+                                    HeightRequest="30"
+                                    Padding="0"
+                                    FontSize="14"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Center"
+                                    CornerRadius="15" />
+
+                            <Grid Grid.Row="1" Grid.Column="0"
+                                  ColumnDefinitions="Auto,*,Auto,*"
+                                  ColumnSpacing="6">
+
+                                <Label Grid.Column="0"
+                                       Text="Кол-во:"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                       VerticalOptions="Center" />
+                                <Entry Grid.Column="1"
+                                       Text="{Binding QuantityText}"
+                                       Keyboard="Numeric"
+                                       TextColor="{DynamicResource TextPrimaryColor}"
+                                       PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                                       FontSize="13"
+                                       HorizontalOptions="Fill"
+                                       TextChanged="OnItemEntryChanged"
+                                       Completed="OnEntryCompleted" />
+
+                                <Label Grid.Column="2"
+                                       Text="Цена:"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource TextSecondaryColor}"
+                                       VerticalOptions="Center" />
+                                <Entry Grid.Column="3"
+                                       Text="{Binding UnitPriceText}"
+                                       Keyboard="Numeric"
+                                       TextColor="{DynamicResource TextPrimaryColor}"
+                                       PlaceholderColor="{DynamicResource TextSecondaryColor}"
+                                       FontSize="13"
+                                       HorizontalOptions="Fill"
+                                       TextChanged="OnItemEntryChanged"
+                                       Completed="OnEntryCompleted" />
                             </Grid>
+
                         </Grid>
                     </Border>
                 </DataTemplate>
             </BindableLayout.ItemTemplate>
         </VerticalStackLayout>
 
-        <Label Text="{Binding ItemsTotalText}" FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource PrimaryColor}" HorizontalOptions="End" IsVisible="{Binding HasItems}" />
-        <Label Text="{Binding AmountMismatchText}" FontSize="11" TextColor="{DynamicResource WarningColor}" HorizontalOptions="End" IsVisible="{Binding HasAmountMismatch}" />
+        <Label Text="{Binding ItemsTotalText}"
+               FontSize="13"
+               FontAttributes="Bold"
+               TextColor="{DynamicResource PrimaryColor}"
+               HorizontalOptions="End"
+               IsVisible="{Binding HasItems}" />
+
+        <Label Text="{Binding AmountMismatchText}"
+               FontSize="11"
+               TextColor="{DynamicResource WarningColor}"
+               HorizontalOptions="End"
+               IsVisible="{Binding HasAmountMismatch}" />
 
         <!-- ==================== Фото чека ==================== -->
-        <Label Text="Фото чека (необязательно)" FontSize="14" TextColor="{DynamicResource TextPrimaryColor}" Margin="0,5,0,0" />
+        <Label Text="Фото чека (необязательно)"
+               FontSize="14"
+               TextColor="{DynamicResource TextPrimaryColor}"
+               Margin="0,5,0,0" />
 
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasReceipt}">
-            <Border Grid.Column="0" Stroke="{DynamicResource CardBorderColor}" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="0" WidthRequest="90" HeightRequest="90">
-                <Image Source="{Binding CurrentReceiptImageSource}" Aspect="AspectFill" />
+        <Grid ColumnDefinitions="Auto,*"
+              ColumnSpacing="10"
+              IsVisible="{Binding HasReceipt}">
+
+            <Border Grid.Column="0"
+                    Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="0"
+                    WidthRequest="90"
+                    HeightRequest="90">
+                <Image Source="{Binding CurrentReceiptImageSource}"
+                       Aspect="AspectFill" />
             </Border>
-            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
-                <Button Text="Заменить из галереи" Command="{Binding PickReceiptFromGalleryCommand}"
-                        BackgroundColor="Transparent" TextColor="{DynamicResource PrimaryColor}"
-                        BorderColor="{DynamicResource PrimaryColor}" BorderWidth="1" CornerRadius="8" FontSize="12" HeightRequest="32" />
-                <Button Text="Удалить фото" Command="{Binding RemoveReceiptCommand}"
-                        BackgroundColor="Transparent" TextColor="{DynamicResource DangerColor}"
-                        BorderColor="{DynamicResource DangerColor}" BorderWidth="1" CornerRadius="8" FontSize="12" HeightRequest="32" />
+
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="6"
+                                 VerticalOptions="Center">
+                <Button Text="Заменить из галереи"
+                        Command="{Binding PickReceiptFromGalleryCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        FontSize="12"
+                        HeightRequest="32" />
+                <Button Text="Удалить фото"
+                        Command="{Binding RemoveReceiptCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource DangerColor}"
+                        BorderColor="{DynamicResource DangerColor}"
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        FontSize="12"
+                        HeightRequest="32" />
             </VerticalStackLayout>
         </Grid>
 
         <!-- Кнопки для работы с фото (видны, когда фото НЕТ) -->
         <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-            <Button Grid.Column="0" Text="📷 Снять" Command="{Binding CaptureReceiptFromCameraCommand}"
+            <Button Grid.Column="0"
+                    Text="📷 Снять"
+                    Command="{Binding CaptureReceiptFromCameraCommand}"
                     IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}"
-                    BackgroundColor="Transparent" TextColor="{DynamicResource PrimaryColor}"
-                    BorderColor="{DynamicResource PrimaryColor}" BorderWidth="1" CornerRadius="8" FontSize="13" HeightRequest="40" />
-            <Button Grid.Column="1" Text="🖼️ Из галереи" Command="{Binding PickReceiptFromGalleryCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource PrimaryColor}"
+                    BorderColor="{DynamicResource PrimaryColor}"
+                    BorderWidth="1"
+                    CornerRadius="8"
+                    FontSize="13"
+                    HeightRequest="40" />
+
+            <Button Grid.Column="1"
+                    Text="🖼️ Из галереи"
+                    Command="{Binding PickReceiptFromGalleryCommand}"
                     IsVisible="{Binding HasReceipt, Converter={StaticResource InverseBoolConverter}}"
-                    BackgroundColor="Transparent" TextColor="{DynamicResource PrimaryColor}"
-                    BorderColor="{DynamicResource PrimaryColor}" BorderWidth="1" CornerRadius="8" FontSize="13" HeightRequest="40" />
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource PrimaryColor}"
+                    BorderColor="{DynamicResource PrimaryColor}"
+                    BorderWidth="1"
+                    CornerRadius="8"
+                    FontSize="13"
+                    HeightRequest="40" />
         </Grid>
 
-        <!-- Кнопки для работы с фото (видны, когда фото ЕСТЬ) -->
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding HasReceipt}">
-            <Button Grid.Column="0" Text="🔍 Распознать чек" Command="{Binding RecognizeReceiptCommand}"
-                    BackgroundColor="{DynamicResource PrimaryColor}" TextColor="{DynamicResource PrimaryTextColor}"
-                    BorderWidth="0" CornerRadius="8" FontSize="13" HeightRequest="40" />
-            <Button Grid.Column="1" Text="📷 Сканировать QR" Command="{Binding ScanQRCodeCommand}"
-                    BackgroundColor="{DynamicResource PrimaryColor}" TextColor="{DynamicResource PrimaryTextColor}"
-                    BorderWidth="0" CornerRadius="8" FontSize="13" HeightRequest="40" />
-        </Grid>
+        <!-- Кнопка сканирования QR (видна, когда фото ЕСТЬ) -->
+        <Button Text="📷 Сканировать QR"
+                Command="{Binding ScanQRCodeCommand}"
+                IsVisible="{Binding HasReceipt}"
+                BackgroundColor="{DynamicResource PrimaryColor}"
+                TextColor="{DynamicResource PrimaryTextColor}"
+                BorderWidth="0"
+                CornerRadius="8"
+                FontSize="14"
+                HeightRequest="44" />
 
     </VerticalStackLayout>
+
 </ContentView>

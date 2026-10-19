@@ -4,21 +4,16 @@ public class DialogService : IDialogService
 {
     private readonly DatabaseService _db;
     private readonly IReceiptService _receipts;
-    private readonly IOcrService _ocr;
     private readonly IQRCodeService _qrCodeService;
     private readonly IReceiptApiService _receiptApiService;
-    private readonly ITesseractOcrService _tesseractOcrService;
 
-    public DialogService(DatabaseService db, IReceiptService receipts, IOcrService ocr,
-                         IQRCodeService qrCodeService, IReceiptApiService receiptApiService,
-                         ITesseractOcrService tesseractOcrService)
+    public DialogService(DatabaseService db, IReceiptService receipts,
+                         IQRCodeService qrCodeService, IReceiptApiService receiptApiService)
     {
         _db = db;
         _receipts = receipts;
-        _ocr = ocr;
         _qrCodeService = qrCodeService;
         _receiptApiService = receiptApiService;
-        _tesseractOcrService = tesseractOcrService;
     }
 
     public async Task<bool> ConfirmAsync(string title, string message,
@@ -96,8 +91,7 @@ public class DialogService : IDialogService
 
         if (page is null) return false;
 
-        var vm = new ViewModels.TransactionEditViewModel(
-            _db, _receipts, _ocr, _qrCodeService, _receiptApiService, _tesseractOcrService);
+        var vm = new ViewModels.TransactionEditViewModel(_db, _receipts, _qrCodeService, _receiptApiService);
         vm.InitializeForEdit(transactionId);
 
         var modal = new Views.TransactionEditPage(vm);

@@ -40,7 +40,7 @@ public interface ITransactionFormViewModel : System.ComponentModel.INotifyProper
     IAsyncRelayCommand PickReceiptFromGalleryCommand { get; }
     IAsyncRelayCommand CaptureReceiptFromCameraCommand { get; }
     IAsyncRelayCommand RemoveReceiptCommand { get; }
-    IAsyncRelayCommand RecognizeReceiptCommand { get; }
+    IAsyncRelayCommand ScanQRCodeCommand { get; }
 
     // ==================== Методы ====================
     void RefreshItemsTotal();

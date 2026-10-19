@@ -1,3 +1,4 @@
+using SkiaSharp;
 using ZXing.Net.Maui;
 
 namespace AFi.Services;
@@ -9,10 +10,6 @@ namespace AFi.Services;
 /// </summary>
 public interface IQRCodeService
 {
-    /// <summary>
-    /// Декодирует все QR-коды с фото и возвращает первый фискальный.
-    /// null — если фискальный QR не найден.
-    /// </summary>
     Task<string?> DecodeFiscalQRCodeAsync(string imagePath);
 }
 
@@ -28,11 +25,41 @@ public class QRCodeService : IQRCodeService
         if (!File.Exists(imagePath))
             return null;
 
+        // ==================== Шаг 1: Пробуем распознать оригинал ====================
+        var originalResult = await TryDecodeAsync(imagePath);
+        if (originalResult != null)
+            return originalResult;
+
+        // ==================== Шаг 2: Каскадная предобработка ====================
+        // Если не вышло, вырезаем низ, увеличиваем и делаем ч/б.
+        // Это помогает, если QR-код мелкий и находится в самом низу длинного чека.
+        var tempPath = Path.Combine(FileSystem.CacheDirectory, $"qr_processed_{Guid.NewGuid():N}.png");
+        try
+        {
+            PreprocessForQR(imagePath, tempPath);
+            return await TryDecodeAsync(tempPath);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[QRCodeService] Preprocess Error: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Пытается декодировать все QR-коды на фото и вернуть первый фискальный.
+    /// </summary>
+    private async Task<string?> TryDecodeAsync(string path)
+    {
         try
         {
             // Multiple = true — вернуть ВСЕ QR-коды с изображения
             var results = await BarcodeReader.DecodeFromFileAsync(
-                imagePath,
+                path,
                 new BarcodeReaderOptions
                 {
                     Formats = BarcodeFormats.TwoDimensional,
@@ -41,21 +68,9 @@ public class QRCodeService : IQRCodeService
                     Multiple = true,
                 });
 
-            if (results is null || results.Length == 0)
-            {
-                System.Diagnostics.Debug.WriteLine("[QR] Ни одного QR-кода не найдено на фото.");
+            if (results is null)
                 return null;
-            }
 
-            System.Diagnostics.Debug.WriteLine($"[QR] Найдено QR-кодов: {results.Length}");
-            
-            // Логируем все найденные коды для отладки
-            foreach (var r in results)
-            {
-                System.Diagnostics.Debug.WriteLine($"[QR] Raw value: {r?.Value}");
-            }
-
-            // Ищем первый QR с фискальными маркерами
             foreach (var result in results)
             {
                 var value = result?.Value;
@@ -63,19 +78,13 @@ public class QRCodeService : IQRCodeService
                     continue;
 
                 if (LooksLikeFiscalQR(value))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[QR] ФИСКАЛЬНЫЙ QR ВЫБРАН: {value}");
                     return value;
-                }
             }
 
-            // Если по маркерам не нашли — возвращаем null (промо не трогаем)
-            System.Diagnostics.Debug.WriteLine("[QR] Ни один из QR-кодов не похож на фискальный.");
             return null;
         }
-        catch (Exception ex)
+        catch
         {
-            System.Diagnostics.Debug.WriteLine($"[QRCodeService] Error: {ex.Message}");
             return null;
         }
     }
@@ -98,5 +107,55 @@ public class QRCodeService : IQRCodeService
             if (lower.Contains(m)) { hasSum = true; break; }
 
         return hasSum;
+    }
+
+    /// <summary>
+    /// Вырезает нижние 40% фото, увеличивает в 2 раза, переводит в ч/б.
+    /// Помогает, если QR-код мелкий и находится в самом низу длинного чека.
+    /// </summary>
+    private static void PreprocessForQR(string inputPath, string outputPath)
+    {
+        using var inputStream = File.OpenRead(inputPath);
+        using var original = SKBitmap.Decode(inputStream);
+
+        if (original == null)
+            throw new Exception("Не удалось декодировать изображение.");
+
+        // 1. Обрезка нижних 40% (где обычно находится QR)
+        int cropY = (int)(original.Height * 0.6);
+        int cropH = original.Height - cropY;
+
+        using var cropped = new SKBitmap(original.Width, cropH);
+        using (var canvas = new SKCanvas(cropped))
+        {
+            canvas.DrawBitmap(original, new SKRect(0, cropY, original.Width, original.Height), new SKRect(0, 0, original.Width, cropH));
+        }
+
+        // 2. Увеличение x2 (чтобы ZXing увидел мелкие модули)
+        using var resized = cropped.Resize(new SKImageInfo(cropped.Width * 2, cropped.Height * 2), new SKSamplingOptions(SKFilterMode.Linear));
+
+        // 3. Перевод в ч/б с высоким контрастом
+        using var result = new SKBitmap(resized.Width, resized.Height);
+        using (var canvas = new SKCanvas(result))
+        {
+            // Матрица: сильное увеличение контраста для ч/б
+            var matrix = new float[]
+            {
+                1.5f, 1.5f, 1.5f, 0, -128,
+                1.5f, 1.5f, 1.5f, 0, -128,
+                1.5f, 1.5f, 1.5f, 0, -128,
+                0,    0,    0,    1, 0
+            };
+            using var paint = new SKPaint
+            {
+                ColorFilter = SKColorFilter.CreateColorMatrix(matrix)
+            };
+            canvas.DrawBitmap(resized, 0, 0, paint);
+        }
+
+        using var image = SKImage.FromBitmap(result);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using var fileStream = File.Create(outputPath);
+        data.SaveTo(fileStream);
     }
 }

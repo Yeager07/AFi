@@ -5,7 +5,6 @@ using CommunityToolkit.Maui;
 using Microcharts.Maui;
 using Microsoft.Extensions.Logging;
 using Plugin.LocalNotification;
-using TesseractOcrMaui;
 using ZXing.Net.Maui.Controls;
 
 namespace AFi;
@@ -31,14 +30,7 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        // Регистрация TesseractOcrMaui с русским языком
-        builder.Services.AddTesseractOcr(options =>
-        {
-            // Файл rus.traineddata должен лежать в папке Resources/Raw
-            options.AddFile("rus.traineddata");
-        });
-
-        // Сервисы
+        // ==================== Сервисы ====================
         builder.Services.AddSingleton<DatabaseService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IThemeService, ThemeService>();
@@ -48,12 +40,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ForecastService>();
         builder.Services.AddSingleton<IDataBackupService, DataBackupService>();
-        builder.Services.AddSingleton<IOcrService, OcrService>();
+        
+        // Оставляем только QR-сервисы
         builder.Services.AddSingleton<IQRCodeService, QRCodeService>();
         builder.Services.AddSingleton<IReceiptApiService, ReceiptApiService>();
-        builder.Services.AddSingleton<ITesseractOcrService, TesseractOcrService>();
 
-        // ViewModels — Singleton
+        // ==================== ViewModels — Singleton ====================
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddSingleton<HistoryViewModel>();
         builder.Services.AddSingleton<StatsViewModel>();
@@ -65,7 +57,7 @@ public static class MauiProgram
         // Форма редактирования напоминания — Transient
         builder.Services.AddTransient<RecurringEditViewModel>();
 
-        // Страницы — Singleton
+        // ==================== Страницы — Singleton ====================
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<SplashPage>();
         builder.Services.AddSingleton<MainPage>();

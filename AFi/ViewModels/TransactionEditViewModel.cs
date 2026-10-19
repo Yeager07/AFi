@@ -18,10 +18,8 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
 {
     private readonly DatabaseService _db;
     private readonly IReceiptService _receipts;
-    private readonly IOcrService _ocr;
     private readonly IQRCodeService _qrCodeService;
     private readonly IReceiptApiService _receiptApiService;
-    private readonly ITesseractOcrService _tesseractOcrService;
 
     private int? _transactionId;
     private Transaction? _transaction;
@@ -76,16 +74,13 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
 
     // ==================== Конструктор ====================
 
-    public TransactionEditViewModel(DatabaseService db, IReceiptService receipts, IOcrService ocr,
-                                    IQRCodeService qrCodeService, IReceiptApiService receiptApiService,
-                                    ITesseractOcrService tesseractOcrService)
+    public TransactionEditViewModel(DatabaseService db, IReceiptService receipts,
+                                    IQRCodeService qrCodeService, IReceiptApiService receiptApiService)
     {
         _db = db;
         _receipts = receipts;
-        _ocr = ocr;
         _qrCodeService = qrCodeService;
         _receiptApiService = receiptApiService;
-        _tesseractOcrService = tesseractOcrService;
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
@@ -108,8 +103,7 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
 
     public async Task LoadAsync()
     {
-        if (_loaded) return;
-        if (!_transactionId.HasValue || IsBusy) return;
+        if (_loaded || !_transactionId.HasValue || IsBusy) return;
         IsBusy = true;
 
         try
@@ -301,47 +295,19 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     }
 
     [RelayCommand]
-    private async Task RecognizeReceiptAsync()
-    {
-        if (string.IsNullOrEmpty(_currentReceiptFileName))
-        {
-            StatusMessage = "Сначала добавьте фото чека";
-            return;
-        }
-
-        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
-        if (fullPath is null)
-        {
-            StatusMessage = "Файл фото не найден";
-            return;
-        }
-
-        IsBusy = true;
-        StatusMessage = "Распознавание текста (Tesseract)...";
-
-        try
-        {
-            var recognizedText = await _tesseractOcrService.RecognizeTextAsync(fullPath);
-            await Shell.Current.DisplayAlertAsync("Результат распознавания", recognizedText, "OK");
-        }
-        catch (Exception ex)
-        {
-            await Shell.Current.DisplayAlertAsync("Ошибка распознавания", ex.Message, "OK");
-            StatusMessage = "Ошибка OCR";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
     private async Task ScanQRCodeAsync()
     {
         if (string.IsNullOrEmpty(_currentReceiptFileName))
         {
             StatusMessage = "Сначала добавьте фото чека";
             return;
+        }
+
+        // Подтверждение, если позиции уже есть
+        if (CurrentItems.Count > 0)
+        {
+            var confirm = await Shell.Current.DisplayAlert("Внимание", "Текущие позиции будут заменены данными из нового чека. Продолжить?", "Да", "Отмена");
+            if (!confirm) return;
         }
 
         var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
@@ -355,41 +321,44 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
             var qrRaw = await _qrCodeService.DecodeFiscalQRCodeAsync(fullPath);
             if (string.IsNullOrEmpty(qrRaw))
             {
-                StatusMessage = "Фискальный QR-код не найден на изображении";
+                // Если QR не найден и позиции есть, предлагаем очистить
+                if (CurrentItems.Count > 0)
+                {
+                    var clear = await Shell.Current.DisplayAlert("QR-код не найден", "Не удалось распознать QR. Очистить текущий список позиций?", "Очистить", "Оставить");
+                    if (clear)
+                    {
+                        CurrentItems.Clear();
+                        RefreshItemsTotal();
+                    }
+                }
+                StatusMessage = "Фискальный QR-код не найден";
                 return;
             }
 
             StatusMessage = "Загрузка данных из ФНС...";
             var receiptData = await _receiptApiService.GetReceiptDataAsync(qrRaw);
 
-            if (receiptData is null)
+            if (receiptData?.Items?.Count > 0)
             {
-                await Shell.Current.DisplayAlertAsync("Ошибка", "Сервер вернул null.", "OK");
-                StatusMessage = "Ошибка получения данных";
-                return;
-            }
-
-            if (receiptData.Items.Count == 0)
-            {
-                await Shell.Current.DisplayAlertAsync("Ошибка", "Сервер вернул 0 позиций.", "OK");
-                StatusMessage = "Список позиций пуст";
-                return;
-            }
-
-            CurrentItems.Clear();
-            foreach (var item in receiptData.Items)
-            {
-                var newItem = new TransactionItem
+                CurrentItems.Clear();
+                foreach (var item in receiptData.Items)
                 {
-                    Name = item.Name,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.Price / 100m, // из копеек в рубли
-                };
-                newItem.InitializeTexts();
-                CurrentItems.Add(newItem);
+                    var newItem = new TransactionItem
+                    {
+                        Name = item.Name,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.Price / 100m,
+                    };
+                    newItem.InitializeTexts();
+                    CurrentItems.Add(newItem);
+                }
+                RefreshItemsTotal();
+                StatusMessage = $"Загружено {receiptData.Items.Count} позиций из чека";
             }
-            RefreshItemsTotal();
-            StatusMessage = $"Загружено {receiptData.Items.Count} позиций из чека";
+            else
+            {
+                StatusMessage = "Не удалось получить данные чека";
+            }
         }
         catch (Exception ex)
         {
