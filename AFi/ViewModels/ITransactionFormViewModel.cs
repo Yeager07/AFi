@@ -10,7 +10,6 @@ namespace AFi.ViewModels;
 /// и TransactionEditViewModel (модалка редактирования).
 /// Позволяет вынести XAML-форму в TransactionFormView.
 /// </summary>
-
 public interface ITransactionFormViewModel : System.ComponentModel.INotifyPropertyChanged
 {
     // ==================== Поля ====================
@@ -41,6 +40,7 @@ public interface ITransactionFormViewModel : System.ComponentModel.INotifyProper
     IAsyncRelayCommand PickReceiptFromGalleryCommand { get; }
     IAsyncRelayCommand CaptureReceiptFromCameraCommand { get; }
     IAsyncRelayCommand RemoveReceiptCommand { get; }
+    IAsyncRelayCommand RecognizeReceiptCommand { get; }
 
     // ==================== Методы ====================
     void RefreshItemsTotal();

@@ -9,10 +9,19 @@ using CommunityToolkit.Mvvm.Messaging;
 
 namespace AFi.ViewModels;
 
+/// <summary>
+/// ViewModel модальной формы редактирования существующей операции.
+/// Используется со страницы Истории. Сумма и тип операции immutable;
+/// если у операции есть позиции — сумма пересчитывается из позиций.
+/// </summary>
 public partial class TransactionEditViewModel : ObservableObject, ITransactionFormViewModel
 {
     private readonly DatabaseService _db;
     private readonly IReceiptService _receipts;
+    private readonly IOcrService _ocr;
+    private readonly IQRCodeService _qrCodeService;
+    private readonly IReceiptApiService _receiptApiService;
+    private readonly ITesseractOcrService _tesseractOcrService;
 
     private int? _transactionId;
     private Transaction? _transaction;
@@ -22,7 +31,12 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     private string? _currentReceiptFileName;
     private string? _originalReceiptFileName;
 
+    /// <summary>
+    /// true — сохранено, false — отменено.
+    /// </summary>
     public event EventHandler<bool>? EditCompleted;
+
+    // ==================== Состояние формы ====================
 
     [ObservableProperty] private string _amountText = string.Empty;
     [ObservableProperty] private int _selectedTypeIndex;
@@ -33,10 +47,17 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
+    /// <summary>
+    /// В модалке редактирования всегда true — сумма и тип заблокированы.
+    /// </summary>
     public bool IsEditing => true;
+
+    // ==================== Фото ====================
 
     [ObservableProperty] private bool _hasReceipt;
     [ObservableProperty] private ImageSource? _currentReceiptImageSource;
+
+    // ==================== Позиции ====================
 
     public ObservableCollection<TransactionItem> CurrentItems { get; } = new();
 
@@ -45,16 +66,26 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     [ObservableProperty] private bool _hasAmountMismatch;
     [ObservableProperty] private string _amountMismatchText = string.Empty;
 
+    // ==================== Списки ====================
+
     public ObservableCollection<string> TypeOptions { get; } = new() { "Расход", "Доход" };
     public ObservableRangeCollection<Category> AvailableCategories { get; } = new();
 
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
-    public TransactionEditViewModel(DatabaseService db, IReceiptService receipts)
+    // ==================== Конструктор ====================
+
+    public TransactionEditViewModel(DatabaseService db, IReceiptService receipts, IOcrService ocr,
+                                    IQRCodeService qrCodeService, IReceiptApiService receiptApiService,
+                                    ITesseractOcrService tesseractOcrService)
     {
         _db = db;
         _receipts = receipts;
+        _ocr = ocr;
+        _qrCodeService = qrCodeService;
+        _receiptApiService = receiptApiService;
+        _tesseractOcrService = tesseractOcrService;
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
@@ -62,6 +93,8 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     {
         _transactionId = transactionId;
     }
+
+    // ==================== Реакции ====================
 
     partial void OnSelectedTypeIndexChanged(int value)
     {
@@ -265,6 +298,108 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
         _currentReceiptFileName = null;
         HasReceipt = false;
         CurrentReceiptImageSource = null;
+    }
+
+    [RelayCommand]
+    private async Task RecognizeReceiptAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName))
+        {
+            StatusMessage = "Сначала добавьте фото чека";
+            return;
+        }
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null)
+        {
+            StatusMessage = "Файл фото не найден";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Распознавание текста (Tesseract)...";
+
+        try
+        {
+            var recognizedText = await _tesseractOcrService.RecognizeTextAsync(fullPath);
+            await Shell.Current.DisplayAlertAsync("Результат распознавания", recognizedText, "OK");
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlertAsync("Ошибка распознавания", ex.Message, "OK");
+            StatusMessage = "Ошибка OCR";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ScanQRCodeAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName))
+        {
+            StatusMessage = "Сначала добавьте фото чека";
+            return;
+        }
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null) return;
+
+        IsBusy = true;
+        StatusMessage = "Сканирование QR-кода...";
+
+        try
+        {
+            var qrRaw = await _qrCodeService.DecodeFiscalQRCodeAsync(fullPath);
+            if (string.IsNullOrEmpty(qrRaw))
+            {
+                StatusMessage = "Фискальный QR-код не найден на изображении";
+                return;
+            }
+
+            StatusMessage = "Загрузка данных из ФНС...";
+            var receiptData = await _receiptApiService.GetReceiptDataAsync(qrRaw);
+
+            if (receiptData is null)
+            {
+                await Shell.Current.DisplayAlertAsync("Ошибка", "Сервер вернул null.", "OK");
+                StatusMessage = "Ошибка получения данных";
+                return;
+            }
+
+            if (receiptData.Items.Count == 0)
+            {
+                await Shell.Current.DisplayAlertAsync("Ошибка", "Сервер вернул 0 позиций.", "OK");
+                StatusMessage = "Список позиций пуст";
+                return;
+            }
+
+            CurrentItems.Clear();
+            foreach (var item in receiptData.Items)
+            {
+                var newItem = new TransactionItem
+                {
+                    Name = item.Name,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.Price / 100m, // из копеек в рубли
+                };
+                newItem.InitializeTexts();
+                CurrentItems.Add(newItem);
+            }
+            RefreshItemsTotal();
+            StatusMessage = $"Загружено {receiptData.Items.Count} позиций из чека";
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlertAsync("Ошибка API", ex.Message, "OK");
+            StatusMessage = "Ошибка получения данных";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task SetReceiptAsync(string fileName)

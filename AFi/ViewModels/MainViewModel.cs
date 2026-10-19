@@ -19,6 +19,10 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
     private readonly IReceiptService _receipts;
     private readonly IFormSnapshotService _snapshots;
     private readonly ISettingsService _settings;
+    private readonly IOcrService _ocr;
+    private readonly IQRCodeService _qrCodeService;
+    private readonly IReceiptApiService _receiptApiService;
+    private readonly ITesseractOcrService _tesseractOcrService;
 
     private int? _editingTransactionId;
     private Transaction? _editingTransaction;
@@ -81,14 +85,8 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
 
     // ==================== Списки ====================
 
-    public ObservableCollection<string> TypeOptions { get; } = new()
-    {
-        "Расход",
-        "Доход"
-    };
-
+    public ObservableCollection<string> TypeOptions { get; } = new() { "Расход", "Доход" };
     public ObservableRangeCollection<Category> AvailableCategories { get; } = new();
-
     public ObservableRangeCollection<TransactionGroup> TransactionGroups { get; } = new();
 
     // ==================== Пагинация ====================
@@ -111,15 +109,22 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
     public TransactionType CurrentType =>
         SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
+    // ==================== Конструктор ====================
+
     public MainViewModel(DatabaseService db, IDialogService dialogs,
                          IReceiptService receipts, IFormSnapshotService snapshots,
-                         ISettingsService settings)
+                         ISettingsService settings, IOcrService ocr,
+                         IQRCodeService qrCodeService, IReceiptApiService receiptApiService, ITesseractOcrService tesseractOcrService)
     {
         _db = db;
         _dialogs = dialogs;
         _receipts = receipts;
         _snapshots = snapshots;
         _settings = settings;
+        _ocr = ocr;
+        _qrCodeService = qrCodeService;
+        _receiptApiService = receiptApiService;
+        _tesseractOcrService = tesseractOcrService;
 
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
 
@@ -186,7 +191,6 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
             MaxDate = DateTime.Today;
 
             // Fast path: если данные не менялись — только восстановить снапшот
-            // (после возврата с камеры/галереи форма может нуждаться в рест��ре)
             if (_initialLoaded && !_isDirty)
             {
                 await RestoreSnapshotIfNeededAsync();
@@ -356,6 +360,109 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         _currentReceiptFileName = null;
         HasReceipt = false;
         CurrentReceiptImageSource = null;
+    }
+
+    [RelayCommand]
+    private async Task RecognizeReceiptAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName))
+        {
+            StatusMessage = "Сначала добавьте фото чека";
+            return;
+        }
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null)
+        {
+            StatusMessage = "Файл фото не найден";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Распознавание текста (Tesseract)...";
+
+        try
+        {
+            var recognizedText = await _tesseractOcrService.RecognizeTextAsync(fullPath);
+            await _dialogs.ConfirmAsync("Результат распознавания", recognizedText, "OK", "Закрыть");
+        }
+        catch (Exception ex)
+        {
+            await _dialogs.ConfirmAsync("Ошибка распознавания", ex.Message, "OK", "Закрыть");
+            StatusMessage = "Ошибка OCR";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ScanQRCodeAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName))
+        {
+            StatusMessage = "Сначала добавьте фото чека";
+            return;
+        }
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null) return;
+
+        IsBusy = true;
+        StatusMessage = "Сканирование QR-кода...";
+
+        try
+        {
+            var qrRaw = await _qrCodeService.DecodeFiscalQRCodeAsync(fullPath);
+            if (string.IsNullOrEmpty(qrRaw))
+            {
+                StatusMessage = "Фискальный QR-код не найден на изображении";
+                return;
+            }
+
+            StatusMessage = "Загрузка данных из ФНС...";
+            var receiptData = await _receiptApiService.GetReceiptDataAsync(qrRaw);
+
+            if (receiptData is null)
+            {
+                await _dialogs.ConfirmAsync("Ошибка", "Сервер вернул null.", "OK", "Закрыть");
+                StatusMessage = "Ошибка получения данных";
+                return;
+            }
+
+            if (receiptData.Items.Count == 0)
+            {
+                await _dialogs.ConfirmAsync("Ошибка", "Сервер вернул 0 позиций.", "OK", "Закрыть");
+                StatusMessage = "Список позиций пуст";
+                return;
+            }
+
+            CurrentItems.Clear();
+            foreach (var item in receiptData.Items)
+            {
+                var newItem = new TransactionItem
+                {
+                    Name = item.Name,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.Price / 100m, // из копеек в рубли
+                };
+                newItem.InitializeTexts();
+                CurrentItems.Add(newItem);
+            }
+            RefreshItemsTotal();
+            StatusMessage = $"Загружено {receiptData.Items.Count} позиций из чека";
+        }
+        catch (Exception ex)
+        {
+            // Показываем реальную ошибку от API
+            await _dialogs.ConfirmAsync("Ошибка API", ex.Message, "OK", "Закрыть");
+            StatusMessage = "Ошибка получения данных";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task SetReceiptAsync(string fileName)
@@ -987,6 +1094,7 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
                 }
             }
 
+            // Группируем и заменяем одним событием
             var groups = toShow
                 .GroupBy(t => t.Date.Date)
                 .OrderByDescending(g => g.Key)

@@ -5,6 +5,8 @@ using CommunityToolkit.Maui;
 using Microcharts.Maui;
 using Microsoft.Extensions.Logging;
 using Plugin.LocalNotification;
+using TesseractOcrMaui;
+using ZXing.Net.Maui.Controls;
 
 namespace AFi;
 
@@ -18,6 +20,7 @@ public static class MauiProgram
             .UseMauiCommunityToolkit()
             .UseMicrocharts()
             .UseLocalNotification()
+            .UseBarcodeReader() // Инициализация ZXing для QR
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -27,6 +30,13 @@ public static class MauiProgram
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
+
+        // Регистрация TesseractOcrMaui с русским языком
+        builder.Services.AddTesseractOcr(options =>
+        {
+            // Файл rus.traineddata должен лежать в папке Resources/Raw
+            options.AddFile("rus.traineddata");
+        });
 
         // Сервисы
         builder.Services.AddSingleton<DatabaseService>();
@@ -38,6 +48,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ForecastService>();
         builder.Services.AddSingleton<IDataBackupService, DataBackupService>();
+        builder.Services.AddSingleton<IOcrService, OcrService>();
+        builder.Services.AddSingleton<IQRCodeService, QRCodeService>();
+        builder.Services.AddSingleton<IReceiptApiService, ReceiptApiService>();
+        builder.Services.AddSingleton<ITesseractOcrService, TesseractOcrService>();
 
         // ViewModels — Singleton
         builder.Services.AddSingleton<MainViewModel>();
