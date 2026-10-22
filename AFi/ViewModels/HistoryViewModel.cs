@@ -22,6 +22,9 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
     private bool _filtersLoaded;
 
     // ==================== Управление свежестью данных ====================
+    // _initialLoaded = первая загрузка прошла
+    // _isDirty = данные изменились или пришёл новый query — нужно перезагружать
+
     private bool _initialLoaded;
     private bool _isDirty = true;
 
@@ -81,6 +84,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
 
     private string? _pendingCategoryName;
 
+    // ==================== Защита от гонки загрузок ====================
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private bool _reloadPending;
 
@@ -105,6 +109,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
+        bool hadQuery = false;
+
         _suppressFilterReload = true;
         try
         {
@@ -113,18 +119,21 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
                 && fi >= 0 && fi < FilterOptions.Count)
             {
                 SelectedFilterIndex = fi;
+                hadQuery = true;
             }
 
             if (query.TryGetValue("from", out var fromObj)
                 && DateTime.TryParse(fromObj?.ToString(), out var fromDate))
             {
                 CustomFromDate = fromDate;
+                hadQuery = true;
             }
 
             if (query.TryGetValue("to", out var toObj)
                 && DateTime.TryParse(toObj?.ToString(), out var toDate))
             {
                 CustomToDate = toDate;
+                hadQuery = true;
             }
 
             if (query.TryGetValue("category", out var catObj)
@@ -132,12 +141,18 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
                 && !string.IsNullOrWhiteSpace(catName))
             {
                 _pendingCategoryName = catName;
+                hadQuery = true;
             }
         }
         finally
         {
             _suppressFilterReload = false;
         }
+
+        // Если пришёл новый query — форсируем перезагрузку при следующем OnAppearing,
+        // даже если данные в БД не менялись.
+        if (hadQuery)
+            _isDirty = true;
     }
 
     private void ApplyPendingCategoryFilter()
@@ -177,12 +192,14 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         OnPropertyChanged(nameof(IsCustomRangeSelected));
         if (_suppressFilterReload) return;
         if (value == 9) return;
+        _isDirty = true;
         _ = ReloadAsync();
     }
 
     partial void OnSelectedCategoryIndexChanged(int value)
     {
         if (_suppressFilterReload) return;
+        _isDirty = true;
         _ = ReloadAsync();
     }
 
@@ -207,11 +224,15 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         if (!_filtersLoaded)
         {
             await ReloadFiltersAsync();
-            ApplyPendingCategoryFilter();
             _filtersLoaded = true;
         }
 
-        // Fast path: данные не менялись — не перезагружаем
+        // Применяем отложенный фильтр по категории из query.
+        // Раньше это было внутри if (!_filtersLoaded), из-за чего
+        // при повторных переходах из Статистики фильтр не обновлялся.
+        ApplyPendingCategoryFilter();
+
+        // Fast path: если данные не менялись и query не приходил — не перезагружаем
         if (_initialLoaded && !_isDirty) return;
 
         await ReloadAsync();
@@ -263,6 +284,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
                 }
             }
 
+            // Дополняем коллекцию одним событием
             Transactions.AddRange(next);
 
             _loadedCount += next.Count;
@@ -306,9 +328,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
 
         if (choice == "Редактировать")
         {
-            // Модалка при сохранении отправит DataChangedMessage,
-            // OnAppearing сработает после закрытия, LoadAsync увидит dirty
-            // и перезагрузит. Здесь ничего явно не делаем.
             await _dialogs.ShowTransactionEditAsync(transaction.Id);
         }
         else if (choice == "Удалить")
@@ -538,6 +557,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
             }
         }
 
+        // Заменяем коллекцию одним событием
         Transactions.ReplaceRange(list);
 
         _loadedCount = list.Count;
