@@ -306,7 +306,10 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
         // Подтверждение, если позиции уже есть
         if (CurrentItems.Count > 0)
         {
-            var confirm = await Shell.Current.DisplayAlert("Внимание", "Текущие позиции будут заменены данными из нового чека. Продолжить?", "Да", "Отмена");
+            var confirm = await Shell.Current.DisplayAlertAsync(
+                "Внимание",
+                "Текущие позиции будут заменены данными из нового чека. Продолжить?",
+                "Да", "Отмена");
             if (!confirm) return;
         }
 
@@ -324,7 +327,10 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
                 // Если QR не найден и позиции есть, предлагаем очистить
                 if (CurrentItems.Count > 0)
                 {
-                    var clear = await Shell.Current.DisplayAlert("QR-код не найден", "Не удалось распознать QR. Очистить текущий список позиций?", "Очистить", "Оставить");
+                    var clear = await Shell.Current.DisplayAlertAsync(
+                        "QR-код не найден",
+                        "Не удалось распознать QR. Очистить текущий список позиций?",
+                        "Очистить", "Оставить");
                     if (clear)
                     {
                         CurrentItems.Clear();
