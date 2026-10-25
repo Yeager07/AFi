@@ -45,9 +45,6 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private DateTime _maxDate = DateTime.Today;
 
-    /// <summary>
-    /// В модалке редактирования всегда true — сумма и тип заблокированы.
-    /// </summary>
     public bool IsEditing => true;
 
     // ==================== Фото ====================
@@ -69,8 +66,7 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     public ObservableCollection<string> TypeOptions { get; } = new() { "Расход", "Доход" };
     public ObservableRangeCollection<Category> AvailableCategories { get; } = new();
 
-    public TransactionType CurrentType =>
-        SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
+    public TransactionType CurrentType => SelectedTypeIndex == 1 ? TransactionType.Income : TransactionType.Expense;
 
     // ==================== Конструктор ====================
 
@@ -84,19 +80,11 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
-    public void InitializeForEdit(int transactionId)
-    {
-        _transactionId = transactionId;
-    }
+    public void InitializeForEdit(int transactionId) => _transactionId = transactionId;
 
     // ==================== Реакции ====================
 
-    partial void OnSelectedTypeIndexChanged(int value)
-    {
-        if (_suppressTypeChangeReload) return;
-        _ = ReloadCategoriesAsync();
-    }
-
+    partial void OnSelectedTypeIndexChanged(int value) { if (!_suppressTypeChangeReload) _ = ReloadCategoriesAsync(); }
     partial void OnAmountTextChanged(string value) => RefreshAmountMismatch();
 
     // ==================== Загрузка ====================
@@ -112,64 +100,32 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
             await _db.InitializeAsync();
 
             var tx = await _db.GetTransactionByIdAsync(_transactionId.Value);
-            if (tx is null)
-            {
-                StatusMessage = "Операция не найдена";
-                return;
-            }
+            if (tx is null) { StatusMessage = "Не найдена"; return; }
             _transaction = tx;
 
-            _suppressTypeChangeReload = true;
-            SelectedTypeIndex = tx.Type == TransactionType.Income ? 1 : 0;
-            _suppressTypeChangeReload = false;
-
+            _suppressTypeChangeReload = true; SelectedTypeIndex = tx.Type == TransactionType.Income ? 1 : 0; _suppressTypeChangeReload = false;
             await ReloadCategoriesAsync();
-
-            SelectedCategory =
-                AvailableCategories.FirstOrDefault(c => c.Id == tx.CategoryId)
-                ?? AvailableCategories.FirstOrDefault(c => c.Name == tx.CategoryName)
-                ?? AvailableCategories.FirstOrDefault();
+            SelectedCategory = AvailableCategories.FirstOrDefault(c => c.Id == tx.CategoryId) ?? AvailableCategories.FirstOrDefault(c => c.Name == tx.CategoryName) ?? AvailableCategories.FirstOrDefault();
 
             AmountText = tx.Amount.ToString("0.##", CultureInfo.InvariantCulture);
-            Date = tx.Date;
-            Note = tx.Note ?? string.Empty;
-
-            _originalReceiptFileName = tx.ReceiptImagePath;
-            _currentReceiptFileName = tx.ReceiptImagePath;
+            Date = tx.Date; Note = tx.Note ?? string.Empty;
+            _originalReceiptFileName = tx.ReceiptImagePath; _currentReceiptFileName = tx.ReceiptImagePath;
 
             if (!string.IsNullOrEmpty(tx.ReceiptImagePath))
             {
                 var path = _receipts.GetFullPath(tx.ReceiptImagePath);
-                if (path is not null)
-                {
-                    HasReceipt = true;
-                    CurrentReceiptImageSource = ImageSource.FromFile(path);
-                }
-                else
-                {
-                    _currentReceiptFileName = null;
-                }
+                if (path is not null) { HasReceipt = true; CurrentReceiptImageSource = ImageSource.FromFile(path); }
+                else _currentReceiptFileName = null;
             }
 
             CurrentItems.Clear();
             var items = await _db.GetItemsForTransactionAsync(tx.Id);
-            foreach (var item in items)
-            {
-                item.InitializeTexts();
-                CurrentItems.Add(item);
-            }
+            foreach (var item in items) { item.InitializeTexts(); CurrentItems.Add(item); }
             RefreshItemsTotal();
-
             _loaded = true;
         }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Ошибка загрузки: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        catch (Exception ex) { StatusMessage = $"Ошибка: {ex.Message}"; }
+        finally { IsBusy = false; }
     }
 
     private async Task ReloadCategoriesAsync()
@@ -179,49 +135,23 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
             var previousId = SelectedCategory?.Id;
             var categories = await _db.GetCategoriesAsync(CurrentType);
             AvailableCategories.ReplaceRange(categories);
-
-            SelectedCategory = previousId.HasValue
-                ? AvailableCategories.FirstOrDefault(c => c.Id == previousId.Value)
-                  ?? AvailableCategories.FirstOrDefault()
-                : AvailableCategories.FirstOrDefault();
+            SelectedCategory = previousId.HasValue ? AvailableCategories.FirstOrDefault(c => c.Id == previousId.Value) ?? AvailableCategories.FirstOrDefault() : AvailableCategories.FirstOrDefault();
         }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Ошибка загрузки категорий: {ex.Message}";
-        }
+        catch (Exception ex) { StatusMessage = $"Ошибка: {ex.Message}"; }
     }
 
     // ==================== Позиции ====================
 
     [RelayCommand]
-    private void AddItem()
-    {
-        CurrentItems.Add(new TransactionItem
-        {
-            Name = string.Empty,
-            Quantity = 1m,
-            UnitPrice = 0m,
-        });
-    }
+    private void AddItem() => CurrentItems.Add(new TransactionItem { Name = string.Empty, Quantity = 1m, UnitPrice = 0m });
 
     [RelayCommand]
-    private void RemoveItem(TransactionItem? item)
-    {
-        if (item is null) return;
-        CurrentItems.Remove(item);
-    }
+    private void RemoveItem(TransactionItem? item) { if (item is not null) CurrentItems.Remove(item); }
 
     public void RefreshItemsTotal()
     {
         HasItems = CurrentItems.Count > 0;
-
-        if (!HasItems)
-        {
-            ItemsTotalText = string.Empty;
-            RefreshAmountMismatch();
-            return;
-        }
-
+        if (!HasItems) { ItemsTotalText = string.Empty; RefreshAmountMismatch(); return; }
         var total = CurrentItems.Sum(i => i.Total);
         ItemsTotalText = $"Сумма по позициям: {total:N0} ₽";
         RefreshAmountMismatch();
@@ -229,36 +159,17 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
 
     private void RefreshAmountMismatch()
     {
-        if (!HasItems)
-        {
-            HasAmountMismatch = false;
-            AmountMismatchText = string.Empty;
-            return;
-        }
-
+        if (!HasItems) { HasAmountMismatch = false; AmountMismatchText = string.Empty; return; }
         var normalized = (AmountText ?? string.Empty).Replace(',', '.');
-        if (!decimal.TryParse(normalized, NumberStyles.Number,
-                              CultureInfo.InvariantCulture, out var amount))
+        if (!decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
         {
-            HasAmountMismatch = false;
-            AmountMismatchText = string.Empty;
-            return;
+            HasAmountMismatch = false; AmountMismatchText = string.Empty; return;
         }
-
         var itemsTotal = CurrentItems.Sum(i => i.Total);
         var diff = amount - itemsTotal;
-
-        if (Math.Abs(diff) < 0.01m)
-        {
-            HasAmountMismatch = false;
-            AmountMismatchText = string.Empty;
-            return;
-        }
-
+        if (Math.Abs(diff) < 0.01m) { HasAmountMismatch = false; AmountMismatchText = string.Empty; return; }
         HasAmountMismatch = true;
-        AmountMismatchText = diff > 0
-            ? $"Позиции: {itemsTotal:N0} ₽. Сумма операции больше на {diff:N0} ₽."
-            : $"Позиции: {itemsTotal:N0} ₽. Сумма операции меньше на {Math.Abs(diff):N0} ₽.";
+        AmountMismatchText = diff > 0 ? $"Позиции: {itemsTotal:N0} ₽. Сумма операции больше на {diff:N0} ₽." : $"Позиции: {itemsTotal:N0} ₽. Сумма операции меньше на {Math.Abs(diff):N0} ₽.";
     }
 
     // ==================== Фото ====================
@@ -268,8 +179,7 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     {
         if (IsBusy) return;
         var fileName = await _receipts.PickFromGalleryAsync();
-        if (fileName is null) return;
-        await SetReceiptAsync(fileName);
+        if (fileName is not null) await SetReceiptAsync(fileName);
     }
 
     [RelayCommand]
@@ -277,77 +187,48 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     {
         if (IsBusy) return;
         var fileName = await _receipts.CaptureFromCameraAsync();
-        if (fileName is null) return;
-        await SetReceiptAsync(fileName);
+        if (fileName is not null) await SetReceiptAsync(fileName);
     }
 
     [RelayCommand]
     private async Task RemoveReceiptAsync()
     {
         if (string.IsNullOrEmpty(_currentReceiptFileName)) return;
-
-        if (_currentReceiptFileName != _originalReceiptFileName)
-            await _receipts.DeleteAsync(_currentReceiptFileName);
-
-        _currentReceiptFileName = null;
-        HasReceipt = false;
-        CurrentReceiptImageSource = null;
+        if (_currentReceiptFileName != _originalReceiptFileName) await _receipts.DeleteAsync(_currentReceiptFileName);
+        _currentReceiptFileName = null; HasReceipt = false; CurrentReceiptImageSource = null;
     }
 
-    [RelayCommand]
-    private async Task ScanQRCodeAsync()
+    // ==================== Сканирование QR и загрузка позиций ====================
+
+    /// <summary>
+    /// Спрашивает подтверждение, если в форме уже есть позиции (они будут заменены).
+    /// </summary>
+    private async Task<bool> ConfirmReplaceIfHasItemsAsync()
     {
-        if (string.IsNullOrEmpty(_currentReceiptFileName))
-        {
-            StatusMessage = "Сначала добавьте фото чека";
-            return;
-        }
+        if (CurrentItems.Count == 0) return true;
+        return await Shell.Current.DisplayAlertAsync(
+            "Внимание",
+            "Текущие позиции будут заменены данными из нового чека. Продолжить?",
+            "Да", "Отмена");
+    }
 
-        // Подтверждение, если позиции уже есть
-        if (CurrentItems.Count > 0)
-        {
-            var confirm = await Shell.Current.DisplayAlertAsync(
-                "Внимание",
-                "Текущие позиции будут заменены данными из нового чека. Продолжить?",
-                "Да", "Отмена");
-            if (!confirm) return;
-        }
-
-        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
-        if (fullPath is null) return;
-
+    /// <summary>
+    /// Загружает чек по qrraw-строке (полученной из QR-кода или собранной
+    /// вручную из реквизитов) и заполняет список позиций.
+    /// </summary>
+    private async Task ApplyReceiptFromQrRawAsync(string qrRaw)
+    {
         IsBusy = true;
-        StatusMessage = "Сканирование QR-кода...";
-
+        StatusMessage = "Загрузка данных из ФНС...";
         try
         {
-            var qrRaw = await _qrCodeService.DecodeFiscalQRCodeAsync(fullPath);
-            if (string.IsNullOrEmpty(qrRaw))
-            {
-                // Если QR не найден и позиции есть, предлагаем очистить
-                if (CurrentItems.Count > 0)
-                {
-                    var clear = await Shell.Current.DisplayAlertAsync(
-                        "QR-код не найден",
-                        "Не удалось распознать QR. Очистить текущий список позиций?",
-                        "Очистить", "Оставить");
-                    if (clear)
-                    {
-                        CurrentItems.Clear();
-                        RefreshItemsTotal();
-                    }
-                }
-                StatusMessage = "Фискальный QR-код не найден";
-                return;
-            }
-
-            StatusMessage = "Загрузка данных из ФНС...";
             var receiptData = await _receiptApiService.GetReceiptDataAsync(qrRaw);
 
-            if (receiptData?.Items?.Count > 0)
+            // Pattern matching: проверяем, что Items не null и не пуст
+            if (receiptData?.Items is { Count: > 0 } items)
             {
                 CurrentItems.Clear();
-                foreach (var item in receiptData.Items)
+                foreach (var item in items)
                 {
                     var newItem = new TransactionItem
                     {
@@ -359,11 +240,12 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
                     CurrentItems.Add(newItem);
                 }
                 RefreshItemsTotal();
-                StatusMessage = $"Загружено {receiptData.Items.Count} позиций из чека";
+                StatusMessage = $"Загружено {items.Count} позиций из чека";
             }
             else
             {
-                StatusMessage = "Не удалось получить данные чека";
+                await Shell.Current.DisplayAlertAsync("Ошибка", "Сервер вернул пустой список позиций", "OK");
+                StatusMessage = "Список позиций пуст";
             }
         }
         catch (Exception ex)
@@ -377,17 +259,85 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
         }
     }
 
-    private async Task SetReceiptAsync(string fileName)
+    [RelayCommand]
+    private async Task ScanQRCodeAsync()
     {
-        if (!string.IsNullOrEmpty(_currentReceiptFileName)
-            && _currentReceiptFileName != _originalReceiptFileName)
+        if (string.IsNullOrEmpty(_currentReceiptFileName)) { StatusMessage = "Сначала добавьте фото"; return; }
+
+        if (!await ConfirmReplaceIfHasItemsAsync()) return;
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null) return;
+
+        StatusMessage = "Сканирование QR-кода...";
+        string? qrRaw = null;
+        try
         {
-            await _receipts.DeleteAsync(_currentReceiptFileName);
+            qrRaw = await _qrCodeService.DecodeFiscalQRCodeAsync(fullPath);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка QR: {ex.Message}";
+            return;
         }
 
-        _currentReceiptFileName = fileName;
-        HasReceipt = true;
+        if (string.IsNullOrEmpty(qrRaw))
+        {
+            StatusMessage = "QR-код не найден. Попробуйте «Выделить QR» или «Ввести реквизиты»";
+            return;
+        }
 
+        await ApplyReceiptFromQrRawAsync(qrRaw);
+    }
+
+    [RelayCommand]
+    private async Task ScanQRCodeManualAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName)) { StatusMessage = "Сначала добавьте фото"; return; }
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null) return;
+
+        var page = Shell.Current?.CurrentPage ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
+
+        var cropPage = new Controls.QrCropPage(fullPath);
+        await page.Navigation.PushModalAsync(cropPage, animated: false);
+        var qrRaw = await cropPage.WaitForResultAsync();
+
+        if (string.IsNullOrEmpty(qrRaw))
+        {
+            StatusMessage = "QR-код не распознан в выделенной области";
+            return;
+        }
+
+        if (!await ConfirmReplaceIfHasItemsAsync()) return;
+
+        await ApplyReceiptFromQrRawAsync(qrRaw);
+    }
+
+    [RelayCommand]
+    private async Task EnterReceiptDataManualAsync()
+    {
+        var page = Shell.Current?.CurrentPage ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
+
+        var manualPage = new Controls.ManualReceiptPage();
+        await page.Navigation.PushModalAsync(manualPage, animated: false);
+        var input = await manualPage.WaitForResultAsync();
+
+        if (input is null) return;
+
+        if (!await ConfirmReplaceIfHasItemsAsync()) return;
+
+        await ApplyReceiptFromQrRawAsync(input.ToQrRaw());
+    }
+
+    private async Task SetReceiptAsync(string fileName)
+    {
+        if (!string.IsNullOrEmpty(_currentReceiptFileName) && _currentReceiptFileName != _originalReceiptFileName)
+            await _receipts.DeleteAsync(_currentReceiptFileName);
+        _currentReceiptFileName = fileName; HasReceipt = true;
         var path = _receipts.GetFullPath(fileName);
         CurrentReceiptImageSource = path is not null ? ImageSource.FromFile(path) : null;
     }
@@ -398,86 +348,48 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     private async Task SaveAsync()
     {
         if (IsBusy || _transaction is null) return;
-
         foreach (var item in CurrentItems)
         {
-            if (string.IsNullOrWhiteSpace(item.Name))
-            {
-                StatusMessage = "У всех позиций должно быть название";
-                return;
-            }
-            if (item.Quantity <= 0)
-            {
-                StatusMessage = "У всех позиций должно быть количество больше нуля";
-                return;
-            }
+            if (string.IsNullOrWhiteSpace(item.Name)) { StatusMessage = "У позиций должно быть название"; return; }
+            if (item.Quantity <= 0) { StatusMessage = "Кол-во > 0"; return; }
         }
-
-        if (SelectedCategory is null)
-        {
-            StatusMessage = "Выберите категорию";
-            return;
-        }
-
-        if (Date.Date > DateTime.Today)
-        {
-            StatusMessage = "Дата операции не может быть в будущем";
-            return;
-        }
+        if (SelectedCategory is null) { StatusMessage = "Выберите категорию"; return; }
+        if (Date.Date > DateTime.Today) { StatusMessage = "Дата в будущем"; return; }
 
         IsBusy = true;
         try
         {
-            _transaction.CategoryId = SelectedCategory.Id;
-            _transaction.CategoryName = SelectedCategory.Name;
-            _transaction.CategoryIcon = SelectedCategory.Icon;
-            _transaction.Date = Date;
+            _transaction.CategoryId = SelectedCategory.Id; _transaction.CategoryName = SelectedCategory.Name;
+            _transaction.CategoryIcon = SelectedCategory.Icon; _transaction.Date = Date;
             _transaction.Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
 
             if (HasItems)
             {
                 var itemsTotal = CurrentItems.Sum(i => i.Total);
-                if (itemsTotal > 0)
-                    _transaction.Amount = itemsTotal;
+                if (itemsTotal > 0) _transaction.Amount = itemsTotal;
             }
 
             if (_currentReceiptFileName != _originalReceiptFileName)
             {
-                if (!string.IsNullOrEmpty(_originalReceiptFileName))
-                    await _receipts.DeleteAsync(_originalReceiptFileName);
-
+                if (!string.IsNullOrEmpty(_originalReceiptFileName)) await _receipts.DeleteAsync(_originalReceiptFileName);
                 _transaction.ReceiptImagePath = _currentReceiptFileName;
             }
 
             await _db.UpdateTransactionAsync(_transaction);
             await _db.ReplaceItemsForTransactionAsync(_transaction.Id, CurrentItems.ToList());
-
-            // Оповестить остальные VM, что данные изменились
             WeakReferenceMessenger.Default.Send(new DataChangedMessage(this));
-
             EditCompleted?.Invoke(this, true);
         }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Ошибка сохранения: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        catch (Exception ex) { StatusMessage = $"Ошибка: {ex.Message}"; }
+        finally { IsBusy = false; }
     }
 
     [RelayCommand]
     private async Task CancelAsync()
     {
         if (IsBusy) return;
-
-        if (!string.IsNullOrEmpty(_currentReceiptFileName)
-            && _currentReceiptFileName != _originalReceiptFileName)
-        {
+        if (!string.IsNullOrEmpty(_currentReceiptFileName) && _currentReceiptFileName != _originalReceiptFileName)
             await _receipts.DeleteAsync(_currentReceiptFileName);
-        }
-
         EditCompleted?.Invoke(this, false);
     }
 }

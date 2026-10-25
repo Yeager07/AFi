@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.QrCropPage"
+             BackgroundColor="#000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Область с изображением и рамкой выделения -->
+        <Grid x:Name="ImageContainer" Grid.Row="0" Padding="0">
+            <Image x:Name="ImageViewer" Aspect="AspectFit" />
+
+            <!-- GraphicsView: рисует рамку и даёт точные координаты касания -->
+            <GraphicsView x:Name="SelectionCanvas"
+                          StartInteraction="OnStartInteraction"
+                          DragInteraction="OnDragInteraction"
+                          EndInteraction="OnEndInteraction" />
+
+            <!-- Подсказка -->
+            <Label Text="Обведите пальцем фискальный QR-код"
+                   TextColor="White"
+                   BackgroundColor="#80000000"
+                   Padding="10"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Start"
+                   Margin="0,20,0,0"
+                   InputTransparent="True" />
+        </Grid>
+
+        <!-- Панель кнопок -->
+        <VerticalStackLayout Grid.Row="1" Padding="20" Spacing="10" BackgroundColor="#1A1A1A">
+            <Label x:Name="StatusLabel" TextColor="White" HorizontalOptions="Center" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Grid.Column="0"
+                        Text="Отмена"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="Transparent"
+                        TextColor="White"
+                        BorderColor="White"
+                        BorderWidth="1"
+                        CornerRadius="8" />
+                <Button Grid.Column="1"
+                        x:Name="ScanButton"
+                        Text="Сканировать"
+                        Clicked="OnScanClicked"
+                        IsEnabled="False"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="White"
+                        CornerRadius="8" />
+            </Grid>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

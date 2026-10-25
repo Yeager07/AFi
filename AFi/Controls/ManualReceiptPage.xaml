@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AFi.Controls.ManualReceiptPage"
+             Title="Реквизиты чека"
+             BackgroundColor="{DynamicResource PageBackgroundColor}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+
+            <Label Text="Введите данные из чека"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimaryColor}" />
+
+            <Label Text="Все эти данные напечатаны под QR-кодом. Если QR-код не читается — введите их вручную, и приложение запросит чек из ФНС."
+                   FontSize="12"
+                   TextColor="{DynamicResource TextSecondaryColor}" />
+
+            <!-- ==================== ФН ==================== -->
+            <Label Text="ФН (номер фискального накопителя, 16 цифр)"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   Margin="0,10,0,0" />
+            <Entry x:Name="FnEntry"
+                   Keyboard="Numeric"
+                   MaxLength="16"
+                   Placeholder="Например, 7384440301410885"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+            <!-- ==================== ФД ==================== -->
+            <Label Text="ФД (номер фискального документа)"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimaryColor}" />
+            <Entry x:Name="FdEntry"
+                   Keyboard="Numeric"
+                   MaxLength="10"
+                   Placeholder="Например, 17067"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+            <!-- ==================== ФП ==================== -->
+            <Label Text="ФП (фискальный признак документа)"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimaryColor}" />
+            <Entry x:Name="FpEntry"
+                   Keyboard="Numeric"
+                   MaxLength="10"
+                   Placeholder="Например, 3626726091"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+            <!-- ==================== Дата и время ==================== -->
+            <Label Text="Дата и время чека"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimaryColor}" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <DatePicker x:Name="DatePicker"
+                            Grid.Column="0"
+                            Format="dd.MM.yyyy"
+                            TextColor="{DynamicResource TextPrimaryColor}" />
+                <TimePicker x:Name="TimePicker"
+                            Grid.Column="1"
+                            Format="HH:mm"
+                            TextColor="{DynamicResource TextPrimaryColor}" />
+            </Grid>
+
+            <!-- ==================== Итог ==================== -->
+            <Label Text="Итоговая сумма (необязательно)"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimaryColor}" />
+            <Entry x:Name="SumEntry"
+                   Keyboard="Numeric"
+                   Placeholder="Например, 944.93"
+                   TextColor="{DynamicResource TextPrimaryColor}"
+                   PlaceholderColor="{DynamicResource TextSecondaryColor}" />
+
+            <!-- ==================== Ошибка ==================== -->
+            <Label x:Name="ErrorLabel"
+                   FontSize="12"
+                   TextColor="{DynamicResource DangerColor}"
+                   IsVisible="False" />
+
+            <!-- ==================== Кнопки ==================== -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,15,0,0">
+                <Button Grid.Column="0"
+                        Text="Отмена"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        HeightRequest="48" />
+                <Button Grid.Column="1"
+                        Text="Загрузить"
+                        Clicked="OnSubmitClicked"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="48" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

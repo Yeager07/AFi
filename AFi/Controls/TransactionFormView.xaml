@@ -264,16 +264,35 @@
                     HeightRequest="40" />
         </Grid>
 
-        <!-- Кнопка сканирования QR (видна, когда фото ЕСТЬ) -->
-        <Button Text="📷 Сканировать QR"
-                Command="{Binding ScanQRCodeCommand}"
-                IsVisible="{Binding HasReceipt}"
-                BackgroundColor="{DynamicResource PrimaryColor}"
-                TextColor="{DynamicResource PrimaryTextColor}"
-                BorderWidth="0"
-                CornerRadius="8"
-                FontSize="14"
-                HeightRequest="44" />
+        <!-- Кнопки сканирования (видны, когда фото ЕСТЬ) -->
+        <VerticalStackLayout Spacing="8" IsVisible="{Binding HasReceipt}">
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" Text="📷 Сканировать QR"
+                        Command="{Binding ScanQRCodeCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        BorderWidth="0" CornerRadius="8"
+                        FontSize="13" HeightRequest="44" />
+
+                <Button Grid.Column="1" Text="🎯 Выделить QR"
+                        Command="{Binding ScanQRCodeManualCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1" CornerRadius="8"
+                        FontSize="13" HeightRequest="44" />
+            </Grid>
+
+            <Button Text="⌨️ Ввести реквизиты чека вручную"
+                    Command="{Binding EnterReceiptDataManualCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource TextSecondaryColor}"
+                    BorderColor="{DynamicResource CardBorderColor}"
+                    BorderWidth="1" CornerRadius="8"
+                    FontSize="12" HeightRequest="40" />
+
+        </VerticalStackLayout>
 
     </VerticalStackLayout>
 
