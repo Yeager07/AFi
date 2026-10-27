@@ -264,9 +264,10 @@
                     HeightRequest="40" />
         </Grid>
 
-        <!-- Кнопки сканирования (видны, когда фото ЕСТЬ) -->
+        <!-- ==================== Кнопки работы с чеком (видны, когда фото ЕСТЬ) ==================== -->
         <VerticalStackLayout Spacing="8" IsVisible="{Binding HasReceipt}">
 
+            <!-- Ряд 1: QR-сканирование -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                 <Button Grid.Column="0" Text="📷 Сканировать QR"
                         Command="{Binding ScanQRCodeCommand}"
@@ -284,13 +285,23 @@
                         FontSize="13" HeightRequest="44" />
             </Grid>
 
-            <Button Text="⌨️ Ввести реквизиты чека вручную"
-                    Command="{Binding EnterReceiptDataManualCommand}"
-                    BackgroundColor="Transparent"
-                    TextColor="{DynamicResource TextSecondaryColor}"
-                    BorderColor="{DynamicResource CardBorderColor}"
-                    BorderWidth="1" CornerRadius="8"
-                    FontSize="12" HeightRequest="40" />
+            <!-- Ряд 2: OCR и ручной ввод реквизитов -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" Text="🔍 Распознать (OCR)"
+                        Command="{Binding RecognizeReceiptWithOcrCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        BorderWidth="0" CornerRadius="8"
+                        FontSize="13" HeightRequest="44" />
+
+                <Button Grid.Column="1" Text="⌨️ Ввести реквизиты чека"
+                        Command="{Binding EnterReceiptDataManualCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource PrimaryColor}"
+                        BorderColor="{DynamicResource PrimaryColor}"
+                        BorderWidth="1" CornerRadius="8"
+                        FontSize="12" HeightRequest="44" />
+            </Grid>
 
         </VerticalStackLayout>
 

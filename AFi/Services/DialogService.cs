@@ -6,14 +6,17 @@ public class DialogService : IDialogService
     private readonly IReceiptService _receipts;
     private readonly IQRCodeService _qrCodeService;
     private readonly IReceiptApiService _receiptApiService;
+    private readonly IOcrService _ocrService; // ← Добавлено
 
     public DialogService(DatabaseService db, IReceiptService receipts,
-                         IQRCodeService qrCodeService, IReceiptApiService receiptApiService)
+                         IQRCodeService qrCodeService, IReceiptApiService receiptApiService,
+                         IOcrService ocrService) // ← Добавлено
     {
         _db = db;
         _receipts = receipts;
         _qrCodeService = qrCodeService;
         _receiptApiService = receiptApiService;
+        _ocrService = ocrService;
     }
 
     public async Task<bool> ConfirmAsync(string title, string message,
@@ -91,7 +94,10 @@ public class DialogService : IDialogService
 
         if (page is null) return false;
 
-        var vm = new ViewModels.TransactionEditViewModel(_db, _receipts, _qrCodeService, _receiptApiService);
+        // Передаём _ocrService в конструктор ViewModel
+        var vm = new ViewModels.TransactionEditViewModel(
+            _db, _receipts, _qrCodeService, _receiptApiService, _ocrService);
+        
         vm.InitializeForEdit(transactionId);
 
         var modal = new Views.TransactionEditPage(vm);

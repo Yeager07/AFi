@@ -20,6 +20,9 @@
 *.rsuser
 *.sln.docstates
 *.DotSettings.user
+ocr_env/
+__pycache__/
+*.pyc
 
 # NuGet
 *.nupkg

@@ -40,6 +40,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ForecastService>();
         builder.Services.AddSingleton<IDataBackupService, DataBackupService>();
+        builder.Services.AddSingleton<IOcrService, OcrService>();
         
         // Оставляем только QR-сервисы
         builder.Services.AddSingleton<IQRCodeService, QRCodeService>();

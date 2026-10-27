@@ -20,6 +20,7 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     private readonly IReceiptService _receipts;
     private readonly IQRCodeService _qrCodeService;
     private readonly IReceiptApiService _receiptApiService;
+    private readonly IOcrService _ocrService; // ← Новый сервис
 
     private int? _transactionId;
     private Transaction? _transaction;
@@ -71,12 +72,14 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
     // ==================== Конструктор ====================
 
     public TransactionEditViewModel(DatabaseService db, IReceiptService receipts,
-                                    IQRCodeService qrCodeService, IReceiptApiService receiptApiService)
+                                    IQRCodeService qrCodeService, IReceiptApiService receiptApiService,
+                                    IOcrService ocrService)
     {
         _db = db;
         _receipts = receipts;
         _qrCodeService = qrCodeService;
         _receiptApiService = receiptApiService;
+        _ocrService = ocrService;
         CurrentItems.CollectionChanged += (_, _) => RefreshItemsTotal();
     }
 
@@ -332,6 +335,65 @@ public partial class TransactionEditViewModel : ObservableObject, ITransactionFo
 
         await ApplyReceiptFromQrRawAsync(input.ToQrRaw());
     }
+
+    // ==================== OCR ====================
+
+    [RelayCommand]
+    private async Task RecognizeReceiptWithOcrAsync()
+    {
+        if (string.IsNullOrEmpty(_currentReceiptFileName))
+        {
+            StatusMessage = "Сначала добавьте фото чека";
+            return;
+        }
+
+        if (!await ConfirmReplaceIfHasItemsAsync()) return;
+
+        var fullPath = _receipts.GetFullPath(_currentReceiptFileName);
+        if (fullPath is null) return;
+
+        IsBusy = true;
+        StatusMessage = "Распознавание текста (OCR)...";
+
+        try
+        {
+            var result = await _ocrService.RecognizeReceiptAsync(fullPath);
+
+            if (result?.Items is { Count: > 0 } items)
+            {
+                CurrentItems.Clear();
+                foreach (var item in items)
+                {
+                    var newItem = new TransactionItem
+                    {
+                        Name = item.Name,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.Price,
+                    };
+                    newItem.InitializeTexts();
+                    CurrentItems.Add(newItem);
+                }
+                RefreshItemsTotal();
+                StatusMessage = $"Распознано {items.Count} позиций (OCR)";
+            }
+            else
+            {
+                await Shell.Current.DisplayAlertAsync("OCR", "Не удалось распознать позиции. Попробуйте сфотографировать чек ровнее.", "OK");
+                StatusMessage = "OCR не нашел позиций на чеке";
+            }
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlertAsync("Ошибка OCR", ex.Message, "OK");
+            StatusMessage = "Ошибка распознавания";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // ==================== Прочее ====================
 
     private async Task SetReceiptAsync(string fileName)
     {
