@@ -281,6 +281,7 @@
                 </Grid>
 
                 <!-- ==================== Легенда с drill-down ==================== -->
+                                <!-- ==================== Легенда ==================== -->
                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding LegendItems}"
                                      Spacing="6"
                                      IsVisible="{Binding HasNoData, Converter={StaticResource InverseBoolConverter}}">
@@ -289,126 +290,63 @@
                             <Border Stroke="{DynamicResource CardBorderColor}"
                                     StrokeThickness="1"
                                     StrokeShape="RoundRectangle 8"
-                                    Padding="8,6"
+                                    Padding="10,8"
                                     BackgroundColor="{DynamicResource CardBackgroundColor}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleLegendTapCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
 
-                                <VerticalStackLayout Spacing="8">
+                                <Grid ColumnDefinitions="20,*,Auto,Auto"
+                                      ColumnSpacing="10"
+                                      RowDefinitions="Auto,Auto">
 
-                                    <!-- ==================== Основная строка категории ==================== -->
-                                    <Grid ColumnDefinitions="20,*,Auto,Auto"
-                                          ColumnSpacing="10">
-                                        <Grid.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.GoToHistoryCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        </Grid.GestureRecognizers>
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            WidthRequest="16"
+                                            HeightRequest="16"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 4"
+                                            BackgroundColor="{Binding Color}"
+                                            VerticalOptions="Center" />
 
-                                        <Border Grid.Column="0"
-                                                WidthRequest="16"
-                                                HeightRequest="16"
-                                                StrokeThickness="0"
-                                                StrokeShape="RoundRectangle 4"
-                                                BackgroundColor="{Binding Color}"
-                                                VerticalOptions="Center" />
-
-                                        <HorizontalStackLayout Grid.Column="1"
-                                                               Spacing="6"
-                                                               VerticalOptions="Center">
-                                            <Label Text="{Binding Icon}"
-                                                   FontSize="16"
-                                                   VerticalOptions="Center"
-                                                   IsVisible="{Binding Icon, Converter={StaticResource IsNotEmptyConverter}}" />
-                                            <Label Text="{Binding CategoryName}"
-                                                   FontSize="14"
-                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                   VerticalOptions="Center" />
-                                        </HorizontalStackLayout>
-
-                                        <Label Grid.Column="2"
-                                               Text="{Binding AmountText}"
+                                    <HorizontalStackLayout Grid.Row="0" Grid.Column="1"
+                                                           Spacing="6"
+                                                           VerticalOptions="Center">
+                                        <Label Text="{Binding Icon}"
+                                               FontSize="16"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding Icon, Converter={StaticResource IsNotEmptyConverter}}" />
+                                        <Label Text="{Binding CategoryName}"
                                                FontSize="14"
-                                               FontAttributes="Bold"
                                                TextColor="{DynamicResource TextPrimaryColor}"
-                                               VerticalOptions="Center"
-                                               HorizontalOptions="End" />
+                                               VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
 
-                                        <Label Grid.Column="3"
-                                               Text="{Binding PercentText}"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource TextSecondaryColor}"
-                                               WidthRequest="50"
-                                               VerticalOptions="Center"
-                                               HorizontalOptions="End" />
-                                    </Grid>
+                                    <Label Grid.Row="0" Grid.Column="2"
+                                           Text="{Binding AmountText}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimaryColor}"
+                                           VerticalOptions="Center"
+                                           HorizontalOptions="End" />
 
-                                    <!-- ==================== Индикатор топа позиций ==================== -->
-                                    <Grid IsVisible="{Binding HasTopItems}"
-                                          Margin="20,0,0,0">
-                                        <Grid.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleLegendExpandCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        </Grid.GestureRecognizers>
+                                    <Label Grid.Row="0" Grid.Column="3"
+                                           Text="{Binding PercentText}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource TextSecondaryColor}"
+                                           WidthRequest="50"
+                                           VerticalOptions="Center"
+                                           HorizontalOptions="End" />
 
-                                        <HorizontalStackLayout Spacing="6">
-                                            <Label FontSize="10"
-                                                   TextColor="{DynamicResource PrimaryColor}"
-                                                   VerticalOptions="Center">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label"
-                                                                 Binding="{Binding IsExpanded}"
-                                                                 Value="False">
-                                                        <Setter Property="Text" Value="▸" />
-                                                    </DataTrigger>
-                                                    <DataTrigger TargetType="Label"
-                                                                 Binding="{Binding IsExpanded}"
-                                                                 Value="True">
-                                                        <Setter Property="Text" Value="▾" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
-
-                                            <Label Text="Топ позиций по расходам"
-                                                   FontSize="11"
-                                                   TextColor="{DynamicResource PrimaryColor}"
-                                                   VerticalOptions="Center" />
-                                        </HorizontalStackLayout>
-                                    </Grid>
-
-                                    <!-- ==================== Развёрнутый список позиций ==================== -->
-                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding TopItems}"
-                                                         IsVisible="{Binding IsExpanded}"
-                                                         Spacing="4"
-                                                         Margin="20,0,0,0">
-                                        <BindableLayout.ItemTemplate>
-                                            <DataTemplate x:DataType="models:TopItem">
-                                                <Grid ColumnDefinitions="*,Auto,Auto"
-                                                      ColumnSpacing="8">
-                                                    <Label Grid.Column="0"
-                                                           Text="{Binding Name}"
-                                                           FontSize="12"
-                                                           TextColor="{DynamicResource TextPrimaryColor}"
-                                                           LineBreakMode="TailTruncation" />
-
-                                                    <Label Grid.Column="1"
-                                                           Text="{Binding FrequencyText}"
-                                                           FontSize="10"
-                                                           TextColor="{DynamicResource TextSecondaryColor}"
-                                                           VerticalOptions="Center" />
-
-                                                    <Label Grid.Column="2"
-                                                           Text="{Binding TotalAmountText}"
-                                                           FontSize="12"
-                                                           FontAttributes="Bold"
-                                                           TextColor="{DynamicResource TextPrimaryColor}"
-                                                           WidthRequest="70"
-                                                           HorizontalTextAlignment="End" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </BindableLayout.ItemTemplate>
-                                    </VerticalStackLayout>
-
-                                </VerticalStackLayout>
+                                    <!-- Индикатор наличия топа (только для информации, не для разворота) -->
+                                    <Label Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
+                                           Text="▸ Топ позиций по расходам"
+                                           FontSize="11"
+                                           TextColor="{DynamicResource PrimaryColor}"
+                                           Margin="0,4,0,0"
+                                           IsVisible="{Binding HasTopItems}" />
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>

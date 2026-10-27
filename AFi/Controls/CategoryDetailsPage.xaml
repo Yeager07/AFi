@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:AFi.Models"
+             x:Class="AFi.Controls.CategoryDetailsPage"
+             x:DataType="models:LegendItem"
+             BackgroundColor="#80000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+        <!-- Прозрачный слой для тапа вне карточки -->
+        <BoxView BackgroundColor="Transparent">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOutsideTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- Карточка деталей категории -->
+        <Border Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 14"
+                Padding="0"
+                Margin="15"
+                VerticalOptions="End"
+                HorizontalOptions="Fill"
+                MaximumHeightRequest="600"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+            <Grid RowDefinitions="Auto,*,Auto">
+
+                <!-- ==================== Заголовок ==================== -->
+                <Grid Grid.Row="0"
+                      Padding="20,18,20,14"
+                      ColumnDefinitions="Auto,*,Auto"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="4"
+                      ColumnSpacing="10">
+
+                    <!-- Цветная полоска / цветовой маркер категории -->
+                    <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                            WidthRequest="20"
+                            HeightRequest="20"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 4"
+                            BackgroundColor="{Binding Color}"
+                            VerticalOptions="Center" />
+
+                    <HorizontalStackLayout Grid.Row="0" Grid.Column="1"
+                                           Spacing="6"
+                                           VerticalOptions="Center">
+                        <Label Text="{Binding Icon}"
+                               FontSize="18"
+                               VerticalOptions="Center" />
+                        <Label Text="{Binding CategoryName}"
+                               FontSize="17"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <Label Grid.Row="0" Grid.Column="2"
+                           Text="{Binding AmountText}"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End"
+                           TextColor="{DynamicResource PrimaryColor}"
+                           VerticalOptions="Center" />
+
+                    <Label Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                           Text="{Binding PercentText, StringFormat='Доля в расходах: {0}'}"
+                           FontSize="12"
+                           TextColor="{DynamicResource TextSecondaryColor}" />
+                </Grid>
+
+                <BoxView Grid.Row="0"
+                         HeightRequest="1"
+                         Color="{DynamicResource DividerColor}"
+                         VerticalOptions="End" />
+
+                <!-- ==================== Список топ-позиций ==================== -->
+                <ScrollView Grid.Row="1">
+                    <VerticalStackLayout Padding="20" Spacing="10">
+
+                        <Label Text="Топ позиций по расходам"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               Margin="0,0,0,4" />
+
+                        <Label x:Name="NoItemsLabel"
+                               Text="В этой категории нет операций с позициями чека"
+                               FontSize="13"
+                               TextColor="{DynamicResource TextSecondaryColor}"
+                               HorizontalOptions="Center"
+                               Margin="0,20,0,20"
+                               IsVisible="False" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding TopItems}"
+                                             Spacing="6">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="models:TopItem">
+                                    <Border Stroke="{DynamicResource CardBorderColor}"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="10,8"
+                                            BackgroundColor="{DynamicResource PageBackgroundColor}">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                            <Label Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                   LineBreakMode="TailTruncation" />
+
+                                            <Label Grid.Row="0" Grid.Column="1"
+                                                   Text="{Binding TotalAmountText}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                   HorizontalOptions="End" />
+
+                                            <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                   Text="{Binding FrequencyText}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource TextSecondaryColor}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </ScrollView>
+
+                <BoxView Grid.Row="1"
+                         HeightRequest="1"
+                         Color="{DynamicResource DividerColor}"
+                         VerticalOptions="End" />
+
+                <!-- ==================== Кнопка закрытия ==================== -->
+                <Button Grid.Row="2"
+                        Text="Закрыть"
+                        Clicked="OnCloseClicked"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        FontSize="14"
+                        Margin="15,12,15,15" />
+
+            </Grid>
+        </Border>
+    </Grid>
+
+</ContentPage>

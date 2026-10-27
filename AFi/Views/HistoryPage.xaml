@@ -13,6 +13,182 @@
 
     <ContentPage.Resources>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+        <!-- ==================== Шаблон заголовка дня ==================== -->
+        <DataTemplate x:Key="HeaderTemplate" x:DataType="models:HistoryRow">
+            <Grid ColumnDefinitions="*,Auto"
+                  Padding="4,12,4,6">
+                <Label Grid.Column="0"
+                       Text="{Binding DateLabel}"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource PrimaryColor}" />
+                <Label Grid.Column="1"
+                       Text="{Binding SummaryText}"
+                       FontSize="14"
+                       FontAttributes="Bold">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label"
+                                     Binding="{Binding IsPositive}"
+                                     Value="True">
+                            <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label"
+                                     Binding="{Binding IsPositive}"
+                                     Value="False">
+                            <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+            </Grid>
+        </DataTemplate>
+
+        <!-- ==================== Шаблон карточки транзакции ==================== -->
+        <DataTemplate x:Key="TransactionTemplate" x:DataType="models:HistoryRow">
+            <Border Stroke="{DynamicResource CardBorderColor}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="12"
+                    Margin="0,4"
+                    BackgroundColor="{DynamicResource CardBackgroundColor}">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer
+                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
+                        CommandParameter="{Binding Transaction}" />
+                </Border.GestureRecognizers>
+
+                <Grid>
+
+                    <!-- ==================== ОБЫЧНЫЙ РЕЖИМ ==================== -->
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto,Auto"
+                          IsVisible="True">
+                        <Grid.Triggers>
+                            <DataTrigger TargetType="Grid"
+                                         Binding="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
+                                         Value="True">
+                                <Setter Property="IsVisible" Value="False" />
+                            </DataTrigger>
+                        </Grid.Triggers>
+
+                        <Label Grid.Row="0" Grid.Column="0"
+                               Text="{Binding Transaction.DisplayCategoryName}"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
+
+                        <Label Grid.Row="0" Grid.Column="1"
+                               Text="{Binding Transaction.Amount, StringFormat='{0:N0} ₽'}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               HorizontalOptions="End">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Transaction.Type}"
+                                             Value="1">
+                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Transaction.Type}"
+                                             Value="0">
+                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+
+                        <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="{Binding Transaction.DateAndNote}"
+                               FontSize="12"
+                               TextColor="{DynamicResource TextSecondaryColor}" />
+
+                        <HorizontalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                               Spacing="6"
+                                               Margin="0,6,0,0"
+                                               IsVisible="{Binding Transaction.HasExtraDetails}">
+                            <Label Text="▸"
+                                   FontSize="11"
+                                   TextColor="{DynamicResource PrimaryColor}"
+                                   VerticalOptions="Center" />
+
+                            <Label Text="{Binding Transaction.ExtraDetailsLabel}"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource PrimaryColor}"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Grid>
+
+                    <!-- ==================== РЕЖИМ ВЫБОРА ==================== -->
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          RowDefinitions="Auto,Auto"
+                          IsVisible="False">
+                        <Grid.Triggers>
+                            <DataTrigger TargetType="Grid"
+                                         Binding="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
+                                         Value="True">
+                                <Setter Property="IsVisible" Value="True" />
+                            </DataTrigger>
+                        </Grid.Triggers>
+
+                        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                WidthRequest="26" HeightRequest="26"
+                                StrokeShape="RoundRectangle 13"
+                                Stroke="{DynamicResource PrimaryColor}"
+                                StrokeThickness="2"
+                                BackgroundColor="Transparent"
+                                Padding="0"
+                                VerticalOptions="Center"
+                                HorizontalOptions="Start"
+                                Margin="0,0,10,0">
+                            <Label Text="✓"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource PrimaryColor}"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   IsVisible="{Binding Transaction.IsSelected}" />
+                        </Border>
+
+                        <Label Grid.Row="0" Grid.Column="1"
+                               Text="{Binding Transaction.DisplayCategoryName}"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}" />
+
+                        <Label Grid.Row="0" Grid.Column="2"
+                               Text="{Binding Transaction.Amount, StringFormat='{0:N0} ₽'}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               HorizontalOptions="End">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Transaction.Type}"
+                                             Value="1">
+                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Transaction.Type}"
+                                             Value="0">
+                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+
+                        <Label Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                               Text="{Binding Transaction.DateAndNote}"
+                               FontSize="12"
+                               TextColor="{DynamicResource TextSecondaryColor}" />
+
+                    </Grid>
+
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- ==================== Селектор шаблонов ==================== -->
+        <controls:HistoryTemplateSelector x:Key="HistorySelector"
+                                          HeaderTemplate="{StaticResource HeaderTemplate}"
+                                          TransactionTemplate="{StaticResource TransactionTemplate}" />
     </ContentPage.Resources>
 
     <Grid>
@@ -175,7 +351,8 @@
             <Grid Grid.Row="2" RowDefinitions="*,Auto,Auto" RowSpacing="8">
 
                 <CollectionView Grid.Row="0"
-                                ItemsSource="{Binding Transactions}"
+                                ItemsSource="{Binding Rows}"
+                                ItemTemplate="{StaticResource HistorySelector}"
                                 SelectionMode="None">
                     <CollectionView.EmptyView>
                         <Label Text="Нет операций за выбранный период"
@@ -184,241 +361,6 @@
                                HorizontalOptions="Center"
                                VerticalOptions="Center" />
                     </CollectionView.EmptyView>
-
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="models:Transaction">
-                            <Grid>
-
-                                <!-- ==================== ОБЫЧНЫЙ РЕЖИМ ==================== -->
-                                <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode, Converter={StaticResource InverseBoolConverter}}"
-                                        Stroke="{DynamicResource CardBorderColor}"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 8"
-                                        Padding="12"
-                                        Margin="0,4"
-                                        BackgroundColor="{DynamicResource CardBackgroundColor}">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
-
-                                    <Grid ColumnDefinitions="*,Auto"
-                                          RowDefinitions="Auto,Auto,Auto,Auto">
-
-                                        <Label Grid.Row="0" Grid.Column="0"
-                                               Text="{Binding DisplayCategoryName}"
-                                               FontSize="15"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource TextPrimaryColor}" />
-
-                                        <Label Grid.Row="0" Grid.Column="1"
-                                               Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                               FontSize="16"
-                                               FontAttributes="Bold"
-                                               HorizontalOptions="End">
-                                            <Label.Triggers>
-                                                <DataTrigger TargetType="Label"
-                                                             Binding="{Binding Type}"
-                                                             Value="1">
-                                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
-                                                </DataTrigger>
-                                                <DataTrigger TargetType="Label"
-                                                             Binding="{Binding Type}"
-                                                             Value="0">
-                                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
-                                                </DataTrigger>
-                                            </Label.Triggers>
-                                        </Label>
-
-                                        <Label Grid.Row="1" Grid.Column="0"
-                                               Grid.ColumnSpan="2"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource TextSecondaryColor}">
-                                            <Label.Text>
-                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                    <Binding Path="Date" />
-                                                    <Binding Path="Note" />
-                                                </MultiBinding>
-                                            </Label.Text>
-                                        </Label>
-
-                                        <Grid Grid.Row="2" Grid.Column="0"
-                                              Grid.ColumnSpan="2"
-                                              IsVisible="{Binding HasExtraDetails}"
-                                              Margin="0,6,0,0">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer
-                                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleExpandCommand}"
-                                                    CommandParameter="{Binding .}" />
-                                            </Grid.GestureRecognizers>
-
-                                            <HorizontalStackLayout Spacing="6">
-                                                <Label FontSize="11"
-                                                       TextColor="{DynamicResource PrimaryColor}"
-                                                       VerticalOptions="Center">
-                                                    <Label.Triggers>
-                                                        <DataTrigger TargetType="Label"
-                                                                     Binding="{Binding IsExpanded}"
-                                                                     Value="False">
-                                                            <Setter Property="Text" Value="▸" />
-                                                        </DataTrigger>
-                                                        <DataTrigger TargetType="Label"
-                                                                     Binding="{Binding IsExpanded}"
-                                                                     Value="True">
-                                                            <Setter Property="Text" Value="▾" />
-                                                        </DataTrigger>
-                                                    </Label.Triggers>
-                                                </Label>
-
-                                                <Label Text="{Binding ExtraDetailsLabel}"
-                                                       FontSize="11"
-                                                       FontAttributes="Bold"
-                                                       TextColor="{DynamicResource PrimaryColor}"
-                                                       VerticalOptions="Center" />
-                                            </HorizontalStackLayout>
-                                        </Grid>
-
-                                        <VerticalStackLayout Grid.Row="3"
-                                                             Grid.Column="0"
-                                                             Grid.ColumnSpan="2"
-                                                             IsVisible="{Binding IsExpanded}"
-                                                             Spacing="10"
-                                                             Margin="0,8,0,0">
-
-                                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
-                                                                 IsVisible="{Binding HasItems}"
-                                                                 Spacing="4">
-                                                <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:TransactionItem">
-                                                        <Grid ColumnDefinitions="*,Auto,Auto"
-                                                              ColumnSpacing="8">
-                                                            <Label Grid.Column="0"
-                                                                   Text="{Binding Name}"
-                                                                   FontSize="12"
-                                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                                   LineBreakMode="TailTruncation" />
-
-                                                            <Label Grid.Column="1"
-                                                                   Text="{Binding SummaryText}"
-                                                                   FontSize="11"
-                                                                   TextColor="{DynamicResource TextSecondaryColor}" />
-
-                                                            <Label Grid.Column="2"
-                                                                   Text="{Binding TotalText}"
-                                                                   FontSize="12"
-                                                                   FontAttributes="Bold"
-                                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                                   WidthRequest="70"
-                                                                   HorizontalTextAlignment="End" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </BindableLayout.ItemTemplate>
-                                            </VerticalStackLayout>
-
-                                            <Border IsVisible="{Binding HasReceipt}"
-                                                    Stroke="{DynamicResource CardBorderColor}"
-                                                    StrokeThickness="1"
-                                                    StrokeShape="RoundRectangle 6"
-                                                    Padding="0"
-                                                    WidthRequest="100"
-                                                    HeightRequest="100"
-                                                    HorizontalOptions="Start">
-                                                <Border.GestureRecognizers>
-                                                    <TapGestureRecognizer
-                                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ViewReceiptCommand}"
-                                                        CommandParameter="{Binding .}" />
-                                                </Border.GestureRecognizers>
-                                                <Image Source="{Binding ReceiptImageSource}"
-                                                       Aspect="AspectFill" />
-                                            </Border>
-
-                                        </VerticalStackLayout>
-
-                                    </Grid>
-                                </Border>
-
-                                <!-- ==================== РЕЖИМ ВЫБОРА ==================== -->
-                                <Border IsVisible="{Binding Source={x:Reference PageRoot}, Path=BindingContext.IsSelectionMode}"
-                                        Stroke="{DynamicResource CardBorderColor}"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 8"
-                                        Padding="12"
-                                        Margin="0,4"
-                                        BackgroundColor="{DynamicResource CardBackgroundColor}">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.HandleCardTapCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
-
-                                    <Grid ColumnDefinitions="Auto,*,Auto"
-                                          RowDefinitions="Auto,Auto">
-
-                                        <Border Grid.Row="0" Grid.RowSpan="2"
-                                                Grid.Column="0"
-                                                WidthRequest="26"
-                                                HeightRequest="26"
-                                                StrokeShape="RoundRectangle 13"
-                                                Stroke="{DynamicResource PrimaryColor}"
-                                                StrokeThickness="2"
-                                                BackgroundColor="Transparent"
-                                                Padding="0"
-                                                VerticalOptions="Center"
-                                                HorizontalOptions="Start"
-                                                Margin="0,0,10,0">
-                                            <Label Text="✓"
-                                                   FontSize="16"
-                                                   FontAttributes="Bold"
-                                                   TextColor="{DynamicResource PrimaryColor}"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center"
-                                                   IsVisible="{Binding IsSelected}" />
-                                        </Border>
-
-                                        <Label Grid.Row="0" Grid.Column="1"
-                                               Text="{Binding DisplayCategoryName}"
-                                               FontSize="15"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource TextPrimaryColor}" />
-
-                                        <Label Grid.Row="0" Grid.Column="2"
-                                               Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
-                                               FontSize="16"
-                                               FontAttributes="Bold"
-                                               HorizontalOptions="End">
-                                            <Label.Triggers>
-                                                <DataTrigger TargetType="Label"
-                                                             Binding="{Binding Type}"
-                                                             Value="1">
-                                                    <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
-                                                </DataTrigger>
-                                                <DataTrigger TargetType="Label"
-                                                             Binding="{Binding Type}"
-                                                             Value="0">
-                                                    <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
-                                                </DataTrigger>
-                                            </Label.Triggers>
-                                        </Label>
-
-                                        <Label Grid.Row="1" Grid.Column="1"
-                                               Grid.ColumnSpan="2"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource TextSecondaryColor}">
-                                            <Label.Text>
-                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                    <Binding Path="Date" />
-                                                    <Binding Path="Note" />
-                                                </MultiBinding>
-                                            </Label.Text>
-                                        </Label>
-
-                                    </Grid>
-                                </Border>
-
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
                 </CollectionView>
 
                 <Button Grid.Row="1"

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using AFi.Collections;
 using AFi.Models;
 using AFi.Services;
@@ -10,7 +11,7 @@ namespace AFi.ViewModels;
 
 public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IRecipient<DataChangedMessage>
 {
-    private const int PageSize = 100;
+    private const int PageSize = 50;
 
     private readonly DatabaseService _db;
     private readonly IDialogService _dialogs;
@@ -22,11 +23,12 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
     private bool _filtersLoaded;
 
     // ==================== Управление свежестью данных ====================
-    // _initialLoaded = первая загрузка прошла
-    // _isDirty = данные изменились или пришёл новый query — нужно перезагружать
-
     private bool _initialLoaded;
     private bool _isDirty = true;
+
+    // Кэш загруженных транзакций — чтобы при «Показать ещё»
+    // пересобрать плоский список без повторной загрузки старых
+    private List<Transaction> _cachedTransactions = new();
 
     // ==================== Фильтры ====================
 
@@ -58,7 +60,11 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
 
     // ==================== Данные ====================
 
-    public ObservableRangeCollection<Transaction> Transactions { get; } = new();
+    /// <summary>
+    /// Плоский список строк для CollectionView: заголовки дней + транзакции.
+    /// Заменяет прежний сгруппированный список.
+    /// </summary>
+    public ObservableRangeCollection<HistoryRow> Rows { get; } = new();
 
     [ObservableProperty] private decimal _summaryIncome;
     [ObservableProperty] private decimal _summaryExpense;
@@ -69,10 +75,10 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
     [ObservableProperty] private bool _hasMoreItems;
     [ObservableProperty] private bool _isLoadingMore;
 
-    public bool HasTransactions => Transactions.Count > 0;
-
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isBusy;
+
+    [ObservableProperty] private bool _hasTransactions;
 
     // ==================== Мультивыбор ====================
 
@@ -149,8 +155,6 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
             _suppressFilterReload = false;
         }
 
-        // Если пришёл новый query — форсируем перезагрузку при следующем OnAppearing,
-        // даже если данные в БД не менялись.
         if (hadQuery)
             _isDirty = true;
     }
@@ -214,6 +218,9 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
     partial void OnIsSelectionModeChanged(bool value) =>
         OnPropertyChanged(nameof(CanEnterSelectionMode));
 
+    partial void OnHasTransactionsChanged(bool value) =>
+        OnPropertyChanged(nameof(CanEnterSelectionMode));
+
     // ==================== Команды ====================
 
     [RelayCommand]
@@ -227,12 +234,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
             _filtersLoaded = true;
         }
 
-        // Применяем отложенный фильтр по категории из query.
-        // Раньше это было внутри if (!_filtersLoaded), из-за чего
-        // при повторных переходах из Статистики фильтр не обновлялся.
         ApplyPendingCategoryFilter();
 
-        // Fast path: если данные не менялись и query не приходил — не перезагружаем
         if (_initialLoaded && !_isDirty) return;
 
         await ReloadAsync();
@@ -284,9 +287,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
                 }
             }
 
-            // Дополняем коллекцию одним событием
-            Transactions.AddRange(next);
-
+            _cachedTransactions.AddRange(next);
+            Rows.ReplaceRange(BuildRows(_cachedTransactions));
             _loadedCount += next.Count;
 
             var total = await _db.GetTransactionsCountAsync(from, to,
@@ -323,10 +325,15 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         var choice = await _dialogs.ShowActionSheetAsync(
             title,
             "Отмена",
+            "Подробнее",
             "Редактировать",
             "Удалить");
 
-        if (choice == "Редактировать")
+        if (choice == "Подробнее")
+        {
+            await ShowDetailsAsync(transaction);
+        }
+        else if (choice == "Редактировать")
         {
             await _dialogs.ShowTransactionEditAsync(transaction.Id);
         }
@@ -336,13 +343,14 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         }
     }
 
-    [RelayCommand]
-    private void ToggleExpand(Transaction? transaction)
+    private async Task ShowDetailsAsync(Transaction transaction)
     {
-        if (transaction is null) return;
-        if (IsSelectionMode) return;
+        var page = Shell.Current?.CurrentPage ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
 
-        transaction.IsExpanded = !transaction.IsExpanded;
+        var detailsPage = new Controls.TransactionDetailsPage(transaction);
+        await page.Navigation.PushModalAsync(detailsPage);
+        await detailsPage.WaitForCloseAsync();
     }
 
     [RelayCommand]
@@ -431,8 +439,11 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
     [RelayCommand]
     private void CancelSelection()
     {
-        foreach (var t in Transactions)
-            t.IsSelected = false;
+        foreach (var row in Rows)
+        {
+            if (row.Transaction is not null)
+                row.Transaction.IsSelected = false;
+        }
 
         _selectedIds.Clear();
         SelectedCount = 0;
@@ -460,7 +471,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         {
             foreach (var id in _selectedIds.ToList())
             {
-                var transaction = Transactions.FirstOrDefault(t => t.Id == id);
+                var transaction = _cachedTransactions.FirstOrDefault(t => t.Id == id);
                 if (transaction is not null
                     && !string.IsNullOrEmpty(transaction.ReceiptImagePath))
                 {
@@ -557,9 +568,8 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
             }
         }
 
-        // Заменяем коллекцию одним событием
-        Transactions.ReplaceRange(list);
-
+        _cachedTransactions = list;
+        Rows.ReplaceRange(BuildRows(list));
         _loadedCount = list.Count;
 
         var (income, expense) = await _db.GetSummaryAsync(from, to,
@@ -572,7 +582,7 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         HasMoreItems = _loadedCount < total;
 
         UpdateCountInStatus(total);
-        OnPropertyChanged(nameof(HasTransactions));
+        HasTransactions = list.Count > 0;
         OnPropertyChanged(nameof(IsBalanceNegative));
         OnPropertyChanged(nameof(CanEnterSelectionMode));
 
@@ -580,9 +590,59 @@ public partial class HistoryViewModel : ObservableObject, IQueryAttributable, IR
         SelectedCount = 0;
         IsSelectionMode = false;
 
-        // Данные свежие — сбрасываем флаг
         _isDirty = false;
         _initialLoaded = true;
+    }
+
+    /// <summary>
+    /// Превращает плоский список транзакций в список строк
+    /// с заголовками дней и транзакциями между ними.
+    /// </summary>
+    private static List<HistoryRow> BuildRows(List<Transaction> transactions)
+    {
+        var rows = new List<HistoryRow>();
+
+        var grouped = transactions
+            .GroupBy(t => t.Date.Date)
+            .OrderByDescending(g => g.Key);
+
+        foreach (var group in grouped)
+        {
+            decimal income = 0, expense = 0;
+            foreach (var t in group)
+            {
+                if (t.Type == TransactionType.Income) income += t.Amount;
+                else expense += t.Amount;
+            }
+
+            var balance = income - expense;
+
+            rows.Add(new HistoryRow
+            {
+                IsHeader = true,
+                DateLabel = FormatDateLabel(group.Key),
+                SummaryText = $"{(balance >= 0 ? "+" : "−")}{Math.Abs(balance):N0} ₽",
+                IsPositive = balance >= 0,
+            });
+
+            foreach (var t in group.OrderByDescending(t => t.CreatedAt))
+            {
+                rows.Add(new HistoryRow { Transaction = t });
+            }
+        }
+
+        return rows;
+    }
+
+    private static string FormatDateLabel(DateTime date)
+    {
+        var today = DateTime.Today;
+        if (date == today) return "Сегодня";
+        if (date == today.AddDays(-1)) return "Вчера";
+
+        var culture = new CultureInfo("ru-RU");
+        var dayOfWeek = culture.DateTimeFormat.GetDayName(date.DayOfWeek);
+        return $"{date:dd.MM.yyyy}, {dayOfWeek}";
     }
 
     private void UpdateCountInStatus(int total)

@@ -113,30 +113,33 @@ public partial class QrCropPage : ContentPage
             string debug = $"R={cropRect.Width:F0}x{cropRect.Height:F0}";
 
             // ==================== Стратегия 0: прямой скан кропа без нарезки ====================
-            // Проверяем, работает ли ML Kit вообще на этом кропе.
-            if (await TryScanRegion(original, cropRect, upscale: 1, SKFilterQuality.None, binarize: false, useJpeg: false, tag: "full", logs))
+            if (await TryScanRegion(original, cropRect, upscale: 1,
+                    new SKSamplingOptions(SKFilterMode.Nearest),
+                    binarize: false, useJpeg: false, tag: "full", logs))
             {
                 await Navigation.PopModalAsync();
                 return;
             }
 
-            // ==================== Стратегия 1: кроп с ×2 + контраст ====================
-            if (await TryScanRegion(original, cropRect, upscale: 2, SKFilterQuality.Medium, binarize: false, useJpeg: false, tag: "full×2", logs))
+            // ==================== Стратегия 1: кроп ×2 + Linear ====================
+            if (await TryScanRegion(original, cropRect, upscale: 2,
+                    new SKSamplingOptions(SKFilterMode.Linear),
+                    binarize: false, useJpeg: false, tag: "full×2", logs))
             {
                 await Navigation.PopModalAsync();
                 return;
             }
 
-            // ==================== Стратегия 2: кроп с ×2 в JPEG ====================
-            if (await TryScanRegion(original, cropRect, upscale: 2, SKFilterQuality.Medium, binarize: false, useJpeg: true, tag: "full×2jpg", logs))
+            // ==================== Стратегия 2: кроп ×2 + JPEG ====================
+            if (await TryScanRegion(original, cropRect, upscale: 2,
+                    new SKSamplingOptions(SKFilterMode.Linear),
+                    binarize: false, useJpeg: true, tag: "full×2jpg", logs))
             {
                 await Navigation.PopModalAsync();
                 return;
             }
 
             // ==================== Стратегия 3: плитки ====================
-            // Если прямой скан не сработал, нарезаем кроп на плитки 400x400
-            // и пробуем каждую отдельно.
             int tileSize = 400;
             int stride = 300;
 
@@ -158,22 +161,28 @@ public partial class QrCropPage : ContentPage
 
             foreach (var tile in tiles)
             {
-                // Плитка ×3 + Rgba8888
-                if (await TryScanRegion(original, tile, upscale: 3, SKFilterQuality.High, binarize: false, useJpeg: false, tag: "×3", logs))
+                // Плитка ×3 + Linear + Mipmap
+                if (await TryScanRegion(original, tile, upscale: 3,
+                        new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear),
+                        binarize: false, useJpeg: false, tag: "×3", logs))
                 {
                     await Navigation.PopModalAsync();
                     return;
                 }
 
                 // Плитка ×3 + JPEG
-                if (await TryScanRegion(original, tile, upscale: 3, SKFilterQuality.High, binarize: false, useJpeg: true, tag: "×3jpg", logs))
+                if (await TryScanRegion(original, tile, upscale: 3,
+                        new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear),
+                        binarize: false, useJpeg: true, tag: "×3jpg", logs))
                 {
                     await Navigation.PopModalAsync();
                     return;
                 }
 
                 // Плитка ×3 + бинаризация
-                if (await TryScanRegion(original, tile, upscale: 3, SKFilterQuality.High, binarize: true, useJpeg: false, tag: "bin", logs))
+                if (await TryScanRegion(original, tile, upscale: 3,
+                        new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear),
+                        binarize: true, useJpeg: false, tag: "bin", logs))
                 {
                     await Navigation.PopModalAsync();
                     return;
@@ -191,22 +200,34 @@ public partial class QrCropPage : ContentPage
     }
 
     /// <summary>
-    /// Сканирует одну область: апскейл → кодирование (PNG Rgba8888 или JPEG) → ML Kit/ZXing.
+    /// Сканирует одну область: вырезание 1:1 → Resize с SKSamplingOptions → ML Kit/ZXing.
     /// </summary>
-    private async Task<bool> TryScanRegion(SKBitmap original, SKRect region, int upscale, SKFilterQuality mode, bool binarize, bool useJpeg, string tag, List<string> logs)
+    private async Task<bool> TryScanRegion(SKBitmap original, SKRect region, int upscale, SKSamplingOptions sampling, bool binarize, bool useJpeg, string tag, List<string> logs)
     {
         try
         {
-            int tw = (int)region.Width * upscale;
-            int th = (int)region.Height * upscale;
+            int rw = (int)region.Width;
+            int rh = (int)region.Height;
+            if (rw < 10 || rh < 10) return false;
 
-            // Используем Rgba8888 — стандартный формат для Android
-            using var final = new SKBitmap(tw, th, SKColorType.Rgba8888, SKAlphaType.Premul);
-            using (var canvas = new SKCanvas(final))
+            // 1. Вырезаем область 1:1 без масштабирования.
+            // Для DrawBitmap(bitmap, srcRect, dstRect) в SkiaSharp 3.x нет перегрузки
+            // с SKSamplingOptions — масштаб делаем отдельно через Resize.
+            using var subset = new SKBitmap(rw, rh, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using (var canvas = new SKCanvas(subset))
             {
                 canvas.Clear(SKColors.White);
-                using var paint = new SKPaint { FilterQuality = mode };
-                canvas.DrawBitmap(original, region, new SKRect(0, 0, tw, th), paint);
+                canvas.DrawBitmap(original, region, new SKRect(0, 0, rw, rh));
+            }
+
+            // 2. Апскейл через Resize (принимает SKSamplingOptions)
+            int tw = rw * upscale;
+            int th = rh * upscale;
+            using var final = subset.Resize(new SKImageInfo(tw, th), sampling);
+            if (final == null)
+            {
+                logs.Add($"{tag}:resize-null");
+                return false;
             }
 
             if (binarize)

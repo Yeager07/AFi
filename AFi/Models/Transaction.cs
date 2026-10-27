@@ -154,4 +154,14 @@ public partial class Transaction : ObservableObject
         string.IsNullOrEmpty(CategoryIcon)
             ? CategoryName
             : $"{CategoryIcon} {CategoryName}";
+
+    /// <summary>
+    /// Склеенная строка «дата · комментарий» для карточки списка.
+    /// Заменяет MultiBinding в XAML — быстрее и проще.
+    /// </summary>
+    [Ignore]
+    public string DateAndNote =>
+        string.IsNullOrWhiteSpace(Note)
+            ? Date.ToString("dd.MM.yyyy")
+            : $"{Date:dd.MM.yyyy} · {Note}";
 }

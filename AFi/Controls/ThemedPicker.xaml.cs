@@ -8,6 +8,8 @@ public partial class ThemedPicker : ContentView
         UpdateDisplay();
     }
 
+    // ==================== ItemsSource ====================
+
     public static readonly BindableProperty ItemsSourceProperty =
         BindableProperty.Create(
             nameof(ItemsSource),
@@ -21,6 +23,8 @@ public partial class ThemedPicker : ContentView
         get => (System.Collections.IList?)GetValue(ItemsSourceProperty);
         set => SetValue(ItemsSourceProperty, value);
     }
+
+    // ==================== SelectedItem ====================
 
     public static readonly BindableProperty SelectedItemProperty =
         BindableProperty.Create(
@@ -37,6 +41,8 @@ public partial class ThemedPicker : ContentView
         set => SetValue(SelectedItemProperty, value);
     }
 
+    // ==================== Placeholder ====================
+
     public static readonly BindableProperty PlaceholderProperty =
         BindableProperty.Create(
             nameof(Placeholder),
@@ -51,6 +57,8 @@ public partial class ThemedPicker : ContentView
         set => SetValue(PlaceholderProperty, value);
     }
 
+    // ==================== Title ====================
+
     public static readonly BindableProperty TitleProperty =
         BindableProperty.Create(
             nameof(Title),
@@ -63,6 +71,8 @@ public partial class ThemedPicker : ContentView
         get => (string)GetValue(TitleProperty);
         set => SetValue(TitleProperty, value);
     }
+
+    // ==================== Отображение ====================
 
     private static void OnAnyChanged(BindableObject bindable, object oldValue, object newValue)
     {
@@ -84,15 +94,21 @@ public partial class ThemedPicker : ContentView
         }
     }
 
-    private bool _isOpeningModal;
+    // ==================== Открытие модальной страницы ====================
+
+    private DateTime _lastOpenAttempt = DateTime.MinValue;
 
     private async void OnTapped(object? sender, EventArgs e)
     {
         if (!IsEnabled) return;
         if (ItemsSource is null || ItemsSource.Count == 0) return;
 
-        if (_isOpeningModal) return;
-        _isOpeningModal = true;
+        // Защита от двойного тапа: игнорируем повторный тап в течение 400 мс.
+        // Это заменяет старый флаг _isOpeningModal, который мог «застрять»
+        // в true, если модалка не закрылась корректно (например, при навигации).
+        var now = DateTime.UtcNow;
+        if ((now - _lastOpenAttempt).TotalMilliseconds < 400) return;
+        _lastOpenAttempt = now;
 
         try
         {
@@ -113,10 +129,6 @@ public partial class ThemedPicker : ContentView
         catch
         {
             // Молча выходим — если что-то упало в UI, чтобы не блокировать приложение
-        }
-        finally
-        {
-            _isOpeningModal = false;
         }
     }
 

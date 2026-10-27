@@ -617,25 +617,51 @@ public partial class MainViewModel : ObservableObject, ITransactionFormViewModel
         finally { IsBusy = false; }
     }
 
+    // ==================== Тап по карточке ====================
+
     [RelayCommand]
     private async Task HandleCardTapAsync(Transaction? transaction)
     {
         if (transaction is null) return;
-        if (IsSelectionMode) { ToggleSelection(transaction); return; }
+
+        if (IsSelectionMode)
+        {
+            ToggleSelection(transaction);
+            return;
+        }
 
         var sign = transaction.Type == TransactionType.Income ? "+" : "−";
         var title = $"{sign}{transaction.Amount:N0} ₽ · {transaction.CategoryName}";
-        var choice = await _dialogs.ShowActionSheetAsync(title, "Отмена", "Редактировать", "Удалить");
 
-        if (choice == "Редактировать") await StartEditAsync(transaction);
-        else if (choice == "Удалить") await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
+        var choice = await _dialogs.ShowActionSheetAsync(
+            title,
+            "Отмена",
+            "Подробнее",
+            "Редактировать",
+            "Удалить");
+
+        if (choice == "Подробнее")
+        {
+            await ShowDetailsAsync(transaction);
+        }
+        else if (choice == "Редактировать")
+        {
+            await StartEditAsync(transaction);
+        }
+        else if (choice == "Удалить")
+        {
+            await DeleteTransactionCoreAsync(transaction, skipConfirmation: false);
+        }
     }
 
-    [RelayCommand]
-    private void ToggleExpand(Transaction? transaction)
+    private async Task ShowDetailsAsync(Transaction transaction)
     {
-        if (transaction is null || IsSelectionMode) return;
-        transaction.IsExpanded = !transaction.IsExpanded;
+        var page = Shell.Current?.CurrentPage ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
+
+        var detailsPage = new Controls.TransactionDetailsPage(transaction);
+        await page.Navigation.PushModalAsync(detailsPage);
+        await detailsPage.WaitForCloseAsync();
     }
 
     // ==================== Мультивыбор ====================

@@ -45,9 +45,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IQRCodeService, QRCodeService>();
         builder.Services.AddSingleton<IReceiptApiService, ReceiptApiService>();
 
-        // ==================== ViewModels — Singleton ====================
+        // ViewModels — Singleton
         builder.Services.AddSingleton<MainViewModel>();
-        builder.Services.AddSingleton<HistoryViewModel>();
+        builder.Services.AddTransient<HistoryViewModel>();   // ← было Singleton
         builder.Services.AddSingleton<StatsViewModel>();
         builder.Services.AddSingleton<ForecastViewModel>();
         builder.Services.AddSingleton<CategoriesViewModel>();
@@ -57,11 +57,11 @@ public static class MauiProgram
         // Форма редактирования напоминания — Transient
         builder.Services.AddTransient<RecurringEditViewModel>();
 
-        // ==================== Страницы — Singleton ====================
+        // Страницы — Singleton
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<SplashPage>();
         builder.Services.AddSingleton<MainPage>();
-        builder.Services.AddSingleton<HistoryPage>();
+        builder.Services.AddTransient<HistoryPage>();        // ← было Singleton
         builder.Services.AddSingleton<StatsPage>();
         builder.Services.AddSingleton<CategoriesPage>();
         builder.Services.AddSingleton<SettingsPage>();

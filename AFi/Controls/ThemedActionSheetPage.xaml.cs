@@ -29,14 +29,20 @@ public partial class ThemedActionSheetPage : ContentPage
 
     public Task<string?> WaitForResultAsync() => _tcs.Task;
 
+    // ==================== Анимация открытия ====================
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
 
+        // CardBorder в XAML имеет TranslationY="400" и Opacity="0".
+        // Анимируем появление карточки снизу.
         await Task.WhenAll(
             CardBorder.TranslateToAsync(0, 0, 250, Easing.CubicOut),
             CardBorder.FadeToAsync(1, 200));
     }
+
+    // ==================== Закрытие ====================
 
     private async Task CloseAsync(string? result)
     {
@@ -49,12 +55,25 @@ public partial class ThemedActionSheetPage : ContentPage
         _tcs.TrySetResult(result);
     }
 
+    // ==================== Построение кнопок ====================
+
     private void BuildActions(string[] actions)
     {
         foreach (var action in actions)
         {
+            // ==================== Семантика кнопки ====================
+            // Удалить — деструктивное действие (красный).
+            // Подробнее / Просмотр / Открыть — нейтральное (только смотрит данные).
+            // Всё остальное (Редактировать, Скачать и т.д.) — акцентное (PrimaryColor).
+
             var isDestructive = action.Equals("Удалить", StringComparison.OrdinalIgnoreCase);
-            var isPrimary = !isDestructive;
+
+            var isNeutral =
+                action.Equals("Подробнее", StringComparison.OrdinalIgnoreCase) ||
+                action.Equals("Просмотр", StringComparison.OrdinalIgnoreCase) ||
+                action.Equals("Открыть", StringComparison.OrdinalIgnoreCase);
+
+            var isPrimary = !isDestructive && !isNeutral;
 
             var border = new Border
             {
@@ -71,7 +90,7 @@ public partial class ThemedActionSheetPage : ContentPage
             {
                 Text = action,
                 FontSize = 15,
-                FontAttributes = FontAttributes.Bold,
+                FontAttributes = isNeutral ? FontAttributes.None : FontAttributes.Bold,
                 HorizontalOptions = LayoutOptions.Center,
                 VerticalOptions = LayoutOptions.Center,
             };
@@ -81,15 +100,15 @@ public partial class ThemedActionSheetPage : ContentPage
                 border.SetDynamicResource(Border.StrokeProperty, "DangerColor");
                 label.SetDynamicResource(Label.TextColorProperty, "DangerColor");
             }
+            else if (isNeutral)
+            {
+                border.SetDynamicResource(Border.StrokeProperty, "CardBorderColor");
+                label.SetDynamicResource(Label.TextColorProperty, "TextPrimaryColor");
+            }
             else if (isPrimary)
             {
                 border.SetDynamicResource(Border.StrokeProperty, "PrimaryColor");
                 label.SetDynamicResource(Label.TextColorProperty, "PrimaryColor");
-            }
-            else
-            {
-                border.SetDynamicResource(Border.StrokeProperty, "CardBorderColor");
-                label.SetDynamicResource(Label.TextColorProperty, "TextPrimaryColor");
             }
 
             border.Content = label;

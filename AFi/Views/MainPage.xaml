@@ -215,7 +215,7 @@
                                     </Border.GestureRecognizers>
 
                                     <Grid ColumnDefinitions="*,Auto"
-                                          RowDefinitions="Auto,Auto,Auto,Auto">
+                                          RowDefinitions="Auto,Auto,Auto">
 
                                         <Label Grid.Row="0" Grid.Column="0"
                                                Text="{Binding DisplayCategoryName}"
@@ -244,107 +244,25 @@
 
                                         <Label Grid.Row="1" Grid.Column="0"
                                                Grid.ColumnSpan="2"
+                                               Text="{Binding DateAndNote}"
                                                FontSize="12"
-                                               TextColor="{DynamicResource TextSecondaryColor}">
-                                            <Label.Text>
-                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                    <Binding Path="Date" />
-                                                    <Binding Path="Note" />
-                                                </MultiBinding>
-                                            </Label.Text>
-                                        </Label>
+                                               TextColor="{DynamicResource TextSecondaryColor}" />
 
-                                        <Grid Grid.Row="2" Grid.Column="0"
-                                              Grid.ColumnSpan="2"
-                                              IsVisible="{Binding HasExtraDetails}"
-                                              Margin="0,6,0,0">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer
-                                                    Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleExpandCommand}"
-                                                    CommandParameter="{Binding .}" />
-                                            </Grid.GestureRecognizers>
-
-                                            <HorizontalStackLayout Spacing="6">
-                                                <Label FontSize="11"
-                                                       TextColor="{DynamicResource PrimaryColor}"
-                                                       VerticalOptions="Center">
-                                                    <Label.Triggers>
-                                                        <DataTrigger TargetType="Label"
-                                                                     Binding="{Binding IsExpanded}"
-                                                                     Value="False">
-                                                            <Setter Property="Text" Value="▸" />
-                                                        </DataTrigger>
-                                                        <DataTrigger TargetType="Label"
-                                                                     Binding="{Binding IsExpanded}"
-                                                                     Value="True">
-                                                            <Setter Property="Text" Value="▾" />
-                                                        </DataTrigger>
-                                                    </Label.Triggers>
-                                                </Label>
-
-                                                <Label Text="{Binding ExtraDetailsLabel}"
-                                                       FontSize="11"
-                                                       FontAttributes="Bold"
-                                                       TextColor="{DynamicResource PrimaryColor}"
-                                                       VerticalOptions="Center" />
-                                            </HorizontalStackLayout>
-                                        </Grid>
-
-                                        <VerticalStackLayout Grid.Row="3"
-                                                             Grid.Column="0"
-                                                             Grid.ColumnSpan="2"
-                                                             IsVisible="{Binding IsExpanded}"
-                                                             Spacing="10"
-                                                             Margin="0,8,0,0">
-
-                                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
-                                                                 IsVisible="{Binding HasItems}"
-                                                                 Spacing="4">
-                                                <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:TransactionItem">
-                                                        <Grid ColumnDefinitions="*,Auto,Auto"
-                                                              ColumnSpacing="8">
-                                                            <Label Grid.Column="0"
-                                                                   Text="{Binding Name}"
-                                                                   FontSize="12"
-                                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                                   LineBreakMode="TailTruncation" />
-
-                                                            <Label Grid.Column="1"
-                                                                   Text="{Binding SummaryText}"
-                                                                   FontSize="11"
-                                                                   TextColor="{DynamicResource TextSecondaryColor}" />
-
-                                                            <Label Grid.Column="2"
-                                                                   Text="{Binding TotalText}"
-                                                                   FontSize="12"
-                                                                   FontAttributes="Bold"
-                                                                   TextColor="{DynamicResource TextPrimaryColor}"
-                                                                   WidthRequest="70"
-                                                                   HorizontalTextAlignment="End" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </BindableLayout.ItemTemplate>
-                                            </VerticalStackLayout>
-
-                                            <Border IsVisible="{Binding HasReceipt}"
-                                                    Stroke="{DynamicResource CardBorderColor}"
-                                                    StrokeThickness="1"
-                                                    StrokeShape="RoundRectangle 6"
-                                                    Padding="0"
-                                                    WidthRequest="100"
-                                                    HeightRequest="100"
-                                                    HorizontalOptions="Start">
-                                                <Border.GestureRecognizers>
-                                                    <TapGestureRecognizer
-                                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ViewReceiptCommand}"
-                                                        CommandParameter="{Binding .}" />
-                                                </Border.GestureRecognizers>
-                                                <Image Source="{Binding ReceiptImageSource}"
-                                                       Aspect="AspectFill" />
-                                            </Border>
-
-                                        </VerticalStackLayout>
+                                        <HorizontalStackLayout Grid.Row="2" Grid.Column="0"
+                                                               Grid.ColumnSpan="2"
+                                                               Spacing="6"
+                                                               Margin="0,6,0,0"
+                                                               IsVisible="{Binding HasExtraDetails}">
+                                            <Label Text="▸"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource PrimaryColor}"
+                                                   VerticalOptions="Center" />
+                                            <Label Text="{Binding ExtraDetailsLabel}"
+                                                   FontSize="11"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource PrimaryColor}"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
 
                                     </Grid>
                                 </Border>
@@ -414,15 +332,9 @@
 
                                         <Label Grid.Row="1" Grid.Column="1"
                                                Grid.ColumnSpan="2"
+                                               Text="{Binding DateAndNote}"
                                                FontSize="12"
-                                               TextColor="{DynamicResource TextSecondaryColor}">
-                                            <Label.Text>
-                                                <MultiBinding StringFormat="{}{0:dd.MM.yyyy} · {1}">
-                                                    <Binding Path="Date" />
-                                                    <Binding Path="Note" />
-                                                </MultiBinding>
-                                            </Label.Text>
-                                        </Label>
+                                               TextColor="{DynamicResource TextSecondaryColor}" />
 
                                     </Grid>
                                 </Border>
@@ -495,25 +407,6 @@
                         Padding="16,0" />
             </Grid>
         </Border>
-
-        <!-- ==================== Overlay загрузки ==================== -->
-        <Grid IsVisible="{Binding IsInitialLoading}"
-              BackgroundColor="{DynamicResource PageBackgroundColor}"
-              InputTransparent="False">
-            <VerticalStackLayout HorizontalOptions="Center"
-                                 VerticalOptions="Center"
-                                 Spacing="15">
-                <ActivityIndicator IsRunning="True"
-                                   Color="{DynamicResource PrimaryColor}"
-                                   WidthRequest="50"
-                                   HeightRequest="50" />
-                <Label Text="Загрузка..."
-                       FontSize="15"
-                       TextColor="{DynamicResource TextSecondaryColor}"
-                       HorizontalOptions="Center" />
-            </VerticalStackLayout>
-        </Grid>
-
     </Grid>
 
 </ContentPage>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:AFi.Models"
+             x:Class="AFi.Controls.TransactionDetailsPage"
+             x:DataType="models:Transaction"
+             BackgroundColor="#80000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+        <!-- Прозрачный слой для тапа вне карточки -->
+        <BoxView BackgroundColor="Transparent">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOutsideTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- Карточка деталей -->
+        <Border Stroke="{DynamicResource CardBorderColor}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 14"
+                Padding="0"
+                Margin="15"
+                VerticalOptions="End"
+                HorizontalOptions="Fill"
+                MaximumHeightRequest="600"
+                BackgroundColor="{DynamicResource CardBackgroundColor}">
+
+            <Grid RowDefinitions="Auto,*,Auto">
+
+                <!-- ==================== Заголовок ==================== -->
+                <Grid Grid.Row="0"
+                      Padding="20,18,20,14"
+                      ColumnDefinitions="*,Auto"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="4">
+
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Text="{Binding DisplayCategoryName}"
+                           FontSize="17"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimaryColor}" />
+
+                    <Label Grid.Row="0" Grid.Column="1"
+                           Text="{Binding Amount, StringFormat='{0:N0} ₽'}"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Type}"
+                                         Value="1">
+                                <Setter Property="TextColor" Value="{DynamicResource DangerColor}" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Type}"
+                                         Value="0">
+                                <Setter Property="TextColor" Value="{DynamicResource SuccessColor}" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+
+                    <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="{Binding DateAndNote}"
+                           FontSize="12"
+                           TextColor="{DynamicResource TextSecondaryColor}" />
+                </Grid>
+
+                <BoxView Grid.Row="0"
+                         HeightRequest="1"
+                         Color="{DynamicResource DividerColor}"
+                         VerticalOptions="End" />
+
+                <!-- ==================== Прокручиваемое содержимое ==================== -->
+                <ScrollView Grid.Row="1">
+                    <VerticalStackLayout Padding="20" Spacing="12">
+
+                        <!-- Заглушка, если нечего показывать -->
+                        <Label x:Name="NoExtrasLabel"
+                               Text="Нет позиций и фото"
+                               FontSize="13"
+                               TextColor="{DynamicResource TextSecondaryColor}"
+                               HorizontalOptions="Center"
+                               Margin="0,20,0,20"
+                               IsVisible="False" />
+
+                        <!-- Позиции чека -->
+                        <Label Text="Позиции чека"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               IsVisible="{Binding HasItems}" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}"
+                                             IsVisible="{Binding HasItems}"
+                                             Spacing="6">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="models:TransactionItem">
+                                    <Border Stroke="{DynamicResource CardBorderColor}"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="10,8"
+                                            BackgroundColor="{DynamicResource PageBackgroundColor}">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                            <Label Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                   LineBreakMode="TailTruncation" />
+
+                                            <Label Grid.Row="0" Grid.Column="1"
+                                                   Text="{Binding TotalText}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource TextPrimaryColor}"
+                                                   HorizontalOptions="End" />
+
+                                            <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                   Text="{Binding SummaryText}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource TextSecondaryColor}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                        <!-- Фото чека -->
+                        <Label Text="Фото чека"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimaryColor}"
+                               Margin="0,8,0,0"
+                               IsVisible="{Binding HasReceipt}" />
+
+                        <Border IsVisible="{Binding HasReceipt}"
+                                Stroke="{DynamicResource CardBorderColor}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="0"
+                                HeightRequest="250"
+                                HorizontalOptions="Fill">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReceiptTapped" />
+                            </Border.GestureRecognizers>
+                            <Image Source="{Binding ReceiptImageSource}"
+                                   Aspect="AspectFit" />
+                        </Border>
+
+                    </VerticalStackLayout>
+                </ScrollView>
+
+                <BoxView Grid.Row="1"
+                         HeightRequest="1"
+                         Color="{DynamicResource DividerColor}"
+                         VerticalOptions="End" />
+
+                <!-- ==================== Кнопка закрытия ==================== -->
+                <Button Grid.Row="2"
+                        Text="Закрыть"
+                        Clicked="OnCloseClicked"
+                        BackgroundColor="{DynamicResource PrimaryColor}"
+                        TextColor="{DynamicResource PrimaryTextColor}"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        FontSize="14"
+                        Margin="15,12,15,15" />
+
+            </Grid>
+        </Border>
+    </Grid>
+
+</ContentPage>

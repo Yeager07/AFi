@@ -16,6 +16,7 @@ public partial class StatsViewModel : ObservableObject, IRecipient<DataChangedMe
 
     private readonly DatabaseService _db;
     private readonly IThemeService _themeService;
+    private readonly IDialogService _dialogs;
 
     // ==================== Управление свежестью данных ====================
     private bool _initialLoaded;
@@ -82,10 +83,11 @@ public partial class StatsViewModel : ObservableObject, IRecipient<DataChangedMe
 
     private List<(DateTime Month, decimal Income, decimal Expense)> _lastMonthly = new();
 
-    public StatsViewModel(DatabaseService db, IThemeService themeService)
+    public StatsViewModel(DatabaseService db, IThemeService themeService, IDialogService dialogs)
     {
         _db = db;
         _themeService = themeService;
+        _dialogs = dialogs;
 
         _themeService.ThemeChanged += OnThemeChanged;
 
@@ -169,11 +171,41 @@ public partial class StatsViewModel : ObservableObject, IRecipient<DataChangedMe
         await ReloadSummaryForCurrentModeAsync();
     }
 
+    // ==================== Тап по карточке категории ====================
+
     [RelayCommand]
-    private async Task GoToHistoryAsync(LegendItem? item)
+    private async Task HandleLegendTapAsync(LegendItem? item)
     {
         if (item is null) return;
 
+        var choice = await _dialogs.ShowActionSheetAsync(
+            item.CategoryName,
+            "Отмена",
+            "Подробнее",
+            "Показать в истории");
+
+        if (choice == "Подробнее")
+        {
+            await ShowDetailsAsync(item);
+        }
+        else if (choice == "Показать в истории")
+        {
+            await GoToHistoryForItemAsync(item);
+        }
+    }
+
+    private async Task ShowDetailsAsync(LegendItem item)
+    {
+        var page = Shell.Current?.CurrentPage ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
+
+        var detailsPage = new Controls.CategoryDetailsPage(item);
+        await page.Navigation.PushModalAsync(detailsPage);
+        await detailsPage.WaitForCloseAsync();
+    }
+
+    private async Task GoToHistoryForItemAsync(LegendItem item)
+    {
         var fi = SelectedFilterIndex;
         var categoryParam = Uri.EscapeDataString(item.CategoryName);
 
@@ -185,15 +217,6 @@ public partial class StatsViewModel : ObservableObject, IRecipient<DataChangedMe
         }
 
         await Shell.Current.GoToAsync(url);
-    }
-
-    [RelayCommand]
-    private void ToggleLegendExpand(LegendItem? item)
-    {
-        if (item is null) return;
-        if (!item.HasTopItems) return;
-
-        item.IsExpanded = !item.IsExpanded;
     }
 
     // ==================== Загрузка данных ====================
